@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import builtins
 import copy
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from ipakit import load_ipa_features
+from ipakit import _clts_profile as clts_profile
+from ipakit import clts_mapping, load_ipa_features
+from ipakit._clts_profile import core_bipa_basis, core_bipa_spec, profile_basis
+from ipakit._form_profile import graph_profile
+from ipakit._graph_facts import FeatureDeclaration
 from ipakit._identity import identity_fingerprint
 from ipakit.clts import (
     MASTER_FEATURES,
@@ -23,10 +29,10 @@ from ipakit.clts_mapping import (
     ENHANCEMENT_GAP_KINDS,
     MappingAuthority,
     MappingInvalid,
-    ProfilePending,
     _native_witnesses,
     _queues,
     _source_witnesses,
+    build_authority,
     build_mapping_artifacts,
     read_authority,
     reviewed_rules,
@@ -51,7 +57,17 @@ def test_resealed_census_with_wrong_source_hash_is_refused_offline() -> None:
         MappingAuthority(reseal(data))
 
 
-def test_offline_mapping_artifacts_match_their_committed_bytes() -> None:
+def test_offline_mapping_artifacts_match_their_committed_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = builtins.__import__
+
+    def blocked(name, *args, **kwargs):
+        if name.split(".")[0] == "pyclts":
+            raise AssertionError("pyclts import attempted")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", blocked)
     root = Path(__file__).resolve().parents[1]
     authority = read_authority()
     assert (
@@ -655,15 +671,127 @@ def test_shipped_authority_refuses_catalog_payload_and_bad_counts(payload: str) 
         MappingAuthority(reseal(data))
 
 
-def test_profile_pending_and_caller_mutation_do_not_change_authority() -> None:
+def test_bound_profile_and_caller_mutation_do_not_change_authority() -> None:
     authority = read_authority()
     before = authority.identity
     data = authority.to_data()
     data["rules"]["rules"].clear()
     assert authority.identity == before
-    for fingerprint in (None, "fake-reviewed-profile"):
-        with pytest.raises(ProfilePending):
-            authority.require_import_profile(fingerprint)
+    assert authority.require_import_profile(core_bipa_spec()) is None
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {
+            "house_fields": (
+                FeatureDeclaration(
+                    "changed-house", ("urn:changed-house", "changed-house")
+                ),
+            )
+        },
+        {"kinds": ("consonant", "vowel")},
+        {"domains": {"features": (False,)}},
+        {"domains": {"features": (0,)}},
+        {"provider_fingerprint": "sha256:" + "1" * 64},
+        {"manifest_fingerprint": "sha256:" + "2" * 64},
+        {"manifest_kind": "interim"},
+    ],
+)
+def test_import_profile_basis_guard_covers_every_nonmapping_component(
+    change: dict,
+) -> None:
+    original = core_bipa_spec(
+        mapping_identity=(
+            "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+        )
+    )
+    changed = replace(original, **change)
+    assert changed.mapping_identity == original.mapping_identity
+    assert profile_basis(changed) != profile_basis(original)
+    authority = read_authority()
+    with pytest.raises(MappingInvalid, match="profile basis"):
+        authority._require_profile_basis(changed)
+
+
+def test_import_profile_mapping_identity_guard_is_separate() -> None:
+    authority = read_authority()
+    original = core_bipa_spec()
+    changed = replace(original, mapping_identity="sha256:" + "0" * 64)
+    assert profile_basis(changed) == profile_basis(original)
+    with pytest.raises(MappingInvalid, match="mapping identity"):
+        authority.require_import_profile(changed)
+
+
+def test_import_profile_final_manifest_guard_precedes_mapping_guard() -> None:
+    changed = replace(
+        core_bipa_spec(),
+        manifest_kind="interim",
+        mapping_identity="sha256:" + "0" * 64,
+    )
+    with pytest.raises(ValueError, match="manifest kind mismatch"):
+        read_authority().require_import_profile(changed)
+
+
+def test_rules_pin_profile_family_and_basis_as_literals() -> None:
+    binding = reviewed_rules()["profile_binding"]
+    assert binding["profile"] == {"id": "ipakit-clts-source", "version": 1}
+    assert binding["basis"] == (
+        "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
+    )
+    assert read_authority().identity == (
+        "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+    )
+
+
+def test_reader_refuses_stale_profile_binding(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(
+        clts_profile.ADAPTER_OUTCOMES["excluded"], "marker", "unknown-sound"
+    )
+    with pytest.raises(MappingInvalid, match="profile binding") as error:
+        read_authority()
+    assert "recomputed profile basis: sha256:" in str(error.value)
+    assert reviewed_rules()["profile_binding"]["basis"] not in str(error.value)
+
+
+def test_builder_refuses_to_silently_rebind_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(
+        clts_profile.ADAPTER_OUTCOMES["excluded"], "marker", "unknown-sound"
+    )
+    monkeypatch.setattr(
+        clts_mapping,
+        "validate_source",
+        lambda path: pytest.fail("builder continued past profile binding"),
+    )
+    with pytest.raises(MappingInvalid, match="profile binding") as error:
+        build_authority(Path("unused"), snapshot=read_snapshot())
+    assert "recomputed profile basis: sha256:" in str(error.value)
+    assert reviewed_rules()["profile_binding"]["basis"] not in str(error.value)
+
+
+def test_core_basis_does_not_read_mapping_authority(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def refused(*args, **kwargs):
+        raise AssertionError("mapping authority read")
+
+    monkeypatch.setattr(clts_mapping, "read_authority", refused)
+    assert core_bipa_basis() == (
+        "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
+    )
+
+
+@pytest.mark.parametrize(
+    "wrong",
+    [None, pytest.param("form-profile", id="form-profile-fingerprint")],
+)
+def test_import_profile_type_guard_refuses_non_source_profiles(wrong) -> None:
+    if wrong == "form-profile":
+        wrong = graph_profile(load_ipa_features()).name
+    with pytest.raises(MappingInvalid, match="SourceProfileSpec"):
+        read_authority().require_import_profile(wrong)
 
 
 def test_gap_report_is_generated_and_enhancement_dispositions_are_scoped() -> None:

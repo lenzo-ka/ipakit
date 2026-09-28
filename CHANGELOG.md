@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The CLTS mapping records its reviewed source-profile basis, and import compatibility refuses a different profile.
 - A final, verified CLTS core-BIPA receipt ships as `manifest.json`.
 - `ˢ`, `ʳ`, and `ʶ` write distinct sibilant, trilled, and uvular release values.
 - `ᵐ` writes the distinct `bilabial-nasal` release value; `ⁿ` remains generic nasal release.

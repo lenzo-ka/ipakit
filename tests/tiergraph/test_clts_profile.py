@@ -16,6 +16,7 @@ from ipakit._clts_profile import (
     ORDER,
     SourceProfileSpec,
     construct,
+    core_bipa_basis,
     core_bipa_resolutions,
     core_bipa_spec,
     declarations,
@@ -23,6 +24,7 @@ from ipakit._clts_profile import (
     manifest_metadata,
     metadata,
     name,
+    profile_basis,
     require_final_manifest,
     require_manifest_kind,
     restore,
@@ -279,13 +281,54 @@ def test_core_bipa_spec_binds_verified_final_manifest():
     manifest = manifest_metadata()
     assert schema.provider_fingerprint == snapshot.identity
     assert schema.mapping_identity == (
-        "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb"
+        "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+    )
+    assert core_bipa_basis() == (
+        "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
+    )
+    assert schema.identity == (
+        "sha256:72ae0792c6889823631512545e4b3164796e50ef6e5a9a85d91c8ae550669e97"
     )
     assert schema.manifest_kind == manifest["kind"] == FINAL_MANIFEST_KIND
     assert schema.manifest_fingerprint == manifest["fingerprint"]
     require_final_manifest(schema)
     with pytest.raises(ValueError, match="manifest kind mismatch"):
         require_manifest_kind(schema, "interim")
+
+
+def test_profile_basis_excludes_exactly_mapping_with_literal_keys():
+    schema = core_bipa_spec(
+        mapping_identity=(
+            "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+        )
+    )
+    material = metadata(schema)
+    basis_material = {
+        key: value
+        for key, value in material.items()
+        if key not in {"mapping", "fingerprint"}
+    }
+    assert set(basis_material) == {
+        "id",
+        "version",
+        "roles",
+        "schema",
+        "fields",
+        "house-fields",
+        "domains",
+        "kinds",
+        "source",
+        "provider",
+        "manifest",
+        "coverage",
+        "invalidation",
+        "decides",
+        "undecided",
+    }
+    assert profile_basis(schema) == identity_fingerprint(basis_material)
+    assert profile_basis(
+        replace(schema, mapping_identity="sha256:" + "0" * 64)
+    ) == profile_basis(schema)
 
 
 def test_core_bipa_committed_example_has_hand_authored_facts():
@@ -317,7 +360,7 @@ def test_core_bipa_committed_example_has_hand_authored_facts():
         "outside-artifact-domain",
         "resolved",
     ]
-    mapping = "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb"
+    mapping = "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
     assert projections == (
         {
             "mapping": mapping,
@@ -359,12 +402,29 @@ def test_core_bipa_committed_example_has_hand_authored_facts():
 
 def test_core_bipa_example_regeneration_is_byte_equal():
     root = Path(__file__).resolve().parents[2]
+    code = r"""
+import builtins, runpy, sys
+original = builtins.__import__
+def blocked(name, *args, **kwargs):
+    if name.split('.')[0] == 'pyclts':
+        raise AssertionError('pyclts import attempted')
+    return original(name, *args, **kwargs)
+builtins.__import__ = blocked
+sys.argv = [sys.argv[1]]
+runpy.run_path(sys.argv[0], run_name='__main__')
+"""
     result = subprocess.run(
-        [sys.executable, "scripts/clts_profile_example.py"],
+        [
+            sys.executable,
+            "-c",
+            code,
+            str(root / "scripts/clts_profile_example.py"),
+        ],
         cwd=root,
         capture_output=True,
-        check=True,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
     )
+    assert result.returncode == 0, result.stderr.decode()
     assert result.stdout == CORE_EXAMPLE.read_bytes()
 
 

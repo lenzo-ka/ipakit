@@ -1,8 +1,8 @@
 # CLTS semantic correspondence — bounded initial authority
 
-Mapping identity: `sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb`.
+Mapping identity: `sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9`.
 
-Finite declaration accounting is not complete semantic conversion. B2 profile binding and token-level structural import remain pending.
+Finite declaration accounting is not complete semantic conversion. The mapping is bound to the reviewed source-profile basis; public Form import remains pending.
 
 Generated from the [reviewed mapping authority](clts-mapping.md). Only master declarations are included; catalog observations remain external research. CLTS master declarations are CC BY 4.0; see the [mapping notice](../ipakit/data/clts/MAPPING-NOTICE.txt), [source policy](../ipakit/data/clts/source.json) and [CLTS audit](clts-audit.md). Native declarations retain their repository license.
 

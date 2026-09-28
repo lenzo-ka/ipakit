@@ -12118,7 +12118,7 @@
       }
     ]
   },
-  "identity": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+  "identity": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
   "native_witnesses": {
     "consonant-duration-long/1": {
       "constituents": 1,
@@ -13060,7 +13060,13 @@
       "Strict native witnesses t͡s, d͡r and d͡ʁ retain two constituents with fricative, trill and uvular-fricative release material respectively.",
       "Resolver witnesses aː, aˑ, aːː, ă, tː, tˑ and tːː assert the reviewed duration values; native feature_values preserves their distinct written length values."
     ],
-    "profile_binding": null,
+    "profile_binding": {
+      "basis": "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba",
+      "profile": {
+        "id": "ipakit-clts-source",
+        "version": 1
+      }
+    },
     "release_adjudication": "A superscript phase mark is represented by a value of the release feature. A tie asserts a constituent sequence and remains distinct from that release value.",
     "rules": [
       {

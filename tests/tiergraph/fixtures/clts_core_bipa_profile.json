@@ -859,7 +859,7 @@
               {
                 "name": "ipakit-declared-0:projection",
                 "value": {
-                  "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+                  "mapping": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
                   "status": "supported"
                 },
                 "value_type": "json"
@@ -908,7 +908,7 @@
               {
                 "name": "ipakit-declared-0:projection",
                 "value": {
-                  "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+                  "mapping": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
                   "status": "supported"
                 },
                 "value_type": "json"
@@ -939,7 +939,7 @@
               {
                 "name": "ipakit-declared-0:projection",
                 "value": {
-                  "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+                  "mapping": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
                   "status": "supported"
                 },
                 "value_type": "json"
@@ -970,7 +970,7 @@
               {
                 "name": "ipakit-declared-0:projection",
                 "value": {
-                  "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+                  "mapping": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
                   "status": "not-attempted"
                 },
                 "value_type": "json"
@@ -1001,7 +1001,7 @@
               {
                 "name": "ipakit-declared-0:projection",
                 "value": {
-                  "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+                  "mapping": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
                   "status": "not-attempted"
                 },
                 "value_type": "json"
@@ -1032,7 +1032,7 @@
               {
                 "name": "ipakit-declared-0:projection",
                 "value": {
-                  "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+                  "mapping": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
                   "status": "not-attempted"
                 },
                 "value_type": "json"
@@ -1064,7 +1064,7 @@
                 "name": "ipakit-declared-0:projection",
                 "value": {
                   "code": "unasserted-house-juncture",
-                  "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+                  "mapping": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
                   "status": "unsupported"
                 },
                 "value_type": "json"
@@ -1396,7 +1396,7 @@
                       "normalized"
                     ]
                   },
-                  "fingerprint": "sha256:20baa4f94b5038095b43f695e1693192658073cf7239d31ca7e60de0c70a5cbf",
+                  "fingerprint": "sha256:72ae0792c6889823631512545e4b3164796e50ef6e5a9a85d91c8ae550669e97",
                   "house-fields": {
                     "house-kind": [
                       "https://ipakit.dev/tiergraph/house-projection/v1",
@@ -1418,7 +1418,7 @@
                     "fingerprint": "sha256:2d8aa509068014cbec6a3fb017f6ed6fd72e98b0b02eeeec03dd86eb2408070b",
                     "kind": "final"
                   },
-                  "mapping": "sha256:e6492824a390e03fefe16b472f0f98eb64883bc1716e7a1d7314180f519d3dcb",
+                  "mapping": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
                   "provider": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
                   "relation-count": 1,
                   "relations-present": true,

@@ -254,9 +254,9 @@ def _schema(spec: SourceProfileSpec) -> dict[str, Any]:
     }
 
 
-def metadata(spec: SourceProfileSpec) -> dict[str, Any]:
-    """Fingerprint declarations/conditions, not the digest or instance values."""
-    material = {
+def _profile_material(spec: SourceProfileSpec) -> dict[str, Any]:
+    """Return all fingerprint material, including the mapping edge."""
+    return {
         "id": PROFILE,
         "version": 1,
         "roles": {key: value.to_data() for key, value in spec.roles().items()},
@@ -288,6 +288,18 @@ def metadata(spec: SourceProfileSpec) -> dict[str, Any]:
         "decides": list(DECIDES),
         "undecided": list(UNDECIDED),
     }
+
+
+def profile_basis(spec: SourceProfileSpec) -> str:
+    """Fingerprint the complete source-profile material except its mapping."""
+    material = _profile_material(spec)
+    del material["mapping"]
+    return identity_fingerprint(material)
+
+
+def metadata(spec: SourceProfileSpec) -> dict[str, Any]:
+    """Fingerprint declarations/conditions, not the digest or instance values."""
+    material = _profile_material(spec)
     return {**material, "fingerprint": identity_fingerprint(material)}
 
 
@@ -686,25 +698,13 @@ def require_final_manifest(spec: SourceProfileSpec) -> None:
         raise ArtifactInvalid("source profile does not bind the verified CLTS manifest")
 
 
-def core_bipa_spec(
-    snapshot: Snapshot | None = None, mapping_identity: str | None = None
+def _core_bipa_spec(
+    snapshot: Snapshot, manifest_fingerprint: str, mapping_identity: str
 ) -> SourceProfileSpec:
-    """Bind the internal source profile to the shipped finite core snapshot."""
-    snapshot = read_snapshot() if snapshot is None else snapshot
-    if mapping_identity is None:
-        from .clts_mapping import read_authority
-
-        mapping_identity = read_authority().identity
     data = snapshot.to_data()
     if data["domain"] != "core-bipa":
         raise ValueError("core-BIPA profile requires the finite core snapshot")
-    shipped = read_snapshot()
-    if snapshot.identity != shipped.identity:
-        raise ArtifactInvalid(
-            "core-BIPA profile requires the manifested shipped snapshot"
-        )
     source = data["source"]["source"]
-    manifest_fingerprint = verify_manifest()
     return SourceProfileSpec(
         SourceMetadata(
             source["upstream"],
@@ -728,6 +728,36 @@ def core_bipa_spec(
         ),
         manifest_kind=FINAL_MANIFEST_KIND,
     )
+
+
+def core_bipa_basis(snapshot: Snapshot | None = None) -> str:
+    """Recompute the acyclic profile basis from shipped declarations and bytes."""
+    snapshot = read_snapshot() if snapshot is None else snapshot
+    manifest = manifest_metadata(snapshot=snapshot)
+    spec = _core_bipa_spec(
+        snapshot,
+        str(manifest["fingerprint"]),
+        "profile-basis-excludes-mapping",
+    )
+    return profile_basis(spec)
+
+
+def core_bipa_spec(
+    snapshot: Snapshot | None = None, mapping_identity: str | None = None
+) -> SourceProfileSpec:
+    """Bind the internal source profile to the shipped finite core snapshot."""
+    snapshot = read_snapshot() if snapshot is None else snapshot
+    if mapping_identity is None:
+        from .clts_mapping import read_authority
+
+        mapping_identity = read_authority().identity
+    shipped = read_snapshot()
+    if snapshot.identity != shipped.identity:
+        raise ArtifactInvalid(
+            "core-BIPA profile requires the manifested shipped snapshot"
+        )
+    manifest_fingerprint = verify_manifest()
+    return _core_bipa_spec(snapshot, manifest_fingerprint, mapping_identity)
 
 
 def core_bipa_resolutions(

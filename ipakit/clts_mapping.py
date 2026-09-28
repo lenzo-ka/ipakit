@@ -57,6 +57,30 @@ class ProfilePending(MappingInvalid):
     """The source profile has not supplied final structural compatibility."""
 
 
+def _require_profile_binding(
+    rules: dict[str, Any], snapshot: Snapshot | None = None
+) -> str:
+    """Require the reviewed rules to bind the recomputed acyclic profile basis."""
+    from ._clts_profile import PROFILE_FAMILY, core_bipa_basis
+
+    basis = core_bipa_basis(snapshot)
+    binding = rules.get("profile_binding")
+    if (
+        not isinstance(binding, dict)
+        or set(binding) != {"profile", "basis"}
+        or binding.get("profile") != PROFILE_FAMILY
+    ):
+        raise MappingInvalid(
+            f"profile binding does not name the current profile family; "
+            f"recomputed basis: {basis}"
+        )
+    if binding.get("basis") != basis:
+        raise MappingInvalid(
+            f"profile binding differs from recomputed profile basis: {basis}"
+        )
+    return basis
+
+
 def reviewed_rules() -> dict[str, Any]:
     """Read the one authored correspondence authority, not a second feature map."""
     return cast(
@@ -405,10 +429,7 @@ class MappingAuthority:
             or data["bindings"]["source_metadata"] != pin["source"]
         ):
             raise MappingInvalid("source identity receipt differs from accepted policy")
-        if data["rules"]["profile_binding"] is not None:
-            raise ProfilePending(
-                "B2 binding is not implemented by this authority version"
-            )
+        _require_profile_binding(data["rules"])
         validate_declaration_census(data["census"])
         for name, actual in data["census"]["sources"]["clts"].items():
             if pin["inputs"].get(name) != actual:
@@ -542,9 +563,26 @@ class MappingAuthority:
                 raise MappingInvalid("unknown declaration precondition")
         return cast(dict[str, Any], json.loads(json.dumps(rule["target"])))
 
-    def require_import_profile(self, fingerprint: str | None) -> None:
-        """Never advertise structural compatibility before B2 has been bound."""
-        raise ProfilePending("reviewed B2 profile binding is required before import")
+    def _require_profile_basis(self, spec: Any) -> None:
+        from ._clts_profile import profile_basis
+
+        actual = profile_basis(spec)
+        expected = self.to_data()["rules"]["profile_binding"]["basis"]
+        if actual != expected:
+            raise MappingInvalid(
+                f"source profile basis mismatch; recomputed basis: {actual}"
+            )
+
+    def require_import_profile(self, spec: Any) -> None:
+        """Require the reviewed mapping, final manifest and complete profile basis."""
+        from ._clts_profile import SourceProfileSpec, require_final_manifest
+
+        if not isinstance(spec, SourceProfileSpec):
+            raise MappingInvalid("import profile must be a SourceProfileSpec")
+        require_final_manifest(spec)
+        if spec.mapping_identity != self.identity:
+            raise MappingInvalid("source profile mapping identity mismatch")
+        self._require_profile_basis(spec)
 
     def gap_report(self) -> str:
         """Derive one deterministic report, not another classification source."""
@@ -555,7 +593,7 @@ class MappingAuthority:
             f"Mapping identity: `{self.identity}`.",
             "",
             "Finite declaration accounting is not complete semantic conversion. "
-            "B2 profile binding and token-level structural import remain pending.",
+            "The mapping is bound to the reviewed source-profile basis; public Form import remains pending.",
             "",
             "Generated from the [reviewed mapping authority](clts-mapping.md). "
             "Only master declarations are included; catalog observations remain external research. "
@@ -628,11 +666,12 @@ def build_authority(
     root: Path, *, snapshot: Snapshot | None = None, ipa: IPAFeatures | None = None
 ) -> MappingAuthority:
     """Validate pinned inputs and construct the bounded authority without writing."""
+    snapshot = snapshot or read_snapshot()
+    rules = reviewed_rules()
+    _require_profile_binding(rules, snapshot)
     source = validate_source(root)
     census = declaration_audit(root, include_catalog=False)
-    snapshot = snapshot or read_snapshot()
     ipa = ipa or load_ipa_features()
-    rules = reviewed_rules()
     _source_witnesses(rules, snapshot)
     native = _native_witnesses(rules, ipa)
     phones = _native_phones(rules)

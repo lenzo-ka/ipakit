@@ -12,7 +12,7 @@
   ],
   "direction": "clts-to-ipakit",
   "scope": "exact-plain-stop-witnesses-release-and-duration-declarations",
-  "profile_binding": null,
+  "profile_binding": {"profile": {"id": "ipakit-clts-source", "version": 1}, "basis": "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"},
   "source_kind": "consonant",
   "source_feature_model": "clts",
   "target_feature_model": "ipakit",
