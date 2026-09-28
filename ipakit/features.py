@@ -15,7 +15,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, TypeVar
 
-from ._convert import longest_match, require_convertible
+from ._convert import InputLossWarning, longest_match, require_convertible
 from .analysis import AnalysisMixin
 from .anatomy import landmark_arc
 from .constants import (
@@ -82,7 +82,7 @@ FeatureQuery = Mapping[str, str] | Iterable[str]
 """A feature-to-value mapping or an iterable of feature query terms."""
 
 
-class FeatureNarrowingWarning(UserWarning):
+class FeatureNarrowingWarning(InputLossWarning):
     """A flat feature read omitted information carried by its input unit."""
 
 

@@ -30,6 +30,10 @@ if TYPE_CHECKING:
     from .form import Form
 
 
+class InputLossWarning(UserWarning):
+    """A public soft read returned an answer after losing supplied input."""
+
+
 @functools.lru_cache(maxsize=1)
 def ipa_features() -> IPAFeatures:
     """The inventory these helpers read, built on first use.
@@ -101,6 +105,7 @@ def report_unconvertible(
         f"dropped {len(skipped)} unconvertible symbol(s) "
         f"{sorted(set(skipped))} converting {what}: the result is shorter "
         "than the input. Pass strict=True to raise instead.",
+        InputLossWarning,
         stacklevel=stacklevel,
     )
 

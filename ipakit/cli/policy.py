@@ -61,6 +61,7 @@ import warnings
 from collections.abc import Iterable
 from pathlib import Path
 
+from .._convert import InputLossWarning
 from ..distance_model import UnusableReferenceWarning
 
 #: Exit status for a run that produced output from input it could not read
@@ -95,10 +96,11 @@ def input_reports(caught: Iterable[warnings.WarningMessage]) -> list[str]:
     The test is the *shape* of the report rather than a list of today's
     messages: except for explicitly typed non-input warnings, a
     ``UserWarning`` raised from inside ipakit is the library telling its
-    caller that something it was handed could not be carried. All four such
-    sites are that -- an unregistered symbol, an unbound tie, a stress mark
-    that reached no unit, a phoneset member outside the distance matrix --
-    and a fifth would be caught without this function being touched.
+    caller that something it was handed could not be carried. A typed
+    :class:`~ipakit._convert.InputLossWarning` counts too when its deliberate
+    ``stacklevel`` points at the library caller. All such sites share those
+    two structural signals, so a further one is caught without its message
+    being added here.
 
     Anything raised from outside the package says nothing about the
     input and must not move the exit status: a ``DeprecationWarning``
@@ -119,7 +121,7 @@ def input_reports(caught: Iterable[warnings.WarningMessage]) -> list[str]:
             inside = Path(entry.filename).resolve().is_relative_to(_PACKAGE)
         except (OSError, ValueError):  # pragma: no cover - unparseable path
             inside = False
-        if not inside:
+        if not issubclass(entry.category, InputLossWarning) and not inside:
             continue
         reports.append(entry)
     return _fold(reports)

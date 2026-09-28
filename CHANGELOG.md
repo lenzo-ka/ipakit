@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Public soft-reader warnings are classified as input loss even when their warning location names the library caller.
+
 ### Added
 
 - The CLTS mapping records its reviewed source-profile basis, and import compatibility refuses a different profile.
