@@ -6,6 +6,7 @@ import builtins
 import copy
 import json
 import os
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -106,7 +107,7 @@ def test_live_mapping_regeneration_is_current_and_deterministic() -> None:
 def test_four_reviewed_plain_stop_projections_are_import_ready() -> None:
     authority, snapshot = read_authority(), read_snapshot()
     profile = core_bipa_spec()
-    mapping = "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
+    mapping = "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
     assert authority.eligibility("p", snapshot, profile=profile) == {
         "token": "p",
         "mapping_identity": mapping,
@@ -214,6 +215,14 @@ def test_projection_outcomes_are_literal_per_resolved_occurrence() -> None:
         )
         == expected
     )
+
+
+def test_unattempted_eligibility_has_one_consistent_reason() -> None:
+    result = read_authority().eligibility(
+        "+", read_snapshot(), profile=core_bipa_spec()
+    )
+    assert result["reason"] == "not-attempted"
+    assert result["projection"]["status"] == "not-attempted"
 
 
 def test_no_profile_never_claims_import_readiness() -> None:
@@ -800,6 +809,13 @@ def test_house_projection_requires_an_admitted_rule_class() -> None:
         _native_witnesses(rules, load_ipa_features())
 
 
+def test_token_rule_cannot_null_its_house_projection() -> None:
+    rules = reviewed_rules()
+    rules["rules"][0]["house_projection"] = None
+    with pytest.raises(MappingInvalid, match="house projection"):
+        _native_witnesses(rules, load_ipa_features())
+
+
 def test_declaration_rules_cannot_license_house_projection() -> None:
     rules = reviewed_rules()
     rules["declaration_rules"][0]["house_projection"] = [
@@ -892,6 +908,14 @@ def test_bound_profile_and_caller_mutation_do_not_change_authority() -> None:
                 ),
             )
         },
+        {
+            "fields": (
+                FeatureDeclaration(
+                    "changed-source", ("urn:changed-source", "changed-source")
+                ),
+            )
+        },
+        {"source": "changed-version"},
         {"kinds": ("consonant", "vowel")},
         {"domains": {"features": (False,)}},
         {"domains": {"features": (0,)}},
@@ -905,9 +929,11 @@ def test_import_profile_basis_guard_covers_every_nonmapping_component(
 ) -> None:
     original = core_bipa_spec(
         mapping_identity=(
-            "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
+            "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
         )
     )
+    if change.get("source") == "changed-version":
+        change = {"source": replace(original.source, version="changed-version")}
     changed = replace(original, **change)
     assert changed.mapping_identity == original.mapping_identity
     assert profile_basis(changed) != profile_basis(original)
@@ -933,18 +959,27 @@ def test_import_profile_final_manifest_guard_precedes_mapping_guard() -> None:
         manifest_kind="interim",
         mapping_identity="sha256:" + "0" * 64,
     )
-    with pytest.raises(ValueError, match="manifest kind mismatch"):
+    with pytest.raises(MappingInvalid, match="manifest kind mismatch"):
         read_authority().require_import_profile(changed)
 
 
+def test_dead_pending_profile_state_is_not_exposed() -> None:
+    assert not hasattr(clts_mapping, "ProfilePending")
+
+
 def test_rules_pin_profile_family_and_basis_as_literals() -> None:
-    binding = reviewed_rules()["profile_binding"]
+    rules = reviewed_rules()
+    assert rules["scope"] == (
+        "profile-bound-reviewed-plain-stop-projections-"
+        "release-and-duration-declarations"
+    )
+    binding = rules["profile_binding"]
     assert binding["profile"] == {"id": "ipakit-clts-source", "version": 1}
     assert binding["basis"] == (
         "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
     )
     assert read_authority().identity == (
-        "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
+        "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
     )
 
 
@@ -975,16 +1010,20 @@ def test_builder_refuses_to_silently_rebind_profile(
     assert reviewed_rules()["profile_binding"]["basis"] not in str(error.value)
 
 
-def test_core_basis_does_not_read_mapping_authority(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def refused(*args, **kwargs):
-        raise AssertionError("mapping authority read")
+def test_core_basis_does_not_open_semantic_files() -> None:
+    opened: list[str] = []
+    active = True
 
-    monkeypatch.setattr(clts_mapping, "read_authority", refused)
+    def audit(event: str, args: tuple) -> None:
+        if active and event == "open":
+            opened.append(str(args[0]))
+
+    sys.addaudithook(audit)
     assert core_bipa_basis() == (
         "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
     )
+    active = False
+    assert not [path for path in opened if Path(path).name.startswith("semantic-")]
 
 
 @pytest.mark.parametrize(

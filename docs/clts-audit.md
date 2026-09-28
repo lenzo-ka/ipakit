@@ -37,9 +37,9 @@ upstream resolver may support additional sounds.
 Inspect `requested`, `entries` and `excluded` for the exact generated
 population. The full CLTS-to-Form importer and general semantic feature mapping
 remain separate work. The [bounded correspondence authority](clts-mapping.md)
-records four exact plain-stop witnesses; its
+records profile-bound reviewed plain-stop projections; its
 [generated gap report](clts-gaps.md) accounts for master declarations while
-keeping unresolved mappings and pending structural-profile binding explicit.
+keeping unresolved mappings and the bounded profile context explicit.
 
 <a id="substitute-the-cost-model-not-the-aligner"></a>
 

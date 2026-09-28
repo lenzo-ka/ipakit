@@ -1,9 +1,9 @@
 """Predicates over public library readers that may accept lossy input.
 
-The CLI has its own parser-tree sweep.  This is the corresponding library
-boundary: the named declarations are compared with the live public surface,
-then every declared soft reader receives a literal input containing one symbol
-that none of the supported notations registers.
+The CLI has its own parser-tree sweep. This gate covers flat top-level functions
+plus the five enumerated ``CMUMapper`` and ``IPAFeatures`` methods below. Every
+declared soft reader receives a literal input containing one symbol that none of
+the supported notations registers.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import ipakit
 import ipakit.corpus
 import ipakit.textgrid
 import pytest
-from ipakit.cli.policy import input_reports
+from ipakit._warning_policy import input_reports
 
 PROBE_SYMBOL = "§"
 PROBE = f"c{PROBE_SYMBOL}t"
@@ -144,6 +144,15 @@ def test_every_flat_public_function_is_classified() -> None:
         f"unclassified public functions: {sorted(public - declared)}; "
         f"declared names absent from the public surface: {sorted(declared - public)}"
     )
+
+
+def test_input_loss_warning_is_a_public_contract() -> None:
+    assert "InputLossWarning" in ipakit.__all__
+    assert issubclass(ipakit.InputLossWarning, UserWarning)
+
+
+def test_loss_classifier_is_library_visible_without_the_cli() -> None:
+    assert input_reports.__module__ == "ipakit._warning_policy"
 
 
 @dataclass(frozen=True)
@@ -319,6 +328,21 @@ def test_public_soft_reader_warns_or_refuses(probe: Probe, tmp_path: Path) -> No
             assert all(PROBE_SYMBOL in report for report in reports)
             result = "warns" if reports else "SILENT"
     assert result == probe.expected, f"{probe.surface}: {result}"
+
+
+def test_classifier_ignores_an_unrelated_package_warning_beside_loss() -> None:
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        ipakit.tokenize(PROBE)
+        warnings.warn_explicit(
+            "unrelated package warning",
+            UserWarning,
+            "/site-packages/unrelated/__init__.py",
+            1,
+        )
+    reports = input_reports(caught)
+    assert len(reports) == 1
+    assert PROBE_SYMBOL in reports[0]
 
 
 @pytest.mark.parametrize(

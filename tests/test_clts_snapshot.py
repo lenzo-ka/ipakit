@@ -32,6 +32,13 @@ from ipakit.extraction import (
 from ipakit.feature_sets import FeatureSets, OutsideDomain, jaccard
 
 
+def test_committed_core_snapshot_matches_canonical_serialization() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (root / "ipakit/data/clts/core.json").read_bytes() == (
+        clts.read_snapshot().dumps().encode()
+    )
+
+
 def test_native_set_arithmetic_is_not_qualified_feature_arithmetic() -> None:
     geometry = FeatureSets(
         "test", {"x": {"front", "vowel"}, "y": {"front", "consonant"}, "z": set()}

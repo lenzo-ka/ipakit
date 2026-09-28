@@ -7,11 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Profile-bound CLTS eligibility now derives reviewed plain-stop projections and affricate-juncture refusals.
-- Public soft-reader warnings are classified as input loss even when their warning location names the library caller.
-
 ### Added
 
+- `InputLossWarning` is exported for callers that need to classify lossy public reads.
 - The CLTS mapping records its reviewed source-profile basis, and import compatibility refuses a different profile.
 - A final, verified CLTS core-BIPA receipt ships as `manifest.json`.
 - `ˢ`, `ʳ`, and `ʶ` write distinct sibilant, trilled, and uvular release values.
@@ -26,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - CLTS input documents refuse a second host for one tone, a duplicate relation, an unencodable raw, and an out-of-range integer time, each at its location.
+- Profile-bound CLTS eligibility now derives reviewed plain-stop projections and affricate-juncture refusals.
+- Profile-bound CLTS eligibility reports unattempted occurrences with the `not-attempted` reason.
+- Public soft-reader warnings are classified as input loss even when their warning location names the library caller.
 - PHOIBLE's shipped `manifest.json` now uses the shared source-receipt schema, and Panphon provenance lives only in its adjacent receipt.
 - Every CLI command declares the notation it reads, or that it reads none; the fourteen that read one without saying so now name it in their help.
 

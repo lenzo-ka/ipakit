@@ -35,6 +35,7 @@ __version__ = "0.3.0"
 # and ``ipakit.features`` and nothing else in the package, so the dependency
 # runs one way and the model stays free of the renderer.
 from . import corpus, rules, tract_svg
+from ._convert import InputLossWarning
 
 # The tutorial notebook is carried in the package and copied out on
 # request, so `pip install ipakit` is the whole of getting the teaching
@@ -1771,6 +1772,7 @@ __all__ = [
     "Correspondence",
     "DistanceModel",
     "UnusableReferenceWarning",
+    "InputLossWarning",
     "Feature",
     "FormBuilder",
     "IPAFeatures",
