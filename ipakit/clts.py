@@ -745,3 +745,11 @@ def validate_parity(root: Path, snapshot: Snapshot) -> dict[str, Any]:
         "unique_sets": len(unique),
         "pairs_including_diagonal": pairs,
     }
+
+
+# Imported last so the strict public adapter cannot participate in this
+# module's frozen-reader initialization or either module's fresh import path.
+from ._clts_import import CLTSImport as CLTSImport  # noqa: E402
+from ._clts_import import CLTSInputError as CLTSInputError  # noqa: E402
+from ._clts_import import import_document as import_document  # noqa: E402
+from ._clts_import import import_tokens as import_tokens  # noqa: E402
