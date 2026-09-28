@@ -26,6 +26,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
+from ._convert import InputLossWarning
 from .constants import DEFAULT_CONFUSION
 from .distance import (
     Alignment,
@@ -467,7 +468,7 @@ class DistanceModel:
                     "spellings of known compounds; import the phoneset with "
                     "IPAFeatures.import_phoneset() to canonicalize them."
                 )
-            warnings.warn(message, stacklevel=3)
+            warnings.warn(message, InputLossWarning, stacklevel=3)
         return cls(
             ipa,
             phoneset.name,

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Public soft-reader warnings are classified as input loss even when their warning location names the library caller.
+
 ### Added
 
 - A final, verified CLTS core-BIPA receipt ships as `manifest.json`.
