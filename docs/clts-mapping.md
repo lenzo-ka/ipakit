@@ -28,12 +28,14 @@ those tokens import-ready. Exact source recovery is a separate operation from
 reverse phonetic conversion.
 
 The authority binds the accepted CLTS policy, source input hashes, frozen core
-identity, native declaration hash, effective native metric fingerprint, and its
-own contents. Changed populations or provider bindings require reconciliation.
-These fingerprints detect changed inputs. Authentication and phonetic equivalence
-require separate evidence. `require_import_profile(...)` currently refuses every
-request: final structural compatibility awaits the reviewed source-profile
-binding. The `target` field identifies the research witness; import remains pending.
+identity, native declaration hash, effective native metric fingerprint, its own
+contents, and the hand-reviewed basis of the source profile. The basis covers the
+complete profile fingerprint material except the mapping identity, avoiding a
+cycle while making `require_import_profile(...)` refuse a different profile or
+mapping. Changed populations or provider bindings require reconciliation. These
+fingerprints detect changed inputs. Authentication and phonetic equivalence
+require separate evidence. The `target` field identifies the research witness;
+public Form import remains pending.
 
 ## Declarations, rules, and token eligibility
 
