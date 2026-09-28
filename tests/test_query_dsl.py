@@ -60,6 +60,49 @@ def test_braces_are_a_conjunction_and_a_literal_is_exact():
     assert corpus.parse_query("ˈa").target.brace_base is False
 
 
+@pytest.mark.parametrize(
+    "source", ["ˈa{stress=secondary}", "[stress=primary]{stress=secondary}"]
+)
+def test_a_brace_cannot_overwrite_its_base(source):
+    with pytest.raises(corpus.QueryParseError) as caught:
+        corpus.parse_query(source)
+    assert "constrains feature 'stress' to 'primary' and 'secondary'" in str(
+        caught.value
+    )
+    assert "a query is a conjunction" in str(caught.value)
+
+
+def test_a_consistent_brace_repeats_or_adds_a_required_value():
+    text = "ˈapaˌa˥a"
+    assert [(m.text, m.offset) for m in corpus.find(text, "ˈa{stress=primary}")] == [
+        ("ˈa", 0)
+    ]
+    assert [(m.text, m.offset) for m in corpus.find(text, "a{stress=primary}")] == [
+        ("ˈa", 0)
+    ]
+
+
+@pytest.mark.parametrize(
+    "source", ["[vowel -none]", "a{stress=none}", "a / _ [stress=none]"]
+)
+def test_an_unspelled_value_is_refused_in_every_read_position(source):
+    with pytest.raises(corpus.QueryParseError) as caught:
+        corpus.parse_query(source)
+    message = str(caught.value)
+    assert "declared unspelled value 'none'" in message
+    assert "cannot be a positive or negative read term" in message
+    assert "[-primary -secondary]" in message
+
+
+def test_unstressed_reads_and_writes_keep_their_existing_spellings():
+    matches = ipakit.find("ˈapaˌa˥a", ["vowel", "-primary", "-secondary"])
+    assert [(offset, segment.to_ipa()) for offset, segment in matches] == [
+        (2, "a"),
+        (4, "a"),
+    ]
+    assert ipakit.rewrite("ˈa", "a -> [stress=none]") == "a"
+
+
 @pytest.mark.parametrize("source", ["#{+voiced}", ".{+voiced}", "‿{+voiced}"])
 def test_feature_braces_refuse_boundary_bases(source):
     with pytest.raises(corpus.QueryParseError) as caught:

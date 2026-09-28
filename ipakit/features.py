@@ -2047,6 +2047,26 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 if clash := self._require_value(positive, key, value):
                     unresolved.append(clash)
 
+        for name, unspelled in self.unspelled_values.items():
+            if not (
+                positive.get(name) == unspelled
+                or unspelled in inclusive.get(name, ())
+                or unspelled in negative.get(name, ())
+            ):
+                continue
+            alternatives = sorted(self.features[name].values_set - {unspelled})
+            exclusion = "[" + " ".join(f"-{value}" for value in alternatives) + "]"
+            description = (
+                "unstressed units"
+                if name == "stress"
+                else f"units with no {name} value"
+            )
+            unresolved.append(
+                f"{name}={unspelled!r} names the declared unspelled value "
+                f"{unspelled!r}; no unit stores it, so it cannot be a positive "
+                f"or negative read term. Match {description} with {exclusion!r}"
+            )
+
         unresolved.extend(self._structural_terms(positive, inclusive, negative))
         if unresolved:
             raise ValueError("; ".join(unresolved))

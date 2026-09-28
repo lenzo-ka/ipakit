@@ -267,7 +267,7 @@ ipa.rule("t -> ɾ / [vowel] _ [vowel -stress]")
 
 Values resolve through the alias table and `expand()`, including spelled aliases and generative overlaps such as `bilabial^velar`. Natural classes use bare terms: write `[obstruent]`. The invalid value expression `[manner=obstruent]` raises an error with that correction. The executable example above guards this refusal.
 
-**Every** term must resolve, at every arity: a bracket that mixes a good term with a bad one raises rather than dropping the bad one, since a dropped term is a narrower query silently widened. The message names what would have worked. `stress` has no `-` to take — its values are `none`, `secondary` and `primary` — so a query about stress negates the marked values, `[vowel -primary -secondary]`; `none` is the unspelled ordinal anchor and matches no unit on its own.
+**Every** term must resolve, at every arity: a bracket that mixes a good term with a bad one raises rather than dropping the bad one, since a dropped term is a narrower query silently widened. The message names what would have worked. `stress` has no `-` to take — its values are `none`, `secondary` and `primary` — so a query about stress negates the marked values, `[vowel -primary -secondary]`. `none` is the unspelled ordinal anchor: no unit stores it, so positive and negative read terms naming it are refused and point to `[-primary -secondary]`. A write may still assign `stress=none` to clear stress.
 
 ## A rule may bind a value and re-use it
 
