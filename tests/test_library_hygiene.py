@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Literal
 
 import ipakit
+import ipakit.clts
 import ipakit.corpus
 import ipakit.textgrid
 import pytest
@@ -23,6 +24,11 @@ from ipakit._warning_policy import input_reports
 
 PROBE_SYMBOL = "§"
 PROBE = f"c{PROBE_SYMBOL}t"
+
+# These strict readers live on the opt-in ``ipakit.clts`` surface rather than
+# in ``ipakit.__all__``. Exact equality makes every future reader declare and
+# exercise its refusal behavior here.
+PUBLIC_IMPORT_READERS = {"import_tokens", "import_document"}
 
 
 # Every function exported by ``ipakit.__all__`` is classified literally.  The
@@ -144,6 +150,54 @@ def test_every_flat_public_function_is_classified() -> None:
         f"unclassified public functions: {sorted(public - declared)}; "
         f"declared names absent from the public surface: {sorted(declared - public)}"
     )
+
+
+def _public_import_readers() -> set[str]:
+    return {
+        name
+        for name, function in inspect.getmembers(ipakit.clts, inspect.isfunction)
+        if not name.startswith("_") and function.__module__ == "ipakit._clts_import"
+    }
+
+
+def test_every_public_clts_import_reader_is_classified() -> None:
+    assert _public_import_readers() == PUBLIC_IMPORT_READERS
+
+
+@pytest.mark.parametrize("name", sorted(PUBLIC_IMPORT_READERS))
+def test_public_clts_import_reader_refuses_or_reports_loss(name: str) -> None:
+    reader = getattr(ipakit.clts, name)
+    with pytest.raises(ipakit.clts.CLTSInputError) as caught:
+        reader("unsegmented")
+    assert caught.value.code == "segmentation-required"
+    value = (
+        ["a"]
+        if name == "import_tokens"
+        else {
+            "format": "ipakit-clts-input",
+            "version": 1,
+            "tokens": [{"raw": "a"}],
+        }
+    )
+    result = reader(value)
+    assert result.status == "refused"
+    assert result.report()["diagnostics"] == [
+        {
+            "action": "refused",
+            "code": "outside-reviewed-token-context",
+            "stage": "house-projection",
+            "token": 0,
+        }
+    ]
+
+
+def test_fault_injection_new_clts_import_reader_is_named(monkeypatch) -> None:
+    def import_extra(value):
+        return value
+
+    import_extra.__module__ = "ipakit._clts_import"
+    monkeypatch.setattr(ipakit.clts, "import_extra", import_extra, raising=False)
+    assert _public_import_readers() - PUBLIC_IMPORT_READERS == {"import_extra"}
 
 
 def test_input_loss_warning_is_a_public_contract() -> None:

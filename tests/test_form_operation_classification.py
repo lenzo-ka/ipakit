@@ -30,6 +30,7 @@ ADDITIONAL_PUBLIC_FORM_OPERATIONS = (
     "ipakit.features.IPAFeatures.read",
     "ipakit.features.IPAFeatures.read_json",
     "ipakit.form.FormBuilder.build",
+    "ipakit.clts.CLTSImport.house_form",
     "ipakit.rules.Derivation.to_form",
     "ipakit.rules.Rule.rewrite",
     "ipakit.syllable.Syllabifier.__call__",
