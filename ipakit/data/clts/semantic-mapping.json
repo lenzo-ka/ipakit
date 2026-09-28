@@ -12118,7 +12118,7 @@
       }
     ]
   },
-  "identity": "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9",
+  "identity": "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860",
   "native_witnesses": {
     "consonant-duration-long/1": {
       "constituents": 1,
@@ -13067,10 +13067,29 @@
         "version": 1
       }
     },
+    "projection_refusals": [
+      {
+        "code": "unasserted-house-juncture",
+        "deferred_by": "tie-conversion",
+        "id": "affricate-juncture/1",
+        "source": [
+          "clts",
+          "consonant",
+          "manner",
+          "affricate"
+        ]
+      }
+    ],
     "release_adjudication": "A superscript phase mark is represented by a value of the release feature. A tie asserts a constituent sequence and remains distinct from that release value.",
     "rules": [
       {
         "disposition": "conditional/composite",
+        "house_projection": [
+          {
+            "house-kind": "segment",
+            "house-symbol": "p"
+          }
+        ],
         "id": "plain-p/1",
         "raw": "p",
         "source": {
@@ -13087,6 +13106,12 @@
       },
       {
         "disposition": "conditional/composite",
+        "house_projection": [
+          {
+            "house-kind": "segment",
+            "house-symbol": "b"
+          }
+        ],
         "id": "plain-b/1",
         "raw": "b",
         "source": {
@@ -13103,6 +13128,12 @@
       },
       {
         "disposition": "conditional/composite",
+        "house_projection": [
+          {
+            "house-kind": "segment",
+            "house-symbol": "t"
+          }
+        ],
         "id": "plain-t/1",
         "raw": "t",
         "source": {
@@ -13119,6 +13150,12 @@
       },
       {
         "disposition": "conditional/composite",
+        "house_projection": [
+          {
+            "house-kind": "segment",
+            "house-symbol": "d"
+          }
+        ],
         "id": "plain-d/1",
         "raw": "d",
         "source": {
@@ -13147,7 +13184,7 @@
       "modifiers": 0,
       "prosody": 0
     },
-    "version": 8
+    "version": 9
   },
   "schema": "ipakit-clts-semantic-authority",
   "version": 2

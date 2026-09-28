@@ -12,7 +12,16 @@ from pathlib import Path
 import pytest
 from ipakit import _clts_profile as clts_profile
 from ipakit import clts_mapping, load_ipa_features
-from ipakit._clts_profile import core_bipa_basis, core_bipa_spec, profile_basis
+from ipakit._clts_profile import (
+    construct,
+    core_bipa_basis,
+    core_bipa_resolutions,
+    core_bipa_spec,
+    name,
+    profile_basis,
+    restore,
+)
+from ipakit._containment_projection import declared_value
 from ipakit._form_profile import graph_profile
 from ipakit._graph_facts import FeatureDeclaration
 from ipakit._identity import identity_fingerprint
@@ -38,6 +47,8 @@ from ipakit.clts_mapping import (
     reviewed_rules,
 )
 from ipakit.features import FeatureNarrowingWarning
+
+import tiergraph as tg
 
 
 def reseal(data: dict) -> dict:
@@ -92,8 +103,28 @@ def test_live_mapping_regeneration_is_current_and_deterministic() -> None:
     assert build_mapping_artifacts(Path(value)).artifacts == first.artifacts
 
 
-def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
+def test_four_reviewed_plain_stop_projections_are_import_ready() -> None:
     authority, snapshot = read_authority(), read_snapshot()
+    profile = core_bipa_spec()
+    mapping = "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
+    assert authority.eligibility("p", snapshot, profile=profile) == {
+        "token": "p",
+        "mapping_identity": mapping,
+        "source_identity": (
+            "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4"
+        ),
+        "status": "eligible-witness",
+        "rule_id": "plain-p/1",
+        "target": "p",
+        "import_ready": True,
+        "losses": [],
+        "reason": "reviewed-house-projection",
+        "projection": {
+            "mapping": mapping,
+            "status": "supported",
+            "facts": [{"house-symbol": "p", "house-kind": "segment"}],
+        },
+    }
     expected = {
         "p": ("bilabial", "-"),
         "b": ("bilabial", "+"),
@@ -102,10 +133,10 @@ def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
     }
     data = authority.to_data()
     for token, (place, voiced) in expected.items():
-        result = authority.eligibility(token, snapshot)
+        result = authority.eligibility(token, snapshot, profile=profile)
         assert result["status"] == "eligible-witness"
         assert result["target"] == token
-        assert result["import_ready"] is False
+        assert result["import_ready"] is True
         evidence = data["native_witnesses"][result["rule_id"]]
         assert evidence["asserted_target_predicates"] == {
             "place": place,
@@ -120,18 +151,122 @@ def test_four_complete_plain_stop_witnesses_not_a_general_converter() -> None:
             "prosody": 0,
         }
         assert "airstream" in evidence["additional_native_claims"]
-    for token in ("a", "ts", "t͡s", "t͜s", "ⁿd", "dⁿ", "⁵", "UNKNOWN"):
-        result = authority.eligibility(token, snapshot)
-        assert result["status"] == "unresolved"
-        assert result["target"] is None
+    tokens = tuple(snapshot.to_data()["entries"])
+    projections = authority._projection_records(tokens, snapshot, profile)
+    assert {
+        token
+        for token, projection in zip(tokens, projections, strict=True)
+        if projection["status"] == "supported"
+    } == {"p", "b", "t", "d"}
     with pytest.raises(MappingInvalid, match="inverse"):
-        authority.eligibility("p", snapshot, direction="ipakit-to-clts")
+        authority.eligibility(
+            "p", snapshot, direction="ipakit-to-clts", profile=profile
+        )
+
+
+def test_projection_outcomes_are_literal_per_resolved_occurrence() -> None:
+    authority, snapshot = read_authority(), read_snapshot()
+    profile = core_bipa_spec()
+    mapping = authority.identity
+    expected = {
+        "ts": {
+            "mapping": mapping,
+            "status": "unsupported",
+            "code": "unasserted-house-juncture",
+        },
+        "tˢ": {
+            "mapping": mapping,
+            "status": "unsupported",
+            "code": "unasserted-house-juncture",
+        },
+        "dz": {
+            "mapping": mapping,
+            "status": "unsupported",
+            "code": "unasserted-house-juncture",
+        },
+        "dzː": {
+            "mapping": mapping,
+            "status": "unsupported",
+            "code": "unasserted-house-juncture",
+        },
+        "t͡s": {"mapping": mapping, "status": "not-attempted"},
+        "+": {"mapping": mapping, "status": "not-attempted"},
+        " ɺ̣": {"mapping": mapping, "status": "not-attempted"},
+        "☃": {"mapping": mapping, "status": "not-attempted"},
+        "t̚": {
+            "mapping": mapping,
+            "status": "unsupported",
+            "code": "outside-reviewed-token-context",
+        },
+        "aː": {
+            "mapping": mapping,
+            "status": "unsupported",
+            "code": "outside-reviewed-token-context",
+        },
+    }
+    assert (
+        dict(
+            zip(
+                expected,
+                authority._projection_records(tuple(expected), snapshot, profile),
+                strict=True,
+            )
+        )
+        == expected
+    )
+
+
+def test_no_profile_never_claims_import_readiness() -> None:
+    authority, snapshot = read_authority(), read_snapshot()
+    assert authority.eligibility("p", snapshot) == {
+        "token": "p",
+        "mapping_identity": authority.identity,
+        "source_identity": snapshot.identity,
+        "status": "eligible-witness",
+        "rule_id": "plain-p/1",
+        "target": "p",
+        "import_ready": False,
+        "losses": [],
+        "reason": "import-profile-not-supplied",
+        "projection": None,
+    }
+
+
+def test_authority_projections_construct_with_literal_coverage_and_restore() -> None:
+    authority, snapshot = read_authority(), read_snapshot()
+    profile = core_bipa_spec()
+    cases = (
+        (
+            ("p", "b"),
+            {"status": "complete", "source_complete": True, "house_complete": True},
+        ),
+        (
+            ("p", "b", "ts"),
+            {
+                "status": "preserved",
+                "source_complete": True,
+                "house_complete": False,
+            },
+        ),
+    )
+    for raws, coverage in cases:
+        projections = authority._projection_records(raws, snapshot, profile)
+        resolutions = core_bipa_resolutions(snapshot, raws)
+        graph = construct(list(raws), resolutions, projections, profile)
+        assert (
+            declared_value(graph, tg.ItemRef(name("metadata"), 0), name("coverage"))
+            == coverage
+        )
+        document, restored_resolutions, restored_projections = restore(graph, profile)
+        assert [token["raw"] for token in document["tokens"]] == list(raws)
+        assert restored_resolutions == resolutions
+        assert restored_projections == projections
 
 
 def test_all_finite_declarations_accounted_without_invented_reverse() -> None:
     data = read_authority().to_data()
     assert data["version"] == 2
-    assert data["rules"]["version"] == 8
+    assert data["rules"]["version"] == 9
     assert data["rules"]["disposition_classes"] == [
         "exact under stated conditions",
         "conditional/composite",
@@ -645,6 +780,73 @@ def test_semantic_bindings_checked_beyond_artifact_hash(mutation: str) -> None:
         MappingAuthority(reseal(data))
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("house-symbol", "b"), ("house-kind", "prosody")],
+)
+def test_house_projection_is_checked_against_strict_native_read(
+    field: str, value: str
+) -> None:
+    rules = reviewed_rules()
+    rules["rules"][0]["house_projection"][0][field] = value
+    with pytest.raises(MappingInvalid, match="house projection"):
+        _native_witnesses(rules, load_ipa_features())
+
+
+def test_house_projection_requires_an_admitted_rule_class() -> None:
+    rules = reviewed_rules()
+    rules["rules"][0]["disposition"] = "convention-based or lossy"
+    with pytest.raises(MappingInvalid, match="house projection"):
+        _native_witnesses(rules, load_ipa_features())
+
+
+def test_declaration_rules_cannot_license_house_projection() -> None:
+    rules = reviewed_rules()
+    rules["declaration_rules"][0]["house_projection"] = [
+        {"house-symbol": "t̚", "house-kind": "segment"}
+    ]
+    with pytest.raises(MappingInvalid, match="declaration rule"):
+        _native_witnesses(rules, load_ipa_features())
+
+
+@pytest.mark.parametrize("mutation", ["decision", "affected"])
+def test_projection_refusal_requires_its_deferred_enhancement(mutation: str) -> None:
+    data = read_authority().to_data()
+    rules = data["rules"]
+    enhancement = next(
+        item for item in rules["enhancements"] if item["id"] == "tie-conversion"
+    )
+    if mutation == "decision":
+        enhancement["decision"] = "rejected"
+    else:
+        enhancement["affected_source_declarations"].remove(
+            "clts / consonant / manner / affricate"
+        )
+    with pytest.raises(MappingInvalid, match="projection refusal"):
+        _queues(data["census"], rules)
+
+
+def test_projection_refusal_conflicting_with_token_rule_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data = read_authority().to_data()
+    rules = data["rules"]
+    refusal = rules["projection_refusals"][0]
+    refusal["source"] = ["clts", "consonant", "manner", "stop"]
+    enhancement = next(
+        item for item in rules["enhancements"] if item["id"] == "tie-conversion"
+    )
+    enhancement["affected_source_declarations"].append(
+        "clts / consonant / manner / stop"
+    )
+    data["dispositions"] = _queues(data["census"], rules)
+    monkeypatch.setattr(clts_mapping, "reviewed_rules", lambda: rules)
+    authority = MappingAuthority(reseal(data))
+    profile = core_bipa_spec(mapping_identity=authority.identity)
+    with pytest.raises(MappingInvalid, match="conflicting"):
+        authority.eligibility("p", read_snapshot(), profile=profile)
+
+
 def test_changed_population_refuses_until_reconciled() -> None:
     authority = read_authority()
     census = authority.to_data()["census"]
@@ -703,7 +905,7 @@ def test_import_profile_basis_guard_covers_every_nonmapping_component(
 ) -> None:
     original = core_bipa_spec(
         mapping_identity=(
-            "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+            "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
         )
     )
     changed = replace(original, **change)
@@ -721,6 +923,8 @@ def test_import_profile_mapping_identity_guard_is_separate() -> None:
     assert profile_basis(changed) == profile_basis(original)
     with pytest.raises(MappingInvalid, match="mapping identity"):
         authority.require_import_profile(changed)
+    with pytest.raises(MappingInvalid, match="mapping identity"):
+        authority.eligibility("p", read_snapshot(), profile=changed)
 
 
 def test_import_profile_final_manifest_guard_precedes_mapping_guard() -> None:
@@ -740,7 +944,7 @@ def test_rules_pin_profile_family_and_basis_as_literals() -> None:
         "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
     )
     assert read_authority().identity == (
-        "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+        "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
     )
 
 
@@ -792,6 +996,9 @@ def test_import_profile_type_guard_refuses_non_source_profiles(wrong) -> None:
         wrong = graph_profile(load_ipa_features()).name
     with pytest.raises(MappingInvalid, match="SourceProfileSpec"):
         read_authority().require_import_profile(wrong)
+    if wrong is not None:
+        with pytest.raises(MappingInvalid, match="SourceProfileSpec"):
+            read_authority().eligibility("p", read_snapshot(), profile=wrong)
 
 
 def test_gap_report_is_generated_and_enhancement_dispositions_are_scoped() -> None:

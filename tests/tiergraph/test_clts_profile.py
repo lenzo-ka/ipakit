@@ -281,14 +281,24 @@ def test_core_bipa_spec_binds_verified_final_manifest():
     manifest = manifest_metadata()
     assert schema.provider_fingerprint == snapshot.identity
     assert schema.mapping_identity == (
-        "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+        "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
     )
     assert core_bipa_basis() == (
         "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
     )
     assert schema.identity == (
-        "sha256:72ae0792c6889823631512545e4b3164796e50ef6e5a9a85d91c8ae550669e97"
+        "sha256:97d89d0c1a879618c1de6b7a5f06cd350d143fb5672b0553a7bfd84961a28127"
     )
+    assert [(field.name, field.value_name) for field in schema.house_fields] == [
+        (
+            "house-symbol",
+            ("https://ipakit.dev/tiergraph/house-projection/v1", "symbol"),
+        ),
+        (
+            "house-kind",
+            ("https://ipakit.dev/tiergraph/house-projection/v1", "kind"),
+        ),
+    ]
     assert schema.manifest_kind == manifest["kind"] == FINAL_MANIFEST_KIND
     assert schema.manifest_fingerprint == manifest["fingerprint"]
     require_final_manifest(schema)
@@ -299,7 +309,7 @@ def test_core_bipa_spec_binds_verified_final_manifest():
 def test_profile_basis_excludes_exactly_mapping_with_literal_keys():
     schema = core_bipa_spec(
         mapping_identity=(
-            "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+            "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
         )
     )
     material = metadata(schema)
@@ -360,7 +370,7 @@ def test_core_bipa_committed_example_has_hand_authored_facts():
         "outside-artifact-domain",
         "resolved",
     ]
-    mapping = "sha256:b03736ce99784cf51c8042d6b38358955b4ff239d73afa0ea19d95d4c30b1bc9"
+    mapping = "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860"
     assert projections == (
         {
             "mapping": mapping,
@@ -369,8 +379,8 @@ def test_core_bipa_committed_example_has_hand_authored_facts():
         },
         {
             "mapping": mapping,
-            "status": "supported",
-            "facts": [{"house-symbol": "⁵", "house-kind": "prosody"}],
+            "status": "unsupported",
+            "code": "outside-reviewed-token-context",
         },
         {
             "mapping": mapping,
@@ -954,7 +964,8 @@ from ipakit._clts_profile import core_bipa_spec, restore
 document, records, projections = restore(tg.loads(sys.stdin.read()), core_bipa_spec())
 assert [token['raw'] for token in document['tokens']] == ['t','⁵','t',' ɺ̣','+','☃','ts']
 assert [record['status'] for record in records] == ['resolved','resolved','resolved','unknown-sound','marker','outside-artifact-domain','resolved']
-assert [record['status'] for record in projections] == ['supported','supported','supported','not-attempted','not-attempted','not-attempted','unsupported']
+assert [record['status'] for record in projections] == ['supported','unsupported','supported','not-attempted','not-attempted','not-attempted','unsupported']
+assert projections[1]['code'] == 'outside-reviewed-token-context'
 assert projections[-1]['code'] == 'unasserted-house-juncture'
 """
     python_path = os.pathsep.join(

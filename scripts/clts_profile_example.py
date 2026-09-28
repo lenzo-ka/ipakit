@@ -13,6 +13,7 @@ from ipakit._clts_profile import (
     core_bipa_spec,
 )
 from ipakit.clts import read_snapshot
+from ipakit.clts_mapping import read_authority
 
 import tiergraph as tg
 
@@ -39,32 +40,7 @@ def generate() -> str:
     document = example_document()
     raws = [token["raw"] for token in document["tokens"]]  # type: ignore[index]
     spec = core_bipa_spec(snapshot)
-    projections = [
-        {
-            "mapping": spec.mapping_identity,
-            "status": "supported",
-            "facts": [{"house-symbol": "t", "house-kind": "segment"}],
-        },
-        {
-            "mapping": spec.mapping_identity,
-            "status": "supported",
-            "facts": [{"house-symbol": "⁵", "house-kind": "prosody"}],
-        },
-        {
-            "mapping": spec.mapping_identity,
-            "status": "supported",
-            "facts": [{"house-symbol": "t", "house-kind": "segment"}],
-        },
-        *(
-            {"mapping": spec.mapping_identity, "status": "not-attempted"}
-            for _ in range(3)
-        ),
-        {
-            "mapping": spec.mapping_identity,
-            "status": "unsupported",
-            "code": "unasserted-house-juncture",
-        },
-    ]
+    projections = read_authority()._projection_records(raws, snapshot, spec)
     graph = construct(
         document, core_bipa_resolutions(snapshot, raws), projections, spec
     )
