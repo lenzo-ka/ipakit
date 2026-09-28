@@ -495,10 +495,11 @@ class TestTheTwoArmsRefuseAlike:
         one (feature, value), the dict spelling of it selects the same
         phones.
 
-        A structural feature is refused in both arms rather than answered
-        in either, and the sweep asserts that too. ``level`` is a property
-        of a boundary, a query is asked of a unit, and which way round the
-        term is written does not change either fact.
+        Structural features and declared unspelled values are refused in
+        both arms rather than answered in either, and the sweep asserts that
+        too. ``level`` is a property of a boundary, while ``stress=none`` is
+        stored by no unit; which way round either term is written does not
+        change that fact.
         """
         structural = ipa.features_by_mode.get("structural", frozenset())
         checked = 0
@@ -508,6 +509,14 @@ class TestTheTwoArmsRefuseAlike:
                 if value in _PREFIXES:
                     continue
                 if ipa._resolve_query_term(value) != (name, value):
+                    continue
+                if ipa.unspelled_values.get(name) == value:
+                    for query in ([value], {name: value}):
+                        with pytest.raises(
+                            ValueError, match="declared unspelled value"
+                        ):
+                            ipa.phones_matching(query)
+                    refused += 1
                     continue
                 if name in structural:
                     for query in ([value], {name: value}):
@@ -771,15 +780,13 @@ class TestNoTermIsTrueOfEverything:
             ):
                 universal.append(term)
         resolved = {ipa._resolve_query_term(t.lstrip("-"))[0] for t in universal}
-        # ``articulator`` (above), ``stress`` and ``intrinsic-timing`` have
-        # declared anchors carried by no unit. Stress's ``none`` is spelled by
-        # no mark; intrinsic timing's ``ordinary`` is deliberately unfilled,
-        # including on the taps that state ``brief``. Their negations are true
-        # of everything -- the same projection shape, a value carried by
-        # nothing rather than a term decided by a missing key.
-        assert resolved == {"articulator", "intrinsic-timing", "stress"}, sorted(
-            universal
-        )
+        # ``articulator`` (above) and ``intrinsic-timing`` have declared
+        # values carried by no unit. Intrinsic timing's ``ordinary`` is
+        # deliberately unfilled, including on the taps that state ``brief``.
+        # Their negations are true of everything -- the projection shape, a
+        # value carried by nothing rather than a term decided by a missing
+        # key. Stress's unspelled ``none`` is now refused before this point.
+        assert resolved == {"articulator", "intrinsic-timing"}, sorted(universal)
         assert len(universal) >= 5, sorted(universal)
 
 

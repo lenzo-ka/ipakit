@@ -279,7 +279,7 @@ import itertools
 import re
 import unicodedata
 import warnings
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -1234,6 +1234,67 @@ def _tier_term(text: str, features: IPAFeatures) -> Pattern | None:
     return Pattern(source=text, tier=label, tier_edge=end)
 
 
+def _conjoined_required(
+    source: str,
+    features: IPAFeatures,
+    *constraints: Mapping[str, str],
+) -> dict[str, str]:
+    """Conjoin required values, refusing two values for one feature."""
+    merged: dict[str, str] = {}
+    for constraint in constraints:
+        for key, value in constraint.items():
+            if clash := features._require_value(merged, key, value):
+                raise RuleError(f"{source!r}: {clash}")
+    return merged
+
+
+def _conjoined_included(
+    source: str,
+    features: IPAFeatures,
+    *constraints: Mapping[str, frozenset[str]],
+) -> dict[str, frozenset[str]]:
+    """Conjoin admitted value sets by intersection."""
+    merged: dict[str, set[str]] = {}
+    for constraint in constraints:
+        for key, values in constraint.items():
+            if clash := features._admit_values(
+                merged, key, "postfix brace constraint", values
+            ):
+                raise RuleError(f"{source!r}: {clash}")
+    return {key: frozenset(values) for key, values in merged.items()}
+
+
+def _conjoined_excluded(
+    *constraints: Mapping[str, frozenset[str]],
+) -> dict[str, frozenset[str]]:
+    """Conjoin excluded value sets by union."""
+    merged: dict[str, set[str]] = {}
+    for constraint in constraints:
+        for key, values in constraint.items():
+            merged.setdefault(key, set()).update(values)
+    return {key: frozenset(values) for key, values in merged.items()}
+
+
+def _conjoined_agreements(
+    source: str,
+    *constraints: Mapping[str, Agreement],
+) -> dict[str, Agreement]:
+    """Keep one representable agreement claim for each feature."""
+    merged: dict[str, Agreement] = {}
+    for constraint in constraints:
+        for key, agreement in constraint.items():
+            held = merged.get(key)
+            if held is not None and held != agreement:
+                raise RuleError(
+                    f"{source!r} constrains feature {key!r} with incompatible "
+                    f"agreement variables {held} and {agreement}; a postfix "
+                    "brace is a conjunction, so neither claim may overwrite "
+                    "the other"
+                )
+            merged[key] = agreement
+    return merged
+
+
 def _pattern(source: str, features: IPAFeatures) -> Pattern:
     """Build a pattern from one notation item."""
     text = source.strip()
@@ -1335,14 +1396,30 @@ def _pattern(source: str, features: IPAFeatures) -> Pattern:
             base,
             source=text,
             brace_base=base.literal is not None,
-            seg_required={**base.seg_required, **constraint.seg_required},
-            seg_included={**base.seg_included, **constraint.seg_included},
-            seg_excluded={**base.seg_excluded, **constraint.seg_excluded},
-            pro_required={**base.pro_required, **constraint.pro_required},
-            pro_included={**base.pro_included, **constraint.pro_included},
-            pro_excluded={**base.pro_excluded, **constraint.pro_excluded},
-            seg_agreements={**base.seg_agreements, **constraint.seg_agreements},
-            pro_agreements={**base.pro_agreements, **constraint.pro_agreements},
+            seg_required=_conjoined_required(
+                text, features, base.seg_required, constraint.seg_required
+            ),
+            seg_included=_conjoined_included(
+                text, features, base.seg_included, constraint.seg_included
+            ),
+            seg_excluded=_conjoined_excluded(
+                base.seg_excluded, constraint.seg_excluded
+            ),
+            pro_required=_conjoined_required(
+                text, features, base.pro_required, constraint.pro_required
+            ),
+            pro_included=_conjoined_included(
+                text, features, base.pro_included, constraint.pro_included
+            ),
+            pro_excluded=_conjoined_excluded(
+                base.pro_excluded, constraint.pro_excluded
+            ),
+            seg_agreements=_conjoined_agreements(
+                text, base.seg_agreements, constraint.seg_agreements
+            ),
+            pro_agreements=_conjoined_agreements(
+                text, base.pro_agreements, constraint.pro_agreements
+            ),
         )
     if text.startswith("(") and text.endswith(")"):
         if not text[1:-1].strip():

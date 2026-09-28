@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Postfix brace constraints conjoin with their base instead of overwriting it.
+- Reads refuse declared unspelled values instead of silently matching every unit or none.
 - Feature-valued CLTS release rules now state and enforce their source-assertion condition.
 - The public Form reader refuses declared source facts on a tier with no house unit.
 - Source-profile host relations preserve their supplied order through native graph restoration.

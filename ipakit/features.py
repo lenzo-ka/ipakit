@@ -1666,7 +1666,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 f"is binary, so name a side of it: '+{term}' or '-{term}'"
             )
         if prefix == "-":
-            negated = " ".join(f"-{value}" for value in values)
+            # A declared unspelled value is stored by no unit, so a read
+            # refuses it; the hint names only the values a unit can carry.
+            unspelled = self.unspelled_values.get(term)
+            negated = " ".join(f"-{value}" for value in values if value != unspelled)
             return (
                 f"{spelled!r} resolves to no feature term; feature {term!r} "
                 f"is not binary, so there is no '-' value to take. Its "
@@ -2046,6 +2049,26 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                     continue
                 if clash := self._require_value(positive, key, value):
                     unresolved.append(clash)
+
+        for name, unspelled in self.unspelled_values.items():
+            if not (
+                positive.get(name) == unspelled
+                or unspelled in inclusive.get(name, ())
+                or unspelled in negative.get(name, ())
+            ):
+                continue
+            alternatives = sorted(self.features[name].values_set - {unspelled})
+            exclusion = "[" + " ".join(f"-{value}" for value in alternatives) + "]"
+            description = (
+                "unstressed units"
+                if name == "stress"
+                else f"units with no {name} value"
+            )
+            unresolved.append(
+                f"{name}={unspelled!r} names the declared unspelled value "
+                f"{unspelled!r}; no unit stores it, so it cannot be a positive "
+                f"or negative read term. Match {description} with {exclusion!r}"
+            )
 
         unresolved.extend(self._structural_terms(positive, inclusive, negative))
         if unresolved:
