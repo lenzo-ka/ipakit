@@ -28,7 +28,7 @@ PROBE = f"c{PROBE_SYMBOL}t"
 # These strict readers live on the opt-in ``ipakit.clts`` surface rather than
 # in ``ipakit.__all__``. Exact equality makes every future reader declare and
 # exercise its refusal behavior here.
-PUBLIC_IMPORT_READERS = {"import_tokens", "import_document"}
+PUBLIC_IMPORT_READERS = {"import_tokens", "import_document", "load_import"}
 
 
 # Every function exported by ``ipakit.__all__`` is classified literally.  The
@@ -179,16 +179,19 @@ def test_public_clts_import_reader_refuses_or_reports_loss(name: str) -> None:
     reader = getattr(ipakit.clts, name)
     with pytest.raises(ipakit.clts.CLTSInputError) as caught:
         reader("unsegmented")
-    assert caught.value.code == "segmentation-required"
-    value = (
-        ["a"]
-        if name == "import_tokens"
-        else {
+    assert caught.value.code == (
+        "invalid-envelope" if name == "load_import" else "segmentation-required"
+    )
+    if name == "import_tokens":
+        value = ["a"]
+    else:
+        value = {
             "format": "ipakit-clts-input",
             "version": 1,
             "tokens": [{"raw": "a"}],
         }
-    )
+    if name == "load_import":
+        value = ipakit.clts.import_document(value).to_data()
     result = reader(value)
     assert result.status == "refused"
     assert result.report()["diagnostics"] == [

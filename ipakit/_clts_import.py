@@ -5,12 +5,13 @@ from __future__ import annotations
 import copy
 import functools
 import json
+import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import tiergraph as tg
 
-from ._clts_input import InputError, decode
+from ._clts_input import FORMAT, InputError, decode
 
 if TYPE_CHECKING:
     from .form import Form
@@ -359,3 +360,207 @@ def import_document(document: dict[str, Any]) -> CLTSImport:
     except InputError as error:
         raise _public_error(error) from error
     return _import(decoded)
+
+
+def _canonical_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _pointer_part(value: str) -> str:
+    return value.replace("~", "~0").replace("/", "~1")
+
+
+def _first_difference(left: Any, right: Any, path: str = "") -> str | None:
+    """Return the first canonical-order difference, with type-strict scalars."""
+    if type(left) is not type(right):
+        return path
+    if isinstance(left, dict):
+        left_keys = set(left)
+        right_keys = set(right)
+        for key in sorted(left_keys | right_keys):
+            child = f"{path}/{_pointer_part(key)}"
+            if key not in left_keys or key not in right_keys:
+                return child
+            difference = _first_difference(left[key], right[key], child)
+            if difference is not None:
+                return difference
+        return None
+    if isinstance(left, list):
+        for index, (left_item, right_item) in enumerate(zip(left, right, strict=False)):
+            difference = _first_difference(left_item, right_item, f"{path}/{index}")
+            if difference is not None:
+                return difference
+        return path if len(left) != len(right) else None
+    return None if _canonical_bytes(left) == _canonical_bytes(right) else path
+
+
+def _invalid_envelope(path: str, message: str) -> CLTSInputError:
+    return CLTSInputError("invalid-envelope", path, message)
+
+
+_ENVIRONMENT_CODES = frozenset({"artifact-invalid", "mapping-invalid"})
+
+
+def _parse_envelope(data: str | bytes | dict[str, Any]) -> dict[str, Any]:
+    from .clts import _unique_object
+
+    def invalid_constant(value: str) -> None:
+        raise ValueError(f"invalid JSON constant: {value}")
+
+    def finite_float(value: str) -> float:
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError(f"invalid JSON number: {value} is not finite")
+        return number
+
+    try:
+        if isinstance(data, dict):
+            text = json.dumps(data, ensure_ascii=False, allow_nan=False)
+            parsed = json.loads(
+                text,
+                object_pairs_hook=_unique_object,
+                parse_constant=invalid_constant,
+                parse_float=finite_float,
+            )
+        elif isinstance(data, (str, bytes)):
+            parsed = json.loads(
+                data,
+                object_pairs_hook=_unique_object,
+                parse_constant=invalid_constant,
+                parse_float=finite_float,
+            )
+        else:
+            raise TypeError("saved import must be JSON text, bytes, or an object")
+    except (TypeError, ValueError, UnicodeError, RecursionError) as error:
+        raise _invalid_envelope("", str(error)) from error
+    if not isinstance(parsed, dict):
+        raise _invalid_envelope("", "saved import must be a JSON object")
+    return parsed
+
+
+def _check_envelope_shape(envelope: dict[str, Any]) -> dict[str, Any]:
+    if set(envelope) != {"form", "report"}:
+        raise _invalid_envelope("", "saved import must contain only form and report")
+    report = envelope["report"]
+    if not isinstance(report, dict):
+        raise _invalid_envelope("/report", "report must be an object")
+    required = {
+        "changes",
+        "diagnostics",
+        "house_complete",
+        "occurrences",
+        "provenance",
+        "schema",
+        "source_complete",
+        "status",
+    }
+    if set(report) not in (required, required | {"relations"}):
+        raise _invalid_envelope("/report", "report has an invalid key set")
+
+    schema = report["schema"]
+    if not isinstance(schema, dict) or set(schema) != {"id", "version"}:
+        raise _invalid_envelope("/report/schema", "schema must contain id and version")
+    if type(schema["id"]) is not str or schema["id"] != _SCHEMA["id"]:
+        raise _invalid_envelope("/report/schema/id", "unknown import-result schema id")
+    if type(schema["version"]) is not int or schema["version"] != _SCHEMA["version"]:
+        raise _invalid_envelope(
+            "/report/schema/version", "unknown import-result schema version"
+        )
+
+    status = report["status"]
+    if type(status) is not str or status not in ("complete", "refused"):
+        raise _invalid_envelope("/report/status", "unknown import status")
+    if status == "complete" and envelope["form"] is None:
+        raise _invalid_envelope("/form", "a complete import must contain a form")
+    if status == "refused" and envelope["form"] is not None:
+        raise _invalid_envelope("/form", "a refused import must have a null form")
+    return report
+
+
+def _check_provenance(report: dict[str, Any], binding: _Binding) -> None:
+    actual = report["provenance"]
+    expected = _provenance(binding)
+    if not isinstance(actual, dict):
+        raise CLTSInputError(
+            "provenance-mismatch", "/report/provenance", "provenance differs"
+        )
+    keys = set(actual) | set(expected)
+    for key in sorted(keys):
+        if (
+            key not in actual
+            or key not in expected
+            or _canonical_bytes(actual[key]) != _canonical_bytes(expected[key])
+        ):
+            raise CLTSInputError(
+                "provenance-mismatch",
+                f"/report/provenance/{_pointer_part(key)}",
+                "provenance differs",
+            )
+
+
+def _source_from_report(report: dict[str, Any]) -> dict[str, Any]:
+    occurrences = report["occurrences"]
+    if not isinstance(occurrences, list):
+        raise _invalid_envelope("/report/occurrences", "occurrences must be an array")
+    tokens = []
+    for index, occurrence in enumerate(occurrences):
+        if not isinstance(occurrence, dict):
+            raise _invalid_envelope(
+                f"/report/occurrences/{index}", "occurrence must be an object"
+            )
+        token = {}
+        if "raw" in occurrence:
+            token["raw"] = copy.deepcopy(occurrence["raw"])
+        if "time" in occurrence:
+            token["time"] = copy.deepcopy(occurrence["time"])
+        tokens.append(token)
+    document: dict[str, Any] = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": tokens,
+    }
+    if "relations" in report:
+        document["relations"] = copy.deepcopy(report["relations"])
+    return document
+
+
+def _envelope_input_path(path: str | None) -> str | None:
+    if path is None:
+        return None
+    if path == "":
+        return "/report"
+    if path == "/tokens" or path.startswith("/tokens/"):
+        return "/report/occurrences" + path[len("/tokens") :]
+    if path == "/relations" or path.startswith("/relations/"):
+        return "/report/relations" + path[len("/relations") :]
+    return "/report" + path
+
+
+def load_import(data: str | bytes | dict[str, Any]) -> CLTSImport:
+    """Reload a same-provenance saved import by recomputing it from its report."""
+    envelope = _parse_envelope(data)
+    report = _check_envelope_shape(envelope)
+    _check_provenance(report, _verified_binding())
+    document = _source_from_report(report)
+    try:
+        recomputed = import_document(document)
+    except CLTSInputError as error:
+        if error.code in _ENVIRONMENT_CODES:
+            raise
+        raise CLTSInputError(
+            "invalid-envelope", _envelope_input_path(error.path), str(error)
+        ) from error
+
+    expected = recomputed.to_data()
+    if _canonical_bytes(envelope) != _canonical_bytes(expected):
+        difference = _first_difference(envelope, expected)
+        raise CLTSInputError(
+            "import-mismatch", difference or "", "saved import does not match re-import"
+        )
+    return recomputed

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `load_import` reloads a saved strict import only when a fresh import reproduces it exactly.
 - Public strict CLTS import now accepts explicit tokens; only reviewed plain stops (`p b t d`) import successfully, and every other occurrence is reported.
 - `InputLossWarning` is exported for callers that need to classify lossy public reads.
 - The CLTS mapping records its reviewed source-profile basis, and import compatibility refuses a different profile.

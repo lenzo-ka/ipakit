@@ -15,7 +15,9 @@ from ipakit import _clts_import as adapter
 from ipakit import _clts_profile as profile
 from ipakit import clts, clts_mapping
 from ipakit._clts_input import FORMAT, HOST, InputError
-from ipakit.clts import CLTSInputError, import_document, import_tokens
+from ipakit.clts import CLTSInputError, import_document, import_tokens, load_import
+
+import tiergraph as tg
 
 P = {
     "domain": "core-bipa",
@@ -316,11 +318,16 @@ def test_d1_19_native_restore_retains_document_and_full_facts():
     )
 
 
-def test_d1_20_only_the_four_d1_names_are_exported_from_clts():
-    for name in ("import_tokens", "import_document", "CLTSImport", "CLTSInputError"):
+def test_d1_20_d2_11_only_the_five_import_names_are_exported_from_clts():
+    for name in (
+        "import_tokens",
+        "import_document",
+        "load_import",
+        "CLTSImport",
+        "CLTSInputError",
+    ):
         assert hasattr(clts, name)
         assert name not in ipakit.__all__
-    assert not hasattr(clts, "load_import")
 
 
 def test_d1_22_runtime_import_does_not_need_pyclts():
@@ -391,7 +398,8 @@ def test_d1_24_house_form_refuses_nonsegment_or_multiunit_facts(monkeypatch, fac
 
 def test_envelope_bytes_are_canonical_compact_and_unescaped():
     text = import_tokens(["p", "a", "+", "tˢ", "p"]).to_json()
-    assert len(text) == 1543
+    assert len(text) == 1543  # characters
+    assert len(text.encode("utf-8")) == 1544
     assert text.startswith('{"form":null,"report":{"changes":[],"diagnostics":[{')
     assert '"raw":"tˢ"' in text
     assert "\\u" not in text
@@ -457,3 +465,244 @@ def test_c_d1c_import_ipakit_does_not_import_clts():
 def test_c_d1d_load_ipa_features_is_not_an_import_reader():
     assert inspect.isfunction(clts.load_ipa_features)
     assert clts.load_ipa_features.__module__ == "ipakit"
+
+
+def _forged_graph(*, resolution_raw: str, projection_raw: str):
+    snapshot = profile.read_snapshot()
+    authority = clts_mapping.read_authority()
+    spec = profile.core_bipa_spec(snapshot, mapping_identity=authority.identity)
+    document = {"format": FORMAT, "version": 1, "tokens": [{"raw": "p"}]}
+    resolutions = profile.core_bipa_resolutions(snapshot, [resolution_raw])
+    projections = [
+        authority._projection_record(projection_raw, snapshot, spec)  # noqa: SLF001
+    ]
+    return profile.construct(document, resolutions, projections, spec), spec
+
+
+def test_d2_1_string_bytes_and_dict_round_trips_rebuild_source_document():
+    timed = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [
+            {"raw": "t", "time": {"start": 1.25, "duration": 0.5}},
+            {"raw": "⁵"},
+        ],
+        "relations": [
+            {
+                "type": HOST,
+                "source": "/tokens/1",
+                "target": "/tokens/0",
+            }
+        ],
+    }
+    cases = [
+        (
+            import_tokens(["p", "b"]),
+            {
+                "format": FORMAT,
+                "version": 1,
+                "tokens": [{"raw": "p"}, {"raw": "b"}],
+            },
+        ),
+        (
+            import_tokens(["p", "a"]),
+            {
+                "format": FORMAT,
+                "version": 1,
+                "tokens": [{"raw": "p"}, {"raw": "a"}],
+            },
+        ),
+        (import_tokens([]), {"format": FORMAT, "version": 1, "tokens": []}),
+        (import_document(timed), timed),
+    ]
+    for original, source in cases:
+        text = original.to_json()
+        for saved in (text, text.encode("utf-8"), json.loads(text)):
+            loaded = load_import(saved)
+            assert loaded.to_json().encode("utf-8") == text.encode("utf-8")
+            assert loaded.source_document() == source
+
+
+def test_d2_2_forged_projection_graph_is_refused_without_restore():
+    envelope = import_tokens(["p"]).to_data()
+    forged, _ = _forged_graph(resolution_raw="p", projection_raw="b")
+    envelope["form"] = tg.to_data(forged)
+    with pytest.raises(CLTSInputError) as caught:
+        load_import(envelope)
+    assert caught.value.code == "import-mismatch"
+    assert caught.value.path is not None and caught.value.path.startswith("/form")
+
+
+def test_d2_3_forged_resolution_graph_is_refused_without_restore():
+    envelope = import_tokens(["p"]).to_data()
+    forged, _ = _forged_graph(resolution_raw="b", projection_raw="p")
+    envelope["form"] = tg.to_data(forged)
+    with pytest.raises(CLTSInputError) as caught:
+        load_import(envelope)
+    assert caught.value.code == "import-mismatch"
+
+
+def test_d2_4_edited_report_raw_is_refused():
+    envelope = import_tokens(["p"]).to_data()
+    envelope["report"]["occurrences"][0]["raw"] = "b"
+    with pytest.raises(CLTSInputError) as caught:
+        load_import(envelope)
+    assert caught.value.code == "import-mismatch"
+
+
+def test_d2_5_provenance_is_checked_before_whole_envelope_comparison():
+    envelope = import_tokens(["p"]).to_data()
+    envelope["report"]["provenance"]["mapping"] = "sha256:" + "0" * 64
+    error(
+        lambda: load_import(envelope),
+        "provenance-mismatch",
+        "/report/provenance/mapping",
+    )
+
+
+def _invalid_envelopes():
+    complete = import_tokens(["p"]).to_data()
+    refused = import_tokens(["p", "a"]).to_data()
+    refused_text = import_tokens(["p", "a"]).to_json()
+
+    complete_without_form = json.loads(json.dumps(complete))
+    complete_without_form["form"] = None
+    refused_with_form = json.loads(json.dumps(refused))
+    refused_with_form["form"] = complete["form"]
+    extra_key = json.loads(json.dumps(complete))
+    extra_key["extra"] = None
+    preserved = json.loads(json.dumps(refused))
+    preserved["report"]["status"] = "preserved"
+    return [
+        complete_without_form,
+        refused_with_form,
+        extra_key,
+        refused_text.replace('{"form":null,', '{"form":null,"form":null,', 1),
+        refused_text.replace('"token":0', '"token":NaN', 1),
+        {
+            "error": {"code": "invalid-input", "message": "bad", "path": ""},
+            "form": None,
+        },
+        preserved,
+    ]
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    _invalid_envelopes(),
+    ids=[
+        "complete-null",
+        "refused-form",
+        "extra-key",
+        "duplicate-key",
+        "nan-text",
+        "error-envelope",
+        "preserved",
+    ],
+)
+def test_d2_6_malformed_and_preserved_envelopes_are_refused(envelope):
+    with pytest.raises(CLTSInputError) as caught:
+        load_import(envelope)
+    assert caught.value.code == "invalid-envelope"
+
+
+def test_d2_7_reimport_error_is_relocated_into_the_envelope():
+    envelope = import_tokens(["p"]).to_data()
+    envelope["report"]["occurrences"][0]["time"] = {"start": 0.0}
+    error(
+        lambda: load_import(envelope),
+        "invalid-envelope",
+        "/report/occurrences/0/time",
+    )
+
+
+def test_d2_8_unknown_schema_version_is_refused_before_comparison():
+    envelope = import_tokens(["p"]).to_data()
+    envelope["report"]["schema"]["version"] = 2
+    error(
+        lambda: load_import(envelope),
+        "invalid-envelope",
+        "/report/schema/version",
+    )
+
+
+def test_d2_9_canonical_bytes_make_comparison_type_strict():
+    envelope = import_tokens(["p"]).to_data()
+    envelope["report"]["occurrences"][0]["token"] = False
+    error(
+        lambda: load_import(envelope),
+        "import-mismatch",
+        "/report/occurrences/0/token",
+    )
+
+
+def test_d2_10_dict_input_refuses_nonfinite_numbers():
+    envelope = import_tokens(["p"]).to_data()
+    envelope["report"]["occurrences"][0]["token"] = float("nan")
+    error(lambda: load_import(envelope), "invalid-envelope")
+
+
+def test_d2_11_load_import_is_in_the_declared_reader_set():
+    readers = {
+        name
+        for name, function in inspect.getmembers(clts, inspect.isfunction)
+        if not name.startswith("_") and function.__module__ == "ipakit._clts_import"
+    }
+    assert readers == {"import_tokens", "import_document", "load_import"}
+
+
+def test_c_d2a_restore_accepts_the_forged_projection_today():
+    forged, spec = _forged_graph(resolution_raw="p", projection_raw="b")
+    _, _, projections = profile.restore(forged, spec)
+    assert projections[0]["facts"] == [{"house-kind": "segment", "house-symbol": "b"}]
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ('"domain":"core-bipa"', '"domain":1e400'),
+        ('"format_version":"0.3.0"', '"format_version":-1e309'),
+    ],
+)
+def test_overflowing_float_literal_in_text_is_invalid_envelope(old, new):
+    text = import_tokens(["p"]).to_json()
+    assert old in text
+    error(lambda: load_import(text.replace(old, new, 1)), "invalid-envelope", "")
+
+
+def test_deeply_nested_text_is_invalid_envelope():
+    error(lambda: load_import("[" * 10000 + "]" * 10000), "invalid-envelope", "")
+
+
+def test_environment_failure_during_reload_keeps_its_code(monkeypatch):
+    envelope = import_tokens(["p"]).to_data()
+    original = profile.core_bipa_resolutions
+
+    def doubled(snapshot, raws):
+        records = original(snapshot, raws)
+        for record in records:
+            if record["status"] == "resolved":
+                record["sounds"] = record["sounds"] + record["sounds"]
+        return records
+
+    monkeypatch.setattr(profile, "core_bipa_resolutions", doubled)
+    adapter._cache_clear()
+    error(lambda: load_import(envelope), "artifact-invalid", None)
+
+
+def test_empty_relations_are_distinct_from_absent_relations():
+    document = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [{"raw": "p"}],
+        "relations": [],
+    }
+    reloaded = load_import(import_document(document).to_data())
+    assert reloaded.source_document() == document
+    forged = import_tokens(["p"]).to_data()
+    forged["report"]["relations"] = []
+    error(
+        lambda: load_import(forged),
+        "import-mismatch",
+        "/form/graph/tiers/3/items/0/attributes/1/value/relations-present",
+    )
