@@ -1,4 +1,4 @@
-"""Public strict CLTS import, plan-final slice D1."""
+"""Public CLTS import, plan-final slices D1, D2 and E1."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import subprocess
 import sys
 from array import array
 from collections import UserString
+from pathlib import Path
 
 import ipakit
 import pytest
@@ -571,8 +572,6 @@ def _invalid_envelopes():
     refused_with_form["form"] = complete["form"]
     extra_key = json.loads(json.dumps(complete))
     extra_key["extra"] = None
-    preserved = json.loads(json.dumps(refused))
-    preserved["report"]["status"] = "preserved"
     return [
         complete_without_form,
         refused_with_form,
@@ -583,7 +582,6 @@ def _invalid_envelopes():
             "error": {"code": "invalid-input", "message": "bad", "path": ""},
             "form": None,
         },
-        preserved,
     ]
 
 
@@ -597,10 +595,9 @@ def _invalid_envelopes():
         "duplicate-key",
         "nan-text",
         "error-envelope",
-        "preserved",
     ],
 )
-def test_d2_6_malformed_and_preserved_envelopes_are_refused(envelope):
+def test_d2_6_malformed_envelopes_are_refused(envelope):
     with pytest.raises(CLTSInputError) as caught:
         load_import(envelope)
     assert caught.value.code == "invalid-envelope"
@@ -706,3 +703,209 @@ def test_empty_relations_are_distinct_from_absent_relations():
         "import-mismatch",
         "/form/graph/tiers/3/items/0/attributes/1/value/relations-present",
     )
+
+
+PRESERVED_DOCUMENT = {
+    "format": FORMAT,
+    "version": 1,
+    "tokens": [
+        {"raw": "t", "time": {"start": 1.25, "duration": 0.5}},
+        {"raw": "⁵"},
+        {"raw": "☃"},
+    ],
+    "relations": [{"type": HOST, "source": "/tokens/1", "target": "/tokens/0"}],
+}
+
+
+def test_e1_1_preserved_literal_source_and_reload_round_trip():
+    result = import_document(PRESERVED_DOCUMENT, unsupported="preserve")
+    expected = {
+        "changes": [],
+        "diagnostics": [
+            {
+                "action": "preserved",
+                "code": "outside-reviewed-token-context",
+                "stage": "house-projection",
+                "token": 1,
+            },
+            {
+                "action": "preserved",
+                "code": "outside-artifact-domain",
+                "stage": "resolution",
+                "token": 2,
+            },
+        ],
+        "house_complete": False,
+        "occurrences": [
+            {
+                **supported("t", 0),
+                "time": {"duration": 0.5, "start": 1.25},
+            },
+            {
+                "projection": {
+                    "code": "outside-reviewed-token-context",
+                    "status": "unsupported",
+                },
+                "raw": "⁵",
+                "resolution": {"canonical": "⁵", "status": "resolved"},
+                "token": 1,
+            },
+            {
+                "projection": {"status": "not-attempted"},
+                "raw": "☃",
+                "resolution": {"status": "outside-artifact-domain"},
+                "token": 2,
+            },
+        ],
+        "provenance": P,
+        "relations": [{"source": "/tokens/1", "target": "/tokens/0", "type": HOST}],
+        "schema": SCHEMA,
+        "source_complete": True,
+        "status": "preserved",
+    }
+    assert result.report() == expected
+    assert result.graph is not None
+    assert result.source_document() == PRESERVED_DOCUMENT
+    assert load_import(result.to_json()).to_json() == result.to_json()
+
+
+def test_e1_2_preserved_import_blocks_partial_house_form():
+    result = import_document(PRESERVED_DOCUMENT, unsupported="preserve")
+    caught = error(result.house_form, "house-incomplete", None)
+    assert str(caught) == (
+        "house projection incomplete at "
+        "1 (outside-reviewed-token-context), 2 (outside-artifact-domain)"
+    )
+
+
+def test_house_form_refuses_an_unsupported_occurrence_even_under_complete():
+    preserved = import_tokens(["p", "a"], unsupported="preserve")
+    forged = adapter.CLTSImport._create(
+        "complete",
+        preserved.graph,
+        preserved.report(),
+        preserved.source_document(),
+    )
+    error(forged.house_form, "house-incomplete", None)
+
+
+def test_e1_3_preserve_mode_is_strictly_equal_for_supported_input():
+    strict = import_tokens(["p"])
+    preserved = import_tokens(["p"], unsupported="preserve")
+    assert preserved.status == "complete"
+    assert preserved.to_json() == strict.to_json()
+
+
+def test_e1_4_default_option_remains_strict_refusal():
+    assert import_tokens(["a"]).status == "refused"
+
+
+def test_e1_5_input_errors_still_raise_in_preserve_mode():
+    invalid_timing = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [{"raw": "p", "time": {"start": 0.0}}],
+    }
+    error(
+        lambda: import_document(invalid_timing, unsupported="preserve"),
+        "invalid-timing",
+        "/tokens/0/time",
+    )
+
+    invalid_host = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [{"raw": "p"}, {"raw": "a"}],
+        "relations": [{"type": HOST, "source": "/tokens/0", "target": "/tokens/1"}],
+    }
+    error(
+        lambda: import_document(invalid_host, unsupported="preserve"),
+        "invalid-host",
+        "/relations/0",
+    )
+
+    multi_host = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [{"raw": "t"}, {"raw": "⁵"}, {"raw": "a"}],
+        "relations": [
+            {"type": HOST, "source": "/tokens/1", "target": "/tokens/0"},
+            {"type": HOST, "source": "/tokens/1", "target": "/tokens/2"},
+        ],
+    }
+    error(
+        lambda: import_document(multi_host, unsupported="preserve"),
+        "invalid-relation",
+        "/relations/1/source",
+    )
+
+
+def test_e1_6_unknown_unsupported_option_is_refused():
+    caught = error(
+        lambda: import_tokens(["p"], unsupported="drop"),  # type: ignore[arg-type]
+        "invalid-option",
+        None,
+    )
+    assert caught.to_data() == {
+        "error": {
+            "code": "invalid-option",
+            "message": 'unsupported must be "error" or "preserve"',
+        },
+        "form": None,
+    }
+
+
+def test_e1_7_preserved_reload_refuses_report_forgery():
+    envelope = import_document(PRESERVED_DOCUMENT, unsupported="preserve").to_data()
+    envelope["report"]["occurrences"][1]["projection"] = {
+        "facts": [{"house-kind": "segment", "house-symbol": "t"}],
+        "status": "supported",
+    }
+    error(
+        lambda: load_import(envelope),
+        "import-mismatch",
+        "/report/occurrences/1/projection/code",
+    )
+
+    envelope = import_document(PRESERVED_DOCUMENT, unsupported="preserve").to_data()
+    envelope["report"]["status"] = "complete"
+    error(
+        lambda: load_import(envelope),
+        "invalid-envelope",
+        "/report/house_complete",
+    )
+
+
+def test_e1_8_public_preserve_import_reproduces_committed_example():
+    document = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [
+            {"raw": "t", "time": {"start": 1.25, "duration": 0.5}},
+            {"raw": "⁵"},
+            {"raw": "t"},
+            {"raw": " ɺ̣"},
+            {"raw": "+"},
+            {"raw": "☃"},
+            {"raw": "ts"},
+        ],
+        "relations": [{"type": HOST, "source": "/tokens/1", "target": "/tokens/0"}],
+    }
+    result = import_document(document, unsupported="preserve")
+    assert result.graph is not None
+    fixture = (
+        Path(__file__).parent / "tiergraph" / "fixtures" / "clts_core_bipa_profile.json"
+    )
+    assert tg.dumps(result.graph) == fixture.read_text()
+
+
+def test_c_e1a_source_profile_fixture_is_not_a_form():
+    fixture = (
+        Path(__file__).parent / "tiergraph" / "fixtures" / "clts_core_bipa_profile.json"
+    )
+    text = fixture.read_text()
+    with pytest.raises(ValueError):
+        ipakit.Form.from_json(text)
+    with pytest.raises(ValueError):
+        ipakit.read_json(text)
+    assert isinstance(ipakit.read_graph_json(text), tg.Graph)

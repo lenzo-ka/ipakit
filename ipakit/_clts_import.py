@@ -1,4 +1,4 @@
-"""Public strict import of explicit CLTS source occurrences."""
+"""Public import of explicit CLTS source occurrences."""
 
 from __future__ import annotations
 
@@ -63,9 +63,9 @@ class CLTSInputError(ValueError):
 
 @dataclass(frozen=True, init=False, slots=True)
 class CLTSImport:
-    """An immutable strict import result with detached public views."""
+    """An immutable import result with detached public views."""
 
-    _status: Literal["complete", "refused"]
+    _status: Literal["complete", "preserved", "refused"]
     _graph: tg.Graph | None
     _report: dict[str, Any] = field(repr=False)
     _source: dict[str, Any] = field(repr=False)
@@ -79,7 +79,7 @@ class CLTSImport:
     @classmethod
     def _create(
         cls,
-        status: Literal["complete", "refused"],
+        status: Literal["complete", "preserved", "refused"],
         graph: tg.Graph | None,
         report: dict[str, Any],
         source: dict[str, Any],
@@ -92,7 +92,7 @@ class CLTSImport:
         return result
 
     @property
-    def status(self) -> Literal["complete", "refused"]:
+    def status(self) -> Literal["complete", "preserved", "refused"]:
         return self._status
 
     @property
@@ -259,10 +259,19 @@ def _reduce_resolution(record: dict[str, Any]) -> dict[str, Any]:
     return reduced
 
 
-def _import(document: dict[str, Any]) -> CLTSImport:
+def _import(
+    document: dict[str, Any], *, unsupported: Literal["error", "preserve"]
+) -> CLTSImport:
     from . import _clts_profile as profile
     from . import clts_mapping as mapping
     from .clts import ArtifactInvalid
+
+    if unsupported not in ("error", "preserve"):
+        raise CLTSInputError(
+            "invalid-option",
+            None,
+            'unsupported must be "error" or "preserve"',
+        )
 
     binding = _verified_binding()
     raws = [token["raw"] for token in document["tokens"]]
@@ -299,7 +308,7 @@ def _import(document: dict[str, Any]) -> CLTSImport:
         if resolution["status"] != "resolved":
             diagnostics.append(
                 {
-                    "action": "refused",
+                    "action": "preserved" if unsupported == "preserve" else "refused",
                     "code": resolution["status"],
                     "stage": "resolution",
                     "token": index,
@@ -308,7 +317,7 @@ def _import(document: dict[str, Any]) -> CLTSImport:
         elif projection["status"] != "supported":
             diagnostics.append(
                 {
-                    "action": "refused",
+                    "action": "preserved" if unsupported == "preserve" else "refused",
                     "code": projection["code"],
                     "stage": "house-projection",
                     "token": index,
@@ -316,7 +325,11 @@ def _import(document: dict[str, Any]) -> CLTSImport:
             )
 
     complete = not diagnostics
-    status: Literal["complete", "refused"] = "complete" if complete else "refused"
+    status: Literal["complete", "preserved", "refused"] = (
+        "complete"
+        if complete
+        else "preserved" if unsupported == "preserve" else "refused"
+    )
     report: dict[str, Any] = {
         "changes": [],
         "diagnostics": diagnostics,
@@ -329,11 +342,17 @@ def _import(document: dict[str, Any]) -> CLTSImport:
     }
     if "relations" in document:
         report["relations"] = copy.deepcopy(document["relations"])
-    return CLTSImport._create(status, graph if complete else None, report, document)
+    return CLTSImport._create(
+        status, graph if status != "refused" else None, report, document
+    )
 
 
-def import_tokens(tokens: list[str] | tuple[str, ...]) -> CLTSImport:
-    """Strictly import explicitly segmented CLTS tokens."""
+def import_tokens(
+    tokens: list[str] | tuple[str, ...],
+    *,
+    unsupported: Literal["error", "preserve"] = "error",
+) -> CLTSImport:
+    """Import explicitly segmented CLTS tokens under the selected loss policy."""
     from collections import UserString
 
     if isinstance(tokens, (str, UserString)):
@@ -346,11 +365,15 @@ def import_tokens(tokens: list[str] | tuple[str, ...]) -> CLTSImport:
         document = decode(list(tokens))
     except InputError as error:
         raise _public_error(error) from error
-    return _import(document)
+    return _import(document, unsupported=unsupported)
 
 
-def import_document(document: dict[str, Any]) -> CLTSImport:
-    """Strictly import one explicit CLTS input document."""
+def import_document(
+    document: dict[str, Any],
+    *,
+    unsupported: Literal["error", "preserve"] = "error",
+) -> CLTSImport:
+    """Import one explicit CLTS input document under the selected loss policy."""
     if isinstance(document, str):
         raise CLTSInputError("segmentation-required", "", "supply explicit tokens")
     if not isinstance(document, dict):
@@ -359,7 +382,7 @@ def import_document(document: dict[str, Any]) -> CLTSImport:
         decoded = decode(document)
     except InputError as error:
         raise _public_error(error) from error
-    return _import(decoded)
+    return _import(decoded, unsupported=unsupported)
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -474,12 +497,20 @@ def _check_envelope_shape(envelope: dict[str, Any]) -> dict[str, Any]:
         )
 
     status = report["status"]
-    if type(status) is not str or status not in ("complete", "refused"):
+    if type(status) is not str or status not in (
+        "complete",
+        "preserved",
+        "refused",
+    ):
         raise _invalid_envelope("/report/status", "unknown import status")
-    if status == "complete" and envelope["form"] is None:
-        raise _invalid_envelope("/form", "a complete import must contain a form")
+    if status != "refused" and envelope["form"] is None:
+        raise _invalid_envelope("/form", f"a {status} import must contain a form")
     if status == "refused" and envelope["form"] is not None:
         raise _invalid_envelope("/form", "a refused import must have a null form")
+    if status == "complete" and report["house_complete"] is not True:
+        raise _invalid_envelope(
+            "/report/house_complete", "a complete import must be house-complete"
+        )
     return report
 
 
@@ -549,7 +580,10 @@ def load_import(data: str | bytes | dict[str, Any]) -> CLTSImport:
     _check_provenance(report, _verified_binding())
     document = _source_from_report(report)
     try:
-        recomputed = import_document(document)
+        unsupported: Literal["error", "preserve"] = (
+            "preserve" if report["status"] == "preserved" else "error"
+        )
+        recomputed = import_document(document, unsupported=unsupported)
     except CLTSInputError as error:
         if error.code in _ENVIRONMENT_CODES:
             raise
