@@ -1666,7 +1666,10 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 f"is binary, so name a side of it: '+{term}' or '-{term}'"
             )
         if prefix == "-":
-            negated = " ".join(f"-{value}" for value in values)
+            # A declared unspelled value is stored by no unit, so a read
+            # refuses it; the hint names only the values a unit can carry.
+            unspelled = self.unspelled_values.get(term)
+            negated = " ".join(f"-{value}" for value in values if value != unspelled)
             return (
                 f"{spelled!r} resolves to no feature term; feature {term!r} "
                 f"is not binary, so there is no '-' value to take. Its "

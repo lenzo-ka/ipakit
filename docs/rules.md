@@ -262,7 +262,7 @@ ipa.rule("[mannr=plosive] -> t")
 ipa.rule("[manner=obstruent] -> [voiced=-]")
 # RuleError: '[manner=obstruent]': 'obstruent' is not a value of feature 'manner'; declared values are ['affricate', 'approximant', 'fricative', 'nasal', 'plosive', 'silence', 'tap', 'trill', 'vowel']. 'obstruent' is a natural class over those values; ask for it as the bare term '[obstruent]'
 ipa.rule("t -> ɾ / [vowel] _ [vowel -stress]")
-# RuleError: '[vowel -stress]': '-stress' resolves to no feature term; feature 'stress' is not binary...; negate them individually instead, as '-none -primary -secondary'
+# RuleError: '[vowel -stress]': '-stress' resolves to no feature term; feature 'stress' is not binary...; negate them individually instead, as '-primary -secondary'
 ```
 
 Values resolve through the alias table and `expand()`, including spelled aliases and generative overlaps such as `bilabial^velar`. Natural classes use bare terms: write `[obstruent]`. The invalid value expression `[manner=obstruent]` raises an error with that correction. The executable example above guards this refusal.

@@ -94,6 +94,15 @@ def test_an_unspelled_value_is_refused_in_every_read_position(source):
     assert "[-primary -secondary]" in message
 
 
+def test_the_negation_hint_names_only_readable_values():
+    with pytest.raises(corpus.QueryParseError) as caught:
+        corpus.parse_query("[-stress]")
+    message = str(caught.value)
+    assert "as '-primary -secondary'" in message
+    assert "-none" not in message
+    corpus.parse_query("[-primary -secondary]")
+
+
 def test_unstressed_reads_and_writes_keep_their_existing_spellings():
     matches = ipakit.find("ˈapaˌa˥a", ["vowel", "-primary", "-secondary"])
     assert [(offset, segment.to_ipa()) for offset, segment in matches] == [
