@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import functools
 import json
+import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
@@ -403,11 +404,20 @@ def _invalid_envelope(path: str, message: str) -> CLTSInputError:
     return CLTSInputError("invalid-envelope", path, message)
 
 
+_ENVIRONMENT_CODES = frozenset({"artifact-invalid", "mapping-invalid"})
+
+
 def _parse_envelope(data: str | bytes | dict[str, Any]) -> dict[str, Any]:
     from .clts import _unique_object
 
     def invalid_constant(value: str) -> None:
         raise ValueError(f"invalid JSON constant: {value}")
+
+    def finite_float(value: str) -> float:
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError(f"invalid JSON number: {value} is not finite")
+        return number
 
     try:
         if isinstance(data, dict):
@@ -416,16 +426,18 @@ def _parse_envelope(data: str | bytes | dict[str, Any]) -> dict[str, Any]:
                 text,
                 object_pairs_hook=_unique_object,
                 parse_constant=invalid_constant,
+                parse_float=finite_float,
             )
         elif isinstance(data, (str, bytes)):
             parsed = json.loads(
                 data,
                 object_pairs_hook=_unique_object,
                 parse_constant=invalid_constant,
+                parse_float=finite_float,
             )
         else:
             raise TypeError("saved import must be JSON text, bytes, or an object")
-    except (TypeError, ValueError, UnicodeError) as error:
+    except (TypeError, ValueError, UnicodeError, RecursionError) as error:
         raise _invalid_envelope("", str(error)) from error
     if not isinstance(parsed, dict):
         raise _invalid_envelope("", "saved import must be a JSON object")
@@ -539,6 +551,8 @@ def load_import(data: str | bytes | dict[str, Any]) -> CLTSImport:
     try:
         recomputed = import_document(document)
     except CLTSInputError as error:
+        if error.code in _ENVIRONMENT_CODES:
+            raise
         raise CLTSInputError(
             "invalid-envelope", _envelope_input_path(error.path), str(error)
         ) from error

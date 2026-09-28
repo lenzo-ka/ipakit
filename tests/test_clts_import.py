@@ -655,3 +655,54 @@ def test_c_d2a_restore_accepts_the_forged_projection_today():
     forged, spec = _forged_graph(resolution_raw="p", projection_raw="b")
     _, _, projections = profile.restore(forged, spec)
     assert projections[0]["facts"] == [{"house-kind": "segment", "house-symbol": "b"}]
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ('"domain":"core-bipa"', '"domain":1e400'),
+        ('"format_version":"0.3.0"', '"format_version":-1e309'),
+    ],
+)
+def test_overflowing_float_literal_in_text_is_invalid_envelope(old, new):
+    text = import_tokens(["p"]).to_json()
+    assert old in text
+    error(lambda: load_import(text.replace(old, new, 1)), "invalid-envelope", "")
+
+
+def test_deeply_nested_text_is_invalid_envelope():
+    error(lambda: load_import("[" * 10000 + "]" * 10000), "invalid-envelope", "")
+
+
+def test_environment_failure_during_reload_keeps_its_code(monkeypatch):
+    envelope = import_tokens(["p"]).to_data()
+    original = profile.core_bipa_resolutions
+
+    def doubled(snapshot, raws):
+        records = original(snapshot, raws)
+        for record in records:
+            if record["status"] == "resolved":
+                record["sounds"] = record["sounds"] + record["sounds"]
+        return records
+
+    monkeypatch.setattr(profile, "core_bipa_resolutions", doubled)
+    adapter._cache_clear()
+    error(lambda: load_import(envelope), "artifact-invalid", None)
+
+
+def test_empty_relations_are_distinct_from_absent_relations():
+    document = {
+        "format": FORMAT,
+        "version": 1,
+        "tokens": [{"raw": "p"}],
+        "relations": [],
+    }
+    reloaded = load_import(import_document(document).to_data())
+    assert reloaded.source_document() == document
+    forged = import_tokens(["p"]).to_data()
+    forged["report"]["relations"] = []
+    error(
+        lambda: load_import(forged),
+        "import-mismatch",
+        "/form/graph/tiers/3/items/0/attributes/1/value/relations-present",
+    )
