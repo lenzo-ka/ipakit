@@ -16,6 +16,13 @@ def test_shorthand_and_optional_presence():
     assert decode(document([], relations=[])) == document([], relations=[])
 
 
+def test_raw_must_be_utf8_encodable():
+    with pytest.raises(InputError) as caught:
+        decode(document([{"raw": "\ud800"}]))
+    assert caught.value.code == "invalid-input"
+    assert caught.value.path == "/tokens/0/raw"
+
+
 @pytest.mark.parametrize(
     "value",
     [
@@ -76,6 +83,17 @@ def test_unrepresentably_large_time_refuses_as_timing():
     assert caught.value.code == "invalid-timing"
 
 
+def test_integer_time_must_fit_json_exact_range():
+    value = document([{"raw": "a", "time": {"start": 2**53, "duration": 1}}])
+    with pytest.raises(InputError) as caught:
+        decode(value)
+    assert caught.value.code == "invalid-timing"
+    assert caught.value.path == "/tokens/0/time"
+
+    boundary = document([{"raw": "a", "time": {"start": 2**53 - 1, "duration": 1}}])
+    assert decode(boundary) == boundary
+
+
 @pytest.mark.parametrize(
     "pointer",
     [
@@ -112,3 +130,43 @@ def test_bad_endpoint(pointer):
 def test_bad_relations(relations):
     with pytest.raises(InputError):
         decode(document([{"raw": "a"}, {"raw": "⁵"}], relations=relations))
+
+
+def test_tone_cannot_have_two_hosts():
+    relations = [
+        {"type": HOST, "source": "/tokens/1", "target": "/tokens/0"},
+        {"type": HOST, "source": "/tokens/1", "target": "/tokens/2"},
+    ]
+    with pytest.raises(InputError) as caught:
+        decode(
+            document(
+                [{"raw": "t"}, {"raw": "⁵"}, {"raw": "a"}, {"raw": "⁵"}],
+                relations=relations,
+            )
+        )
+    assert caught.value.code == "invalid-relation"
+    assert caught.value.path == "/relations/1/source"
+
+
+def test_duplicate_host_relation_refuses_at_second_source():
+    relation = {"type": HOST, "source": "/tokens/1", "target": "/tokens/0"}
+    with pytest.raises(InputError) as caught:
+        decode(
+            document(
+                [{"raw": "t"}, {"raw": "⁵"}],
+                relations=[relation, dict(relation)],
+            )
+        )
+    assert caught.value.code == "invalid-relation"
+    assert caught.value.path == "/relations/1/source"
+
+
+def test_two_tones_can_share_one_host():
+    value = document(
+        [{"raw": "t"}, {"raw": "⁵"}, {"raw": "⁵"}],
+        relations=[
+            {"type": HOST, "source": "/tokens/1", "target": "/tokens/0"},
+            {"type": HOST, "source": "/tokens/2", "target": "/tokens/0"},
+        ],
+    )
+    assert decode(value) == value

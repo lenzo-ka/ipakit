@@ -738,8 +738,12 @@ def test_native_unique_source_not_single_parent():
     graph = construct(doc, records, not_attempted(3), spec())
     assert restore(graph, spec())[0] == doc
     doc["relations"][1]["source"] = "/tokens/1"
-    with pytest.raises(ValueError):
+    with pytest.raises(InputError) as caught:
         construct(doc, records, not_attempted(3), spec())
+    assert (caught.value.code, caught.value.path) == (
+        "invalid-relation",
+        "/relations/1/source",
+    )
 
 
 def test_supplied_relation_order_is_native_and_restores_exactly():
