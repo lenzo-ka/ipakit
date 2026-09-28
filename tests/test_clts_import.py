@@ -365,24 +365,37 @@ def test_d1_23_each_import_path_is_fresh_importable(module):
 
 
 @pytest.mark.parametrize(
-    "fact",
+    "facts",
     [
-        {"house-kind": "tone", "house-symbol": "p"},
-        {"house-kind": "segment", "house-symbol": "ts"},
+        [{"house-kind": "tone", "house-symbol": "p"}],
+        [{"house-kind": "segment", "house-symbol": "ts"}],
+        [
+            {"house-kind": "segment", "house-symbol": "p"},
+            {"house-kind": "segment", "house-symbol": "b"},
+        ],
     ],
 )
-def test_d1_24_house_form_refuses_nonsegment_or_multiunit_facts(monkeypatch, fact):
+def test_d1_24_house_form_refuses_nonsegment_or_multiunit_facts(monkeypatch, facts):
     def projection(self, raw, snapshot, spec):
         return {
             "mapping": spec.mapping_identity,
             "status": "supported",
-            "facts": [fact],
+            "facts": facts,
         }
 
     monkeypatch.setattr(clts_mapping.MappingAuthority, "_projection_record", projection)
     result = import_tokens(["p"])
     caught = error(result.house_form, "house-incomplete", None)
     assert "0 (invalid-house-fact)" in str(caught)
+
+
+def test_envelope_bytes_are_canonical_compact_and_unescaped():
+    text = import_tokens(["p", "a", "+", "tˢ", "p"]).to_json()
+    assert len(text) == 1543
+    assert text.startswith('{"form":null,"report":{"changes":[],"diagnostics":[{')
+    assert '"raw":"tˢ"' in text
+    assert "\\u" not in text
+    assert ", " not in text and ": " not in text
 
 
 def test_d1_25_resolved_occurrence_must_have_exactly_one_sound(monkeypatch):

@@ -132,6 +132,12 @@ class CLTSImport:
         for occurrence in self._report["occurrences"]:
             token = occurrence["token"]
             facts = occurrence["projection"].get("facts", [])
+            if len(facts) != 1:
+                raise CLTSInputError(
+                    "house-incomplete",
+                    None,
+                    f"house projection incomplete at {token} (invalid-house-fact)",
+                )
             for fact in facts:
                 if (
                     set(fact) != {"house-kind", "house-symbol"}

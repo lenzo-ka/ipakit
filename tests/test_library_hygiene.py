@@ -164,6 +164,16 @@ def test_every_public_clts_import_reader_is_classified() -> None:
     assert _public_import_readers() == PUBLIC_IMPORT_READERS
 
 
+@pytest.fixture
+def clear_import_cache():
+    from ipakit import _clts_import
+
+    _clts_import._cache_clear()
+    yield
+    _clts_import._cache_clear()
+
+
+@pytest.mark.usefixtures("clear_import_cache")
 @pytest.mark.parametrize("name", sorted(PUBLIC_IMPORT_READERS))
 def test_public_clts_import_reader_refuses_or_reports_loss(name: str) -> None:
     reader = getattr(ipakit.clts, name)
