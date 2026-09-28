@@ -22,7 +22,9 @@ CLTS, PHOIBLE and Panphon all ship this schema today.
   projection-policy, and profile-family extensions. The adapter outcome table
   is receipt data used by the runtime adapter. Mapping identity and profile
   fingerprint are deliberately not receipt fields because either creates a
-  fingerprint cycle.
+  fingerprint cycle. The projection policy's `unsupported: "error"` records
+  the adapter's default action; callers may explicitly preserve unsupported
+  occurrences as source material.
 - PHOIBLE fills `source` and `inputs` in `data/phoible/manifest.json`, records
   the versioned deterministic-gzip extractor, lists every transported `.gz`
   file and copied upstream license as a derived artifact, and hashes every
