@@ -53,10 +53,6 @@ class MappingInvalid(ValueError):
     """Invalid/stale mapping content or incompatible supplied evidence."""
 
 
-class ProfilePending(MappingInvalid):
-    """The source profile has not supplied final structural compatibility."""
-
-
 def _require_profile_binding(
     rules: dict[str, Any], snapshot: Snapshot | None = None
 ) -> str:
@@ -113,8 +109,8 @@ def _native_witnesses(rules: dict[str, Any], ipa: IPAFeatures) -> dict[str, Any]
         features = ipa._get_features(rule["target"])
         if any(features.get(k) != v for k, v in rule["target_predicates"].items()):
             raise MappingInvalid("native witness predicates changed")
-        projection = rule.get("house_projection")
-        if projection is not None:
+        if "house_projection" in rule:
+            projection = rule["house_projection"]
             if rule["disposition"] not in {
                 "exact under stated conditions",
                 "conditional/composite",
@@ -594,7 +590,7 @@ class MappingAuthority:
         elif projection["status"] == "unsupported":
             result["reason"] = projection["code"]
         else:
-            result["reason"] = "outside-reviewed-token-context"
+            result["reason"] = "not-attempted"
         return result
 
     def _projection_record(

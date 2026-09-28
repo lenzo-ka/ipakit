@@ -86,11 +86,10 @@ def report_unconvertible(
 
     A warning rather than a return value because that is what the
     parser already does, and because the report then reaches the exit
-    status for free: ``ipakit.cli.policy`` promotes any ``UserWarning``
-    raised from inside this package to status 3, by asking what a
-    warning *is* rather than listing today's sites. So the six
-    ``convert`` subcommands join the existing policy with no change to
-    the command line at all.
+    status for free: the CLI promotes an untyped ``UserWarning`` raised
+    from inside this package (other than a declared non-input warning), or
+    any ``InputLossWarning`` wherever its ``stacklevel`` points, to status 3. So the six ``convert`` subcommands
+    join the existing policy with no change to the command line at all.
 
     Raising and warning live in one function so the two branches cannot
     drift into disagreeing about what counts as a loss -- the recurring

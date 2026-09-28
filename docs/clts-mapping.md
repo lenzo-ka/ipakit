@@ -23,10 +23,11 @@ This works offline with shipped artifacts; it does not load pyclts. Eligibility
 requires the complete source claim set, exact source spelling, and the reviewed
 native structural context. Every extra claim participates in the eligibility check.
 Native defaults absent from CLTS claims are recorded with their native provenance.
-Resolved affricates carry the reviewed `unasserted-house-juncture` refusal;
-other resolved tokens outside the four rules carry
-`outside-reviewed-token-context`. Unresolved spellings are not attempted. The
-declaration-level release adjudications do not make those tokens import-ready.
+In the profile-bound call, resolved affricates carry the reviewed
+`unasserted-house-juncture` refusal; other resolved tokens outside the four rules
+carry `outside-reviewed-token-context`. Unresolved spellings are not attempted
+and carry the reason `not-attempted`. The declaration-level release adjudications
+do not make those tokens import-ready.
 Exact source recovery is a separate operation from reverse phonetic conversion.
 
 The authority binds the accepted CLTS policy, source input hashes, frozen core
@@ -34,10 +35,13 @@ identity, native declaration hash, effective native metric fingerprint, its own
 contents, and the hand-reviewed basis of the source profile. The basis covers the
 complete profile fingerprint material except the mapping identity, avoiding a
 cycle while making `require_import_profile(...)` refuse a different profile or
-mapping. Changed populations or provider bindings require reconciliation. These
-fingerprints detect changed inputs. Authentication and phonetic equivalence
-require separate evidence. The `target` field identifies the research witness;
-the reviewed projection record does not itself perform public Form import.
+mapping. The reader recomputes the manifest fingerprint from the shipped snapshot
+rather than reading `manifest.json`; `require_import_profile(...)` verifies the
+committed receipt when the profile is used. Changed populations or provider
+bindings require reconciliation. These fingerprints detect changed inputs.
+Authentication and phonetic equivalence require separate evidence. The `target`
+field identifies the research witness; the reviewed projection record does not
+itself perform public Form import.
 
 ## Declarations, rules, and token eligibility
 

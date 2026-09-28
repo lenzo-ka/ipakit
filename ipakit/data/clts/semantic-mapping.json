@@ -12118,7 +12118,7 @@
       }
     ]
   },
-  "identity": "sha256:75d0647365cec49b1151e22c9a909ddf1995ce3f6e5e203d8ab6e62969b6e860",
+  "identity": "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be",
   "native_witnesses": {
     "consonant-duration-long/1": {
       "constituents": 1,
@@ -13172,7 +13172,7 @@
       }
     ],
     "schema": "ipakit-clts-reviewed-rules",
-    "scope": "exact-plain-stop-witnesses-release-and-duration-declarations",
+    "scope": "profile-bound-reviewed-plain-stop-projections-release-and-duration-declarations",
     "source_feature_model": "clts",
     "source_kind": "consonant",
     "source_structure": "one resolved plain consonant; complete declared feature set equals the witness",
