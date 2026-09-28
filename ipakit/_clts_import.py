@@ -131,8 +131,6 @@ class CLTSImport:
 
         builder = FormBuilder()
         for occurrence in self._report["occurrences"]:
-            if occurrence["projection"]["status"] != "supported":
-                continue
             token = occurrence["token"]
             facts = occurrence["projection"].get("facts", [])
             if len(facts) != 1:

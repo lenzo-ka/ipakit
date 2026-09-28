@@ -778,6 +778,17 @@ def test_e1_2_preserved_import_blocks_partial_house_form():
     )
 
 
+def test_house_form_refuses_an_unsupported_occurrence_even_under_complete():
+    preserved = import_tokens(["p", "a"], unsupported="preserve")
+    forged = adapter.CLTSImport._create(
+        "complete",
+        preserved.graph,
+        preserved.report(),
+        preserved.source_document(),
+    )
+    error(forged.house_form, "house-incomplete", None)
+
+
 def test_e1_3_preserve_mode_is_strictly_equal_for_supported_input():
     strict = import_tokens(["p"])
     preserved = import_tokens(["p"], unsupported="preserve")
