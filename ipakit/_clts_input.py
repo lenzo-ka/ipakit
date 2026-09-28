@@ -49,7 +49,7 @@ def endpoint(value: Any, count: int, path: str) -> int:
 def _valid_time(value: Any) -> bool:
     if type(value) not in (int, float) or value < 0:
         return False
-    if type(value) is int and abs(value) > _MAX_SAFE_INTEGER:
+    if type(value) is int and value > _MAX_SAFE_INTEGER:
         return False
     try:
         return math.isfinite(value)
