@@ -141,7 +141,9 @@ and publication require release authorization, not merely preparation approval.
   PHOIBLE dataset resources with their hashes and separately scoped notices.
   Confirm that eSpeak and PHOIBLE mapping data remain user-supplied. The code's
   BSD license does not relicense third-party data. Preserve the precise Panphon
-  and PHOIBLE large-file and verbatim-notice hook exceptions.
+  and PHOIBLE large-file and verbatim-notice hook exceptions. Every new
+  third-party file needs an entry in `tests/license-classes.json`, and the wheel
+  license-class guard must be green before release.
 - **Source distribution**: `MANIFEST.in` includes `CHANGELOG.md`, Makefile,
   conftest, tests, scripts and documentation. This checklist itself ships there;
   do not describe the sdist as package-only. The wheel has its separately declared

@@ -39,3 +39,23 @@ CLTS, PHOIBLE and Panphon all ship this schema today.
   and hashes the shipped MIT license and notice. The XML root carries only a
   `source-receipt` pointer, not a second provenance record. Panphon has no
   resolver or CLTS profile extensions.
+
+## License classes and the wheel guard
+
+`tests/license-classes.json` maps every license id reached from package data to
+its SPDX id and shipping class. A receipt's `license.id` is that SPDX id (or a
+`LicenseRef-...` id) and is the register key. The supported classes are
+`shippable`, `shippable-share-alike`, `derived-shippable`, and `internal-only`;
+a derived-shippable entry must cite its permitting term and name the permitted
+artifacts. Unlisted `LicenseRef-LDC-*` ids default to internal-only. Files whose
+shipped expression is IPAkit's own use the reviewed `house` list with a short
+reason instead of pretending to have an external source.
+
+The class deliberately stays outside the receipt. It is release policy rather
+than source identity, and adding it to a receipt would change that receipt's
+fingerprint and any downstream identity bound to it. The wheel guard in
+`tests/test_license_classes.py` therefore joins the two at verification time.
+Every non-Python member under `ipakit/` must resolve by exactly one route: an
+XML root license, an XML `source-receipt` pointer, receipt/artifact/notice
+membership, or the house list. Unknown and multiply classified files fail, as
+do internal-only sources, unscoped derived artifacts, and dead register rows.
