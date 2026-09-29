@@ -17,6 +17,11 @@ equality over that product space. It pins seventeen collisions, none of them
 reachable from the registered inventory the atomic sweep walks. Fourteen change
 the sound; the other three fold onto a registered spelling of the same sound.
 Nothing in the suite converted such a string before it.
+
+`TestBoundarySpanningRoundTrip` adds the finite local class implied by the
+table itself.  It factors every reverse key across two or more forward outputs,
+including an overshooting final output and every refactorization of its tail.
+That reaches multi-mark tone runs and `ǀǀǀ`, without choosing examples first.
 """
 
 from __future__ import annotations
@@ -24,6 +29,9 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
+from collections import defaultdict
+from collections.abc import Mapping
+from itertools import product
 from pathlib import Path
 
 import ipakit
@@ -144,6 +152,228 @@ COMPOSED_NON_ROUNDTRIP = {
 
 #: Two bases written side by side.
 ADJACENT_PAIR_NON_ROUNDTRIP = CLICK_RUN_COLLISION
+
+# A key may also be assembled from more than the two pieces swept above.  The
+# finite table-derived sweep below finds all such local windows, including a
+# final emitted piece which runs past the end of the spanning key.  These are
+# the failures in that space.  The carrier `a` makes an otherwise unattached
+# run of marks a house-form unit; it is not part of the collision.
+TONE_SEQUENCE_FOLDS = {
+    "a˦˧": "a᷇",
+    "a˦˧˦": "a᷇˦",
+    "a˦˧˨": "a᷇˨",
+    "a˦˨˦": "a᷉",
+    "a˦˨˦˧": "a᷉˧",
+    "a˦˨˦˨": "a᷉˨",
+    "a˦˨˦˨˦": "a᷉˨˦",
+    "a˦˨᷇": "a᷉˧",
+    "a˦˨᷉": "a᷉˨˦",
+    "a˦᷄": "a᷇˦",
+    "a˦᷆": "a᷇˨",
+    "a˦᷈": "a᷉˨",
+    "a˦᷈˦": "a᷉˨˦",
+    "a˧˦": "a᷄",
+    "a˧˦˧": "a᷄˧",
+    "a˧˦˨˦": "a᷄˨˦",
+    "a˧˨": "a᷆",
+    "a˧˨˦˨": "a᷆˦˨",
+    "a˧˨˧": "a᷆˧",
+    "a˧᷅": "a᷆˧",
+    "a˧᷇": "a᷄˧",
+    "a˧᷈": "a᷆˦˨",
+    "a˧᷉": "a᷄˨˦",
+    "a˨˦˨": "a᷈",
+    "a˨˦˨˦": "a᷈˦",
+    "a˨˦˨˦˨": "a᷈˦˨",
+    "a˨˦˨˧": "a᷈˧",
+    "a˨˦᷅": "a᷈˧",
+    "a˨˦᷈": "a᷈˦˨",
+    "a˨˧": "a᷅",
+    "a˨˧˦": "a᷅˦",
+    "a˨˧˨": "a᷅˨",
+    "a˨᷄": "a᷅˦",
+    "a˨᷆": "a᷅˨",
+    "a˨᷉": "a᷈˦",
+    "a˨᷉˨": "a᷈˦˨",
+}
+
+SPANNING_NON_ROUNDTRIP = {
+    **{
+        form: back
+        for form, back in RHOTIC_SUFFIX_COLLISION.items()
+        if not (TIES & set(form))
+    },
+    **EJECTIVE_FOLD,
+    **CLICK_RUN_COLLISION,
+    **TONE_SEQUENCE_FOLDS,
+    "aːˑ": "aːː",
+    "ǀǀǀ": "ǁǀ",
+}
+
+
+def _spanning_atoms(
+    table: Mapping[str, str],
+) -> tuple[dict[str, str], set[str], set[str]]:
+    """Return emitted table atoms and their base/mark classes.
+
+    Structural tie glyphs and boundary glyphs are not free-standing phonetic
+    atoms.  Registered tied phones are still covered by the existing composed
+    sweep: the forward converter emits their constituents and tie separately.
+    """
+    bases = {
+        phone
+        for phone in self_spelling_phones()
+        if phone in table and _composes_from_survivors(phone)
+    }
+    marks = {
+        mark
+        for mark in FEATURES.diacritics
+        if mark in table
+        and not (TIES & set(mark))
+        and mark not in {"|", "‖"}
+        and mark not in ATOMIC_FAILURES
+    }
+    return {atom: table[atom] for atom in bases | marks}, bases, marks
+
+
+def _spanning_seeds(table: Mapping[str, str]) -> set[str]:
+    """All key-plus-tail strings first reached across an emitted boundary.
+
+    Start with every reverse key and every emitted atom which is its proper
+    prefix.  Append atoms while the concatenation remains a key prefix, and
+    retain the first concatenation which reaches the key.  The last atom may
+    end at the key or run past it; retaining that suffix is what exposes
+    `|\\|\\|\\`, not only `|\\|\\`.
+
+    This terminates: a branch grows strictly and stops when it reaches the
+    finite key.  It is complete at an aligned reader position because greedy
+    choice depends only on a finite reverse key, and every emitted boundary
+    on the path is tried.  Refactoring each retained string below covers all
+    writer segmentations of both the match and its tail.
+    """
+    atoms, _, _ = _spanning_atoms(table)
+    outputs = set(atoms.values())
+    reverse_keys = set(table.values())
+    seeds: set[str] = set()
+
+    def reach(key: str, prefix: str) -> None:
+        for output in outputs:
+            candidate = prefix + output
+            if len(candidate) < len(key):
+                if key.startswith(candidate):
+                    reach(key, candidate)
+            elif candidate.startswith(key):
+                seeds.add(candidate)
+
+    for key in reverse_keys:
+        for output in outputs:
+            if len(output) < len(key) and key.startswith(output):
+                reach(key, output)
+    return seeds
+
+
+def _factorizations(text: str, atoms: Mapping[str, str]) -> set[tuple[str, ...]]:
+    """Every complete factorization of ``text`` into emitted atom outputs."""
+    by_output: dict[str, list[str]] = defaultdict(list)
+    for atom, output in atoms.items():
+        by_output[output].append(atom)
+    memo: dict[int, set[tuple[str, ...]]] = {}
+
+    def from_offset(offset: int) -> set[tuple[str, ...]]:
+        if offset == len(text):
+            return {()}
+        if offset in memo:
+            return memo[offset]
+        result = {
+            (atom, *tail)
+            for output, spellings in by_output.items()
+            if text.startswith(output, offset)
+            for tail in from_offset(offset + len(output))
+            for atom in spellings
+        }
+        memo[offset] = result
+        return result
+
+    return from_offset(0)
+
+
+def _greedy_spans(text: str, keys: set[str]) -> list[tuple[int, int]]:
+    """The half-open spans read by the same longest-match rule as runtime."""
+    spans: list[tuple[int, int]] = []
+    width = max(map(len, keys))
+    offset = 0
+    while offset < len(text):
+        match = next(
+            (
+                text[offset : offset + size]
+                for size in range(min(width, len(text) - offset), 0, -1)
+                if text[offset : offset + size] in keys
+            ),
+            None,
+        )
+        size = len(match) if match is not None else 1
+        spans.append((offset, offset + size))
+        offset += size
+    return spans
+
+
+def _boundary_spanning_forms(
+    table: Mapping[str, str] | None = None,
+) -> set[str]:
+    """Canonical local forms whose writer boundaries a reverse key crosses.
+
+    A mark-only factorization gets neutral carrier `a`; a factorization made
+    wholly of bases is an adjacent run; and a base followed by marks is one
+    unit.  Other orders are not house forms.  The actual writer must preserve
+    the factorization -- this rejects canonical mark reordering -- and the
+    greedy reader must demonstrably cross one of its boundaries.
+    """
+    table = dict(_TABLE.shipped_pairs() if table is None else table)
+    atoms, bases, marks = _spanning_atoms(table)
+    keys = set(table.values())
+    carrier = table["a"]
+    forms: set[str] = set()
+
+    for seed in _spanning_seeds(table):
+        for parts in _factorizations(seed, atoms):
+            if len(parts) < 2:
+                continue
+            source = "".join(parts)
+            prefix = ""
+            if all(part in marks for part in parts):
+                form = "a" + source
+                prefix = carrier
+                try:
+                    canonical = FEATURES.segment(form).to_ipa() == form
+                except (KeyError, ValueError):
+                    canonical = False
+            elif parts[0] in bases and all(part in marks for part in parts[1:]):
+                form = source
+                try:
+                    canonical = FEATURES.segment(form).to_ipa() == form
+                except (KeyError, ValueError):
+                    canonical = False
+            elif all(part in bases for part in parts):
+                form = source
+                canonical = FEATURES.read(form).to_ipa() == form
+            else:
+                continue
+            encoded = prefix + seed
+            if not canonical or ipakit.to_xsampa(form) != encoded:
+                continue
+
+            boundaries: list[int] = []
+            boundary = len(prefix)
+            for part in parts[:-1]:
+                boundary += len(atoms[part])
+                boundaries.append(boundary)
+            if any(
+                start < boundary < end
+                for start, end in _greedy_spans(encoded, keys)
+                for boundary in boundaries
+            ):
+                forms.add(form)
+    return forms
 
 
 def _composes_from_survivors(form: str) -> bool:
@@ -384,6 +614,84 @@ class TestComposedRoundTrip:
         assert len(joins) > 20000, f"sweep covered only {len(joins)} joins"
 
 
+class TestBoundarySpanningRoundTrip:
+    """The finite local collision class implied by the shipped table.
+
+    A first differing greedy read must be a reverse key which starts on an
+    emitted-atom boundary, strictly extends the first atom, and crosses a
+    later boundary.  `_spanning_seeds` tries every such key and every emitted
+    output while the key remains possible.  It keeps the last output whole,
+    so a suffix after the match is retained, then `_factorizations` finds all
+    writer segmentations of that key-plus-tail string.  Hence `ǀ + ǁ` and
+    `ǀ + ǀ + ǀ` are both derived from `|\\|\\|\\`.
+
+    A later greedy match can start inside an atom only after that first match
+    has already ended there.  The exhaustive three-atom test below exercises
+    those residual starts and verifies that every one is preceded by one of
+    the enumerated first-divergence seeds.  Thus they are continuations of an
+    enumerated collision, not a missing primitive case.
+    """
+
+    def test_the_enumerated_space_has_not_collapsed(self) -> None:
+        table = _TABLE.shipped_pairs()
+        forms = _boundary_spanning_forms(table)
+        assert len(_spanning_seeds(table)) == 40
+        assert len(forms) == 53
+        assert {"a˧˦", "a˦˧", "a˨˧", "ǀǀǀ"} <= forms
+
+    def test_failures_are_exactly_documented(self) -> None:
+        dropped, collided = _round_trip_failures(sorted(_boundary_spanning_forms()))
+        assert dropped == set()
+        assert collided == SPANNING_NON_ROUNDTRIP
+
+    def test_short_sequences_find_no_unenumerated_first_divergence(self) -> None:
+        """Exhaust every two- and three-atom sequence implicated by a seed.
+
+        This is independent of the house-form filter and expected failure
+        dictionary.  It checks the completeness argument at the X-SAMPA
+        boundary level, including reads which begin inside an atom after an
+        earlier overshooting match.
+        """
+        table = _TABLE.shipped_pairs()
+        atoms, _, _ = _spanning_atoms(table)
+        seeds = _spanning_seeds(table)
+        factorizations = {
+            parts
+            for seed in seeds
+            for parts in _factorizations(seed, atoms)
+            if len(parts) >= 2
+        }
+        participants = {part for parts in factorizations for part in parts}
+        keys = set(table.values())
+        checked = 0
+        inside_starts = 0
+
+        for width in (2, 3):
+            for parts in product(participants, repeat=width):
+                encoded = "".join(atoms[part] for part in parts)
+                boundaries: list[int] = []
+                boundary = 0
+                for part in parts[:-1]:
+                    boundary += len(atoms[part])
+                    boundaries.append(boundary)
+                spans = _greedy_spans(encoded, keys)
+                crossing = [
+                    (start, end)
+                    for start, end in spans
+                    if any(start < boundary < end for boundary in boundaries)
+                ]
+                if not crossing:
+                    continue
+                checked += 1
+                inside_starts += sum(
+                    start not in {0, *boundaries} for start, _ in crossing
+                )
+                assert any(seed in encoded for seed in seeds), (parts, encoded)
+
+        assert checked > 1000
+        assert inside_starts > 0
+
+
 def test_the_readme_enumerates_every_pinned_exception() -> None:
     """Every symbol and form pinned here is written down in the README.
 
@@ -401,6 +709,8 @@ def test_the_readme_enumerates_every_pinned_exception() -> None:
         *COMPOSED_NON_ROUNDTRIP.values(),
         *ADJACENT_PAIR_NON_ROUNDTRIP,
         *ADJACENT_PAIR_NON_ROUNDTRIP.values(),
+        *SPANNING_NON_ROUNDTRIP,
+        *SPANNING_NON_ROUNDTRIP.values(),
     }
     missing = sorted(form for form in pinned if form not in readme)
     assert missing == [], f"pinned but not enumerated in the README: {missing}"

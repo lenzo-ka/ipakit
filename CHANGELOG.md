@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The X-SAMPA round-trip exception list covers every composition where a table key spans a unit boundary, and the README states the swept spaces exactly.
 - Postfix brace constraints conjoin with their base instead of overwriting it.
 - Reads refuse declared unspelled values instead of silently matching every unit or none.
 - Feature-valued CLTS release rules now state and enforce their source-assertion condition.
