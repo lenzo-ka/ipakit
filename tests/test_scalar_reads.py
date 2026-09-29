@@ -1,6 +1,6 @@
 """A tiergraph attribute's lexical spelling is read in one place, or behind a JSON test.
 
-tiergraph 0.3 attribute values may be JSON, and a JSON value has no lexical
+Tiergraph attribute values may be JSON, and a JSON value has no lexical
 spelling. ``ipakit._scalar_attribute.scalar_lexical`` reads a scalar and refuses
 a JSON value by name. Any other ``.lexical`` read in the package must be the
 ``else`` branch of an ``isinstance(value, tg.JsonAttributeValue)`` test on the

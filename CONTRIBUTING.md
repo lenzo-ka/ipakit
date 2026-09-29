@@ -26,8 +26,8 @@ make check
 
 `make check` is the gate. It runs the style tools (`ruff`, `black --check`, `mypy --strict`), the test suite, the invariants, both data validators, the tutorial regeneration check, and the check on values quoted in the documentation. `.github/workflows/ci.yml` runs the suite across Python 3.12 and 3.13, and the style tools and the derived-artifact guards on 3.12.
 
-Tiergraph is a published runtime dependency declared by a compatible version
-range in `pyproject.toml`. The gate verifies that ipakit imports from this
+Tiergraph is a published runtime dependency declared with a minimum version
+in `pyproject.toml`. The gate verifies that ipakit imports from this
 checkout and reports the resolved tiergraph path and installed version; it does
 not require or inspect a Git commit pin. The executable acceptance witnesses
 for the integration live in [docs/tiergraph-acceptance.md](docs/tiergraph-acceptance.md).
@@ -37,7 +37,7 @@ import tomllib
 from pathlib import Path
 
 project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-next(dep for dep in project["project"]["dependencies"] if dep.startswith("tiergraph"))  # 'tiergraph>=0.3.0,<0.4.0'
+next(dep for dep in project["project"]["dependencies"] if dep.startswith("tiergraph"))  # 'tiergraph>=0.4.0'
 gate_source = Path("scripts/gate_subject.py").read_text(encoding="utf-8")
 ("tiergraph_path=" in gate_source, "tiergraph_version=" in gate_source,
  "tiergraph_commit" in gate_source)  # (True, True, False)
