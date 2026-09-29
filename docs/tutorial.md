@@ -157,9 +157,9 @@ p (voiceless bilabial plosive)
   ȶ  0.032  voiceless alveolo-palatal plosive
 ```
 
-Raw distances are hard to interpret on their own. Over the 9,591 distinct
-pairs in the shipped 139-phone inventory, the median is about 0.2429 and the
-maximum is 1.0; 225 pairs (2.35%) are above 0.5.
+Raw distances are hard to interpret on their own. Over the 9,730 distinct
+pairs in the shipped 140-phone inventory, the median is about 0.242 and the
+maximum is 1.0; 226 pairs (2.32%) are above 0.5.
 
 ```python
 import itertools
@@ -170,20 +170,20 @@ pair_distances = [ipa.distance(a, b) for a, b in itertools.combinations(phones, 
 (len(pair_distances), round(statistics.median(pair_distances), 4),
  max(pair_distances), sum(d > 0.5 for d in pair_distances),
  round(100 * sum(d > 0.5 for d in pair_distances) / len(pair_distances), 2))
-# (9591, 0.2429, 1.0, 225, 2.35)
+# (9730, 0.242, 1.0, 226, 2.32)
 ```
 
 **`similarity_position` places the pair in the whole inventory's similarity distribution.** That percentile is an inventory-relative position, not a distance magnitude, and it is not comparable to one from another inventory. Its complementary `distance_position` reserves 0.0 for the same phone; the closest distinct pair sits just above zero:
 
 ```python
 ipa.similarity_position("f", "θ")  # the most-confused English pair
-# 0.9966638865721434
-ipa.similarity_position("f", "a")  # 0.298790658882402
+# 0.9967115404377762
+ipa.similarity_position("f", "a")  # 0.29986640633028466
 ```
 
 ```console
 $ ipakit distance pos f θ
-f ~ θ: similarity_position=0.9967 distance_position=0.0033  [reference: ipa, 139 phones]
+f ~ θ: similarity_position=0.9967 distance_position=0.0033  [reference: ipa, 140 phones]
 ```
 
 For transcription strings there are two different measures, and it matters which one you get.
@@ -192,7 +192,7 @@ For transcription strings there are two different measures, and it matters which
 ipa.transcription_similarity("kæt", "kæd")  # raw weighted edit distance
 # 0.9841269841269842
 ipa.distance_model().transcription_distance("kæt", "kæd").similarity
-# 0.9881498470948012
+# 0.9883191175966841
 ```
 
 > **Transcription comparison scales.** `ipakit distance transcription` prints the
@@ -200,7 +200,7 @@ ipa.distance_model().transcription_distance("kæt", "kæd").similarity
 
 ```console
 $ ipakit distance transcription kæt kæd
-kæt ~ kæd: similarity=0.9881  [reference: ipa, 139 phones]
+kæt ~ kæd: similarity=0.9883  [reference: ipa, 140 phones]
 $ ipakit distance transcription --raw kæt kæd
 kæt ~ kæd: similarity=0.9841  [raw feature distance]
 ```
@@ -232,9 +232,9 @@ ipa.sequence_distance(["k", "a", "t"], ["k", "æ", "t"]).similarity
 # 0.9969467401285583
 ```
 
-`distance` is symmetric, bounded and zero on identity. Exhaustively, 3,971 of
-437,989 unordered triples (0.907%) violate one triangle inequality; equivalently,
-3,971 of the 1,313,967 ordered inequalities (0.302%) fail. Algorithms such as
+`distance` is symmetric, bounded and zero on identity. Exhaustively, 4,007 of
+447,580 unordered triples (0.895%) violate one triangle inequality; equivalently,
+4,007 of the 1,342,740 ordered inequalities (0.298%) fail. Algorithms such as
 metric trees that require that inequality need `ipakit.closure.MetricClosure`.
 [distance.md](distance.md) describes these restrictions and the closure's
 inventory-relative behavior.
@@ -256,7 +256,7 @@ def triangle_summary():
         violations += sum(failures)
     return triples, violations, round(100 * violations / triples, 3), round(100 * violations / (3 * triples), 3)
 
-triangle_summary()  # (437989, 3971, 0.907, 0.302)
+triangle_summary()  # (447580, 4007, 0.895, 0.298)
 ```
 
 When a score needs an explanation, `explain_transcription_distance` exposes the alignment operation at each position and, for a substitution, the feature and tract terms that contributed to its cost.
@@ -1004,7 +1004,7 @@ spelling a path:
 
 ```python
 inventory = ipa.load_ipa_features(supplements=["aspirated-stops"])
-len(inventory.phones)  # 142
+len(inventory.phones)  # 143
 inventory.respell("t", release="aspirated")  # 'tʰ'
 ```
 
@@ -1024,8 +1024,8 @@ three phones — so a supplemented inventory needs its own derived matrix, which
 model = ipa.DistanceModel.derive(inventory)
 model.reference_name  # 'ipa+aspirated-stops'
 inventory.distance("tʰ", "t") == ipa.distance("tʰ", "t")  # True
-round(model.similarity_position("tʰ", "t"), 4)  # 0.9689
-round(ipa.similarity_position("tʰ", "t"), 4)  # 0.9678
+round(model.similarity_position("tʰ", "t"), 4)  # 0.9694
+round(ipa.similarity_position("tʰ", "t"), 4)  # 0.9682
 ```
 
 The instance is yours alone. Nothing loads a supplement unless you ask it to, so the

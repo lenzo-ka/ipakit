@@ -77,4 +77,4 @@ def test_the_declared_sweep_has_no_bundle_flip_at_zero(ipa: IPAFeatures) -> None
                     flip_zero += 1
                 else:
                     priced += 1
-    assert (absorbed, priced, flip_zero) == (84, 750, 0)
+    assert (absorbed, priced, flip_zero) == (84, 756, 0)

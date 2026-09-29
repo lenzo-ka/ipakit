@@ -145,7 +145,7 @@ class TestWhatTheFixDidNotChange:
     """The three things that had to hold, measured rather than assumed."""
 
     def test_the_devoiced_units_are_untouched(self) -> None:
-        # 131 units read a devoiced phonation with voiced="-" and every
+        # 132 units read a devoiced phonation with voiced="-" and every
         # one of them is right: devoiced *means* voiceless, so the coarse
         # and fine reads already agreed.
         devoiced = [
@@ -153,15 +153,15 @@ class TestWhatTheFixDidNotChange:
             for unit in _corpus(FEATURES)
             if FEATURES._get_features(unit).get("phonation") == "devoiced"
         ]
-        assert len(devoiced) == 131
+        assert len(devoiced) == 132
         assert all(FEATURES._get_features(u).get("voiced") == "-" for u in devoiced)
         assert ipakit.describe("d̥") == "voiceless alveolar plosive"
         assert ipakit.describe("ɹ̥") == "voiceless alveolar approximant"
 
     def test_the_inventory_and_the_shipped_matrix_do_not_move(self) -> None:
-        # Not one of the units that moved is a bare phone, so the 139
+        # Not one of the units that moved is a bare phone, so the 140
         # phones the confusion matrix is built over are untouched.
-        assert len(self_spelling_phones()) == 139
+        assert len(self_spelling_phones()) == 140
         moved_marks = ("̤", "̰")
         assert not [p for p in FEATURES.phones if p.endswith(moved_marks)]
         assert ipakit.distance("t", "d") == pytest.approx(1 / 21)

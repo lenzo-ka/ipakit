@@ -89,7 +89,7 @@ The cards group registry entries by family. A language or variety is an instance
 | --- | ---: |
 | Registry entries | 1 |
 | Finite inventories | 1 |
-| Phone counts | 138 |
+| Phone counts | 139 |
 
 ### Qualitative
 

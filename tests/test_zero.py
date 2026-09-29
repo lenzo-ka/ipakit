@@ -1,7 +1,7 @@
 """`∅`: a position a transcription keeps open with no segment in it.
 
 Its own element class in ``ipa.xml``, alongside ``<separators>``. Not a
-phone -- that would take the inventory from 139 to 140 and move
+phone -- that would enlarge the inventory and move
 ``confusion.json``, which is the wrong reason to touch the metric. Not a
 diacritic either: a diacritic modifies the segment it is written on, and
 a zero is exactly the case where there is no segment to write on.
@@ -179,7 +179,7 @@ class TestAnUnroutedClassIsRefused:
         assert not (set(bundle) & (set(FEATURES.features) - structural))
 
     def test_the_inventory_and_the_metric_do_not_move(self) -> None:
-        assert len(FEATURES.phones) == 139
+        assert len(FEATURES.phones) == 140
         # Nothing about the zero can reach a distance: it is in no table
         # the metric reads.
         assert ipakit.distance("t", "d") == pytest.approx(1 / 21)
@@ -371,7 +371,7 @@ class TestTheFlatApiReadsTheDeclaration:
         # distance: it carries no features, so a word containing one
         # measures as the word without it. U+203F UNDERTIE likewise has no
         # distance claim: liaison suppresses only the claim it makes.
-        assert len(FEATURES.phones) == 139
+        assert len(FEATURES.phones) == 140
         assert ipakit.transcription_distance("le∅ami", "leami").edit_cost == 0.0
         assert ipakit.transcription_distance("lez‿ami", "lezami").edit_cost == 0.0
 

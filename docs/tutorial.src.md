@@ -147,9 +147,9 @@ ipa.nearest_phones("p", n=5)
 $ ipakit analysis nearest p -n 5
 ```
 
-Raw distances are hard to interpret on their own. Over the 9,591 distinct
-pairs in the shipped 139-phone inventory, the median is about 0.2429 and the
-maximum is 1.0; 225 pairs (2.35%) are above 0.5.
+Raw distances are hard to interpret on their own. Over the 9,730 distinct
+pairs in the shipped 140-phone inventory, the median is about 0.242 and the
+maximum is 1.0; 226 pairs (2.32%) are above 0.5.
 
 ```python-run
 import itertools
@@ -214,9 +214,9 @@ without re-tokenizing, so boundaries you drew (`d͡ʒ` as one token) are kept as
 ipa.sequence_distance(["k", "a", "t"], ["k", "æ", "t"]).similarity
 ```
 
-`distance` is symmetric, bounded and zero on identity. Exhaustively, 3,971 of
-437,989 unordered triples (0.907%) violate one triangle inequality; equivalently,
-3,971 of the 1,313,967 ordered inequalities (0.302%) fail. Algorithms such as
+`distance` is symmetric, bounded and zero on identity. Exhaustively, 4,007 of
+447,580 unordered triples (0.895%) violate one triangle inequality; equivalently,
+4,007 of the 1,342,740 ordered inequalities (0.298%) fail. Algorithms such as
 metric trees that require that inequality need `ipakit.closure.MetricClosure`.
 [distance.md](distance.md) describes these restrictions and the closure's
 inventory-relative behavior.

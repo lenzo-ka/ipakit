@@ -318,7 +318,10 @@ def test_every_pair_lacking_a_tap_or_trill_is_unchanged() -> None:
             index = i * n - i * (i + 1) // 2 + (j - i - 1)
             value = matrix["triangle"][index]
             marked = INTRINSICALLY_BRIEF | INTRINSICALLY_REPEATED
-            if left not in marked and right not in marked:
+            # The baseline predates the newly registered ᶑ. Keep this
+            # assertion about the old phone pairs rather than folding new
+            # membership into an "unchanged" digest.
+            if "ᶑ" not in (left, right) and left not in marked and right not in marked:
                 values.append(value)
     digest = hashlib.sha256(
         "".join(repr(value) for value in values).encode()

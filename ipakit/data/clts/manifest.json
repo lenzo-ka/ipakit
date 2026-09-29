@@ -28,9 +28,9 @@
     "id": "ipakit.clts.extract_snapshot",
     "version": "1"
   },
-  "fingerprint": "sha256:2d8aa509068014cbec6a3fb017f6ed6fd72e98b0b02eeeec03dd86eb2408070b",
+  "fingerprint": "sha256:354f45e761e8550ac6f99e7439cc8849ebbd93ccd3122db1f8660062c0d1b73e",
   "house-declarations": {
-    "fingerprint": "sha256:3bce116985b93aeff9d2e465d85361c0c106a50c906f5064b1705884cc49401e"
+    "fingerprint": "sha256:fccdd9a6ebb0ad98688d3e3065a19a25f1b60ec7a9ad0cd0faffa739dfcae5fe"
   },
   "kind": "final",
   "license": {

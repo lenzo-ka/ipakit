@@ -281,13 +281,13 @@ def test_core_bipa_spec_binds_verified_final_manifest():
     manifest = manifest_metadata()
     assert schema.provider_fingerprint == snapshot.identity
     assert schema.mapping_identity == (
-        "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
+        "sha256:cc668715d91f559983819215804e0174f40b80504048ddcef74f1db23f35292b"
     )
     assert core_bipa_basis() == (
-        "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
+        "sha256:097534e091b47a2644896964bd2bcc98e89b6cce71ca36940f2ed4377bae50cd"
     )
     assert schema.identity == (
-        "sha256:ed846c398e47326cfb6fcbbb3133c5ab2cc06703f34db7d9b2ae0fe96cf3ee3e"
+        "sha256:7fa7e91adda42638e5f848bfb35c1293431b6ee571f542ef9ae4522230f54577"
     )
     assert [(field.name, field.value_name) for field in schema.house_fields] == [
         (
@@ -309,7 +309,7 @@ def test_core_bipa_spec_binds_verified_final_manifest():
 def test_profile_basis_excludes_exactly_mapping_with_literal_keys():
     schema = core_bipa_spec(
         mapping_identity=(
-            "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
+            "sha256:cc668715d91f559983819215804e0174f40b80504048ddcef74f1db23f35292b"
         )
     )
     material = metadata(schema)
@@ -370,7 +370,7 @@ def test_core_bipa_committed_example_has_hand_authored_facts():
         "outside-artifact-domain",
         "resolved",
     ]
-    mapping = "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
+    mapping = "sha256:cc668715d91f559983819215804e0174f40b80504048ddcef74f1db23f35292b"
     assert projections == (
         {
             "mapping": mapping,

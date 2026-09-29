@@ -175,7 +175,7 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         # 75 after bilabial nasal release became distinct from generic nasal.
         # 78 after sibilant, trilled and uvular release became phase values.
         assert len(pairs) == 78, f"{len(pairs)} declared pairs, not 78"
-        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10842
+        assert sum(len(v) for v in swept.values()) == len(phones) * len(pairs) == 10920
 
     def test_no_composition_moves_a_dimension_nobody_asked_for(self, swept):
         assert swept["incoherent"] == [], (
@@ -201,7 +201,7 @@ class TestAComposedUnitMovesOnlyWhatWasAsked:
         """
         refused = [c for c in swept["refused"] if c.endswith("place=bilabial")]
         already = [c for c in swept["already"] if c.endswith("place=bilabial")]
-        assert len(refused) + len(already) == len(self_spelling_phones()) == 139
+        assert len(refused) + len(already) == len(self_spelling_phones()) == 140
         assert {c.split()[0] for c in already} == {
             p
             for p in self_spelling_phones()

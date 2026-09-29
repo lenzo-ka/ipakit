@@ -577,7 +577,7 @@ def similarity_position(
 
     Examples:
         >>> round(ipakit.similarity_position("p", "b"), 3)
-        0.964
+        0.965
         >>> ipakit.similarity_position("p", "p")
         1.0
     """
