@@ -168,7 +168,9 @@ DistanceModel.from_matrix_file(inventory, saved).reference_phones == model.refer
 
 Regenerate it whenever the supplement or the metric changes. Percentile positions are not comparable across inventories or to raw `segment_distance`, which is why the model's `reference_name` says which files it was built from.
 
-A saved matrix also records the feature space it was derived in, and a reader refuses one derived in another — see [distance.md](distance.md) §11. That check is deliberately blind to supplements, which matters here because it also guards `DistanceModel.global_`, and a supplemented inventory reads the shipped matrix through it. It digests what the metric reads off the phones *the file itself lists*, and a supplement declares no feature, type or bridge, so a supplemented inventory agrees with the shipped matrix and with any matrix derived before the supplement was written. It should: the space did not move, only the membership, and membership is what `phones` records. The case the refusal is for is the other one this page names — editing a copy of `ipa.xml`, and not regenerating what was derived from the original.
+A saved matrix records both the feature space and its base-inventory provenance — see [distance.md](distance.md) §11. The two checks are deliberately blind to supplements, which matters here because they also guard `DistanceModel.global_`, and a supplemented inventory reads the shipped matrix through it. `metric` digests what the distance metric reads off the phones *the file itself lists*, while `base` fingerprints the ordered phones declared by `xml_path` after excluding every `supplement_of` entry and records that base phone count. A supplemented inventory therefore agrees with the shipped matrix and with a scoped matrix derived before the supplement was written. It should: neither the base declaration nor the feature space moved, only the opt-in membership did.
+
+A legacy JSON matrix without `base` still loads. Its phone rows cannot say whether the file once covered a complete base or was deliberately scoped, so the reader cannot infer the missing provenance without breaking one of those valid cases.
 
 ## Limits
 

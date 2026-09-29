@@ -3,6 +3,7 @@
 import itertools
 import json
 import warnings
+import xml.etree.ElementTree as ET
 
 import ipakit
 import pytest
@@ -16,7 +17,7 @@ from ipakit.distance_model import (
     _load_matrix_json,
     _load_matrix_tsv,
 )
-from ipakit.metric import metric_fingerprint
+from ipakit.metric import base_inventory_provenance, metric_fingerprint
 
 CORE = [
     "p",
@@ -59,6 +60,35 @@ def _model(ipa, phones, **kw):
     return DistanceModel(
         ipa, "core", phones, ipa.pairwise_distances(phones), "distance", **kw
     )
+
+
+def _edited_base_inventory(tmp_path, edit):
+    """A copied base declaration with a controlled test edit."""
+    tree = ET.parse(DATA_DIR / "ipa.xml")
+    phones = tree.getroot().find("phones")
+    assert phones is not None
+    assert all(phone.get("name") != "ꞵ" for phone in phones)
+    if edit in {"extra", "custom"}:
+        ET.SubElement(
+            phones,
+            "phone",
+            {"name": "ꞵ", "manner": "plosive", "place": "bilabial"},
+        )
+    elif edit == "replacement":
+        replaced = [phone for phone in phones if phone.get("name") == "c"]
+        assert len(replaced) == 1
+        replaced[0].set("name", "ꞵ")
+    else:  # pragma: no cover - test helper contract
+        raise AssertionError(edit)
+    if edit == "custom":
+        bridges = tree.getroot().find("bridges")
+        assert bridges is not None
+        bridge = ET.SubElement(bridges, "bridge", {"name": "posteriority"})
+        ET.SubElement(bridge, "spelling", {"feature": "retroflex", "value": "+"})
+        ET.SubElement(bridge, "spelling", {"feature": "place", "value": "postalveolar"})
+    path = tmp_path / f"{edit}.xml"
+    tree.write(path, encoding="utf-8", xml_declaration=True)
+    return IPAFeatures(xml_path=path)
 
 
 class TestGammaIsRefusedOutsideItsDomain:
@@ -507,9 +537,10 @@ class TestLoaders:
                 }
             )
         )
-        ph, m, sp, fingerprint = _load_matrix_json(p)
+        ph, m, sp, fingerprint, base = _load_matrix_json(p)
         assert ph == phones and sp == "distance"
         assert fingerprint is None, "a file recording no metric records None"
+        assert base is None, "a legacy file recording no base records None"
         assert m[0][1] == m[1][0] == tri[0] and m[0][0] == 0.0
 
     def test_tsv_symmetrizes_averages_genuine_zero(self, tmp_path):
@@ -636,6 +667,7 @@ class TestFeatureSpaceFingerprint:
         model = DistanceModel.derive(ipa, phones=["p", "b", "t"])
         saved = json.loads(model.save(tmp_path / "c.json").read_text(encoding="utf-8"))
         assert saved["metric"] == metric_fingerprint(ipa, saved["phones"])
+        assert saved["base"] == base_inventory_provenance(ipa)
 
     def test_scoped_save_records_and_requires_its_denominator(self, tmp_path, ipa):
         model = DistanceModel.derive(ipa, phones=["a", "e", "p"], applicable_only=True)
@@ -676,6 +708,9 @@ class TestFeatureSpaceFingerprint:
         inventory = IPAFeatures(supplements=["aspirated-stops"])
         model = DistanceModel.derive(inventory, phones=["p", "t", "tʰ", "s"])
         saved = model.save(tmp_path / "c.json")
+        assert json.loads(saved.read_text(encoding="utf-8"))["base"] == (
+            base_inventory_provenance(IPAFeatures())
+        )
         assert DistanceModel.from_matrix_file(inventory, saved).reference_phones == [
             "p",
             "t",
@@ -738,6 +773,59 @@ class TestFeatureSpaceFingerprint:
             ]
 
 
+class TestBaseInventoryProvenance:
+    def test_a_saved_matrix_refuses_another_base_inventory(self, tmp_path, ipa):
+        path = DistanceModel.derive(ipa, phones=["p", "b", "t"]).save(
+            tmp_path / "matrix.json"
+        )
+        recorded = base_inventory_provenance(ipa)
+        for edit, expected_count in (("extra", 141), ("replacement", 140)):
+            other = _edited_base_inventory(tmp_path, edit)
+            expected = base_inventory_provenance(other)
+            assert expected["phone_count"] == expected_count
+            with pytest.raises(ValueError) as caught:
+                DistanceModel.from_matrix_file(other, path)
+            message = str(caught.value)
+            assert "different base inventory" in message
+            assert str(recorded["fingerprint"]) in message
+            assert str(recorded["phone_count"]) in message
+            assert str(expected["fingerprint"]) in message
+            assert str(expected["phone_count"]) in message
+
+    def test_a_scoped_matrix_loads_against_its_base_inventory(self, tmp_path, ipa):
+        model = DistanceModel.derive(ipa, phones=["p", "b", "t"])
+        loaded = DistanceModel.from_matrix_file(
+            ipa, model.save(tmp_path / "scoped.json")
+        )
+        assert loaded.reference_phones == ["p", "b", "t"]
+
+    def test_a_custom_base_matrix_loads_only_against_that_base(self, tmp_path, ipa):
+        custom = _edited_base_inventory(tmp_path, "custom")
+        model = DistanceModel.derive(custom, phones=_core_phones(custom))
+        path = model.save(tmp_path / "custom.json")
+        assert DistanceModel.from_matrix_file(custom, path).reference_phones == (
+            model.reference_phones
+        )
+        with pytest.raises(ValueError):
+            DistanceModel.from_matrix_file(ipa, path)
+
+    def test_a_legacy_matrix_without_base_provenance_loads_as_before(
+        self, tmp_path, ipa
+    ):
+        path = DistanceModel.derive(ipa, phones=["p", "b", "t"]).save(
+            tmp_path / "legacy.json"
+        )
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        del saved["base"]
+        path.write_text(json.dumps(saved), encoding="utf-8")
+        other = _edited_base_inventory(tmp_path, "replacement")
+        assert DistanceModel.from_matrix_file(other, path).reference_phones == [
+            "p",
+            "b",
+            "t",
+        ]
+
+
 class TestTheShippedMatrixIsCheckedWhereItIsRead:
     """The acceptance case, over the public entry points.
 
@@ -781,7 +869,7 @@ class TestTheShippedMatrixIsCheckedWhereItIsRead:
         # /ʃ/, and nothing about the wrong one looks wrong. The bare
         # constructor is the deliberate escape -- it takes a matrix as an
         # argument and makes no claim about where it came from.
-        phones, m, space, _ = _global_matrix()
+        phones, m, space, _, _ = _global_matrix()
         shipped = DistanceModel(bridged, "ipa", phones, m, space)
         own = DistanceModel.derive(bridged)
         assert shipped.similarity_position("s", "ʃ") != own.similarity_position(

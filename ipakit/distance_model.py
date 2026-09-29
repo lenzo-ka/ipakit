@@ -42,7 +42,7 @@ from .distance import (
     _validate_mode,
     price,
 )
-from .metric import metric_fingerprint
+from .metric import base_inventory_provenance, metric_fingerprint
 from .models import Phoneset
 
 if TYPE_CHECKING:
@@ -66,17 +66,21 @@ class UnusableReferenceWarning(UserWarning):
     """A reference inventory cannot provide usable percentile positions."""
 
 
-def _load_matrix_json(path: Path) -> tuple[list[str], Matrix, str, str | None]:
+def _load_matrix_json(
+    path: Path,
+) -> tuple[list[str], Matrix, str, str | None, dict[str, str | int] | None]:
     """Shipped/derived model: phones + upper triangle -> full symmetric matrix.
 
-    The fourth element is the ``metric`` fingerprint the file records, or
-    ``None`` where it records none.
+    The fourth element is the ``metric`` fingerprint the file records, and
+    the fifth is its ``base`` inventory provenance. Either is ``None`` for a
+    legacy or external file that does not record it.
     """
     d = json.loads(Path(path).read_text(encoding="utf-8"))
     phones: list[str] = d["phones"]
     tri: list[float] = d["triangle"]
     space: str = d["space"]
     fingerprint: str | None = d.get("metric")
+    base: dict[str, str | int] | None = d.get("base")
     n = len(phones)
     diag = 0.0 if space == "distance" else 1.0
     m: Matrix = [[diag] * n for _ in range(n)]
@@ -85,7 +89,7 @@ def _load_matrix_json(path: Path) -> tuple[list[str], Matrix, str, str | None]:
         for j in range(i + 1, n):
             m[i][j] = m[j][i] = tri[k]
             k += 1
-    return phones, m, space, fingerprint
+    return phones, m, space, fingerprint, base
 
 
 def _load_matrix_tsv(
@@ -129,7 +133,9 @@ def _load_matrix_tsv(
 
 
 @functools.lru_cache(maxsize=1)
-def _global_matrix() -> tuple[list[str], Matrix, str, str | None]:
+def _global_matrix() -> (
+    tuple[list[str], Matrix, str, str | None, dict[str, str | int] | None]
+):
     """Shipped global IPA matrix, loaded once."""
     return _load_matrix_json(DEFAULT_CONFUSION)
 
@@ -144,9 +150,37 @@ def _checked_global(ipa: IPAFeatures) -> tuple[list[str], Matrix, str]:
     inventory and not regenerating is the case the fingerprint exists for,
     and this is the path that edit is actually read on.
     """
-    phones, m, space, fingerprint = _global_matrix()
+    phones, m, space, fingerprint, base = _global_matrix()
+    _check_base_inventory(ipa, base, DEFAULT_CONFUSION)
     _check_fingerprint(ipa, phones, fingerprint, DEFAULT_CONFUSION)
     return phones, m, space
+
+
+def _check_base_inventory(
+    ipa: IPAFeatures,
+    recorded: dict[str, str | int] | None,
+    path: Path,
+) -> None:
+    """Refuse a matrix written against another base phone declaration.
+
+    Absence is the legacy behavior. A legacy full-inventory matrix and a
+    deliberate scoped subset carry no fact that distinguishes them, so this
+    check does not infer base provenance from the matrix's ``phones``.
+    """
+    if recorded is None:
+        return
+    expected = base_inventory_provenance(ipa)
+    if recorded["fingerprint"] == expected["fingerprint"]:
+        return
+    raise ValueError(
+        f"{path.name} was saved against a different base inventory: the "
+        f"recorded base fingerprint is {recorded['fingerprint']} "
+        f"({recorded['phone_count']} phones), while the expected base "
+        f"fingerprint for {ipa.xml_path.name} is {expected['fingerprint']} "
+        f"({expected['phone_count']} phones). Regenerate the matrix with "
+        "DistanceModel.derive(ipa).save(path), or run "
+        "'python scripts/confusion.py generate --write' for the shipped one."
+    )
 
 
 def _check_fingerprint(
@@ -408,6 +442,11 @@ class DistanceModel:
         phones written, so the file says which feature space its numbers
         mean something in and :meth:`from_matrix_file` can refuse a
         reader that is not in it.
+
+        ``base`` is :func:`~ipakit.metric.base_inventory_provenance` over
+        the ordered phones declared by the inventory's base ``xml_path``.
+        It excludes supplement entries and is independent of this model's
+        reference subset.
         """
         ref = [p for p in self._ref if p in self._index]
         idxs = [self._index[p] for p in ref]
@@ -419,6 +458,7 @@ class DistanceModel:
             "metric": metric_fingerprint(
                 self._ipa, ref, applicable_only=self._applicable_only
             ),
+            "base": base_inventory_provenance(self._ipa),
             "phones": ref,
             "triangle": [
                 self._m[idxs[i]][idxs[j]] for i in range(n) for j in range(i + 1, n)
@@ -502,7 +542,8 @@ class DistanceModel:
         if p.suffix == ".tsv":
             phones, m, sp = _load_matrix_tsv(p, space=space or "similarity")
         else:
-            phones, m, sp, fingerprint = _load_matrix_json(p)
+            phones, m, sp, fingerprint, base = _load_matrix_json(p)
+            _check_base_inventory(ipa, base, p)
             _check_fingerprint(
                 ipa,
                 phones,
