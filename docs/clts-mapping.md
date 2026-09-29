@@ -4,8 +4,10 @@ The `ipakit.clts_mapping` library provides a bounded, directional correspondence
 authority for the reviewed plain-stop witnesses `p`, `b`, `t`, and `d`, and for the
 seven CLTS consonant-release declarations, from CLTS to IPAkit. Its token rules
 establish eligibility and profile-bound house projections in the declared direction
-and context. Reverse conversion and public TierGraph/Form import remain separate.
-Each inventory retains its own semantics.
+and context. The [public CLTS import](clts-import.md) consumes those projections,
+retains the native source graph, and limits complete house Forms to the reviewed
+plain-stop domain. Reverse conversion remains separate. Each inventory retains its
+own semantics.
 
 ```python
 from ipakit.clts import read_snapshot
@@ -41,7 +43,7 @@ committed receipt when the profile is used. Changed populations or provider
 bindings require reconciliation. These fingerprints detect changed inputs.
 Authentication and phonetic equivalence require separate evidence. The `target`
 field identifies the research witness; the reviewed projection record does not
-itself perform public Form import.
+itself construct either the source-profile graph or the house Form.
 
 ## Declarations, rules, and token eligibility
 

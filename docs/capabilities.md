@@ -221,11 +221,12 @@ and comparison tooling are usable today. The [CLTS/BIPA library](clts-audit.md)
 provides a frozen finite core feature snapshot, native Jaccard scoring, shared
 alignment cost packs, and a declaration census. Runtime scoring uses the shipped
 snapshot; development extraction has separate source pins and validation.
-The CLTS source-preserving runtime bridge remains in development. A public
-importer that retains source-only CLTS claims safely in `Form` still requires
-an adaptation/restoration boundary, guarded incomplete projections, and
-directional mapping artifacts. The existing scripts provide auditing and
-approximation. Full native graph persistence and the public `Form.to_json()`
+The [CLTS import](clts-import.md) turns explicitly segmented CLTS tokens into
+a house `Form` for the reviewed plain stops `p b t d` and refuses every other
+occurrence with a per-occurrence report; preserve mode keeps the native source
+graph instead. A house `Form` does not carry source-only CLTS claims: a
+preserved import is source-complete and house-incomplete, and `house_form()`
+refuses it. The existing scripts provide auditing and approximation. Full native graph persistence and the public `Form.to_json()`
 linear projection have separate fidelity contracts.
 
 The [historical ecosystem assessment](design/ecosystem.md) retains the

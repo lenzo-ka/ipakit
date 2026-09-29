@@ -2,7 +2,7 @@
 
 Mapping identity: `sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be`.
 
-Finite declaration accounting is not complete semantic conversion. Reviewed token projections are bound to the source profile; public Form import remains pending.
+Finite declaration accounting is not complete semantic conversion. Reviewed token projections are bound to the source profile; public import accepts the plain-stop domain and otherwise reports refusal or preservation.
 
 Generated from the [reviewed mapping authority](clts-mapping.md). Only master declarations are included; catalog observations remain external research. CLTS master declarations are CC BY 4.0; see the [mapping notice](../ipakit/data/clts/MAPPING-NOTICE.txt), [source policy](../ipakit/data/clts/source.json) and [CLTS audit](clts-audit.md). Native declarations retain their repository license.
 

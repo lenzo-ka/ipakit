@@ -1,8 +1,8 @@
-"""CLTS finite geometry, declaration audits, and development extraction.
+"""CLTS finite geometry, bounded import, audits, and development extraction.
 
 Frozen reads and declaration censuses require no pyclts. Explicit development
-extraction loads the pinned oracle lazily. This is not a full CLTS Form
-importer or semantic correspondence table.
+extraction loads the pinned oracle lazily. Public import retains an explicit
+source-profile graph and projects only the reviewed plain-stop domain to a Form.
 """
 
 from __future__ import annotations

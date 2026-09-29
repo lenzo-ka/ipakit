@@ -22,6 +22,7 @@ def test_core_snapshot_and_credit_are_in_actual_wheel(built_wheel: Path) -> None
             "ipakit/data/clts/source.json",
             "ipakit/data/clts/manifest.json",
             "ipakit/data/clts/semantic-mapping.json",
+            "ipakit/data/clts/import-result.schema.json",
             "ipakit/data/clts/NOTICE.txt",
             "ipakit/data/clts/MAPPING-NOTICE.txt",
         } <= set(archive.namelist())
@@ -67,6 +68,7 @@ def test_actual_sdist_contains_artifact_and_notices_not_untracked(
             "ipakit/data/clts/source.json",
             "ipakit/data/clts/manifest.json",
             "ipakit/data/clts/semantic-mapping.json",
+            "ipakit/data/clts/import-result.schema.json",
             "ipakit/data/clts/NOTICE.txt",
             "ipakit/data/clts/MAPPING-NOTICE.txt",
         } <= set(names)
@@ -95,9 +97,12 @@ def no_network(*a, **kw):
     raise AssertionError('offline runtime attempted network')
 socket.socket = no_network
 import ipakit
-from ipakit.clts import read_snapshot
+from ipakit.clts import load_import, read_snapshot
 from ipakit.bridges.costmodel import set_feature_pack, compare_tokens, Segmentation
 assert Path(ipakit.__file__).resolve().is_relative_to(Path(sys.argv[1]))
+saved = load_import(Path(sys.argv[2]).read_text(encoding='utf-8'))
+assert saved.status == 'complete'
+assert saved.house_form().to_ipa() == 'pb'
 s = read_snapshot()
 p = set_feature_pack(s.geometry)
 row = compare_tokens(ipakit.load_ipa_features(), p, Segmentation(('a',)), Segmentation(('p',)))
@@ -105,7 +110,15 @@ assert s.similarity('ç', 'ç') == 1
 print(json.dumps({'cost': row.edit_cost, 'identity': s.identity}))
 """
     result = subprocess.run(
-        [sys.executable, "-I", "-S", "-c", program, str(site)],
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            "-c",
+            program,
+            str(site),
+            str(Path(__file__).parent / "fixtures/clts_import/complete.json"),
+        ],
         cwd=tmp_path,
         capture_output=True,
         text=True,

@@ -1,0 +1,1 @@
+{"error":{"code":"invalid-timing","message":"supply finite nonnegative start and duration together","path":"/tokens/0/time"},"form":null}

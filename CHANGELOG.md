@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A JSON Schema and five canonical fixtures define the public CLTS import envelopes.
 - `unsupported="preserve"` keeps unsupported CLTS occurrences as source material instead of refusing the import.
 - `load_import` reloads a saved strict import only when a fresh import reproduces it exactly.
 - Public strict CLTS import now accepts explicit tokens; only reviewed plain stops (`p b t d`) import successfully, and every other occurrence is reported.

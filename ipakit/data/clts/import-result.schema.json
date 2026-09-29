@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ipakit-clts-import-result",
+  "version": 1,
+  "title": "IPAkit CLTS import result",
+  "oneOf": [
+    {"$ref": "#/$defs/complete"},
+    {"$ref": "#/$defs/empty"},
+    {"$ref": "#/$defs/refused"},
+    {"$ref": "#/$defs/preserved"},
+    {"$ref": "#/$defs/error"}
+  ],
+  "$defs": {
+    "fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format_version", "graph"],
+      "properties": {
+        "format_version": {"const": "0.3.0"},
+        "graph": {"type": "object"}
+      }
+    },
+    "schema": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"const": "ipakit-clts-import-result"},
+        "version": {"const": 1}
+      }
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["domain", "manifest", "mapping", "profile", "snapshot"],
+      "properties": {
+        "domain": {"const": "core-bipa"},
+        "manifest": {"$ref": "#/$defs/fingerprint"},
+        "mapping": {"$ref": "#/$defs/fingerprint"},
+        "profile": {"$ref": "#/$defs/fingerprint"},
+        "snapshot": {"$ref": "#/$defs/fingerprint"}
+      }
+    },
+    "projection": {"oneOf": [
+      {
+        "type": "object", "additionalProperties": false,
+        "required": ["facts", "status"],
+        "properties": {
+          "facts": {"type": "array", "minItems": 1, "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["house-kind", "house-symbol"],
+            "properties": {
+              "house-kind": {"const": "segment"},
+              "house-symbol": {"type": "string", "minLength": 1}
+            }
+          }},
+          "status": {"const": "supported"}
+        }
+      },
+      {
+        "type": "object", "additionalProperties": false,
+        "required": ["code", "status"],
+        "properties": {
+          "code": {"enum": ["outside-reviewed-token-context", "unasserted-house-juncture"]},
+          "status": {"const": "unsupported"}
+        }
+      },
+      {
+        "type": "object", "additionalProperties": false,
+        "required": ["status"],
+        "properties": {"status": {"const": "not-attempted"}}
+      }
+    ]},
+    "resolution": {"oneOf": [
+      {
+        "type": "object", "additionalProperties": false,
+        "required": ["canonical", "status"],
+        "properties": {
+          "canonical": {"type": "string", "minLength": 1},
+          "status": {"const": "resolved"}
+        }
+      },
+      {
+        "type": "object", "additionalProperties": false,
+        "required": ["status"],
+        "properties": {
+          "status": {"enum": ["marker", "unknown-sound", "outside-artifact-domain"]}
+        }
+      }
+    ]},
+    "time": {
+      "type": "object", "additionalProperties": false,
+      "required": ["duration", "start"],
+      "properties": {
+        "duration": {"type": "number", "minimum": 0},
+        "start": {"type": "number", "minimum": 0}
+      }
+    },
+    "occurrence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["projection", "raw", "resolution", "token"],
+      "properties": {
+        "projection": {"$ref": "#/$defs/projection"},
+        "raw": {"type": "string", "minLength": 1},
+        "resolution": {"$ref": "#/$defs/resolution"},
+        "time": {"$ref": "#/$defs/time"},
+        "token": {"type": "integer", "minimum": 0}
+      }
+    },
+    "diagnostic": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action", "code", "stage", "token"],
+      "properties": {
+        "action": {"enum": ["preserved", "refused"]},
+        "code": {"type": "string"},
+        "stage": {"enum": ["house-projection", "resolution"]},
+        "token": {"type": "integer", "minimum": 0}
+      }
+    },
+    "relation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "target", "type"],
+      "properties": {
+        "source": {"type": "string", "pattern": "^/tokens/[0-9]+$"},
+        "target": {"type": "string", "pattern": "^/tokens/[0-9]+$"},
+        "type": {"const": "clts:source-tone-host"}
+      }
+    },
+    "report": {
+      "type": "object", "additionalProperties": false,
+      "required": ["changes", "diagnostics", "house_complete", "occurrences", "provenance", "schema", "source_complete", "status"],
+      "properties": {
+        "changes": {"const": []},
+        "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/diagnostic"}},
+        "house_complete": {"type": "boolean"},
+        "occurrences": {"type": "array", "items": {"$ref": "#/$defs/occurrence"}},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "relations": {"type": "array", "items": {"$ref": "#/$defs/relation"}},
+        "schema": {"$ref": "#/$defs/schema"},
+        "source_complete": {"const": true},
+        "status": {"enum": ["complete", "preserved", "refused"]}
+      }
+    },
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["form", "report"],
+      "properties": {"form": {}, "report": {"$ref": "#/$defs/report"}}
+    },
+    "complete": {"allOf": [
+      {"$ref": "#/$defs/result"},
+      {"properties": {"form": {"$ref": "#/$defs/form"}, "report": {"properties": {
+        "diagnostics": {"maxItems": 0}, "house_complete": {"const": true},
+        "occurrences": {"minItems": 1, "items": {"allOf": [
+          {"$ref": "#/$defs/occurrence"},
+          {"properties": {
+            "projection": {"properties": {"status": {"const": "supported"}}},
+            "resolution": {"properties": {"status": {"const": "resolved"}}}
+          }}
+        ]}},
+        "status": {"const": "complete"}
+      }}}}
+    ]},
+    "empty": {"allOf": [
+      {"$ref": "#/$defs/result"},
+      {"properties": {"form": {"$ref": "#/$defs/form"}, "report": {"properties": {
+        "diagnostics": {"maxItems": 0}, "house_complete": {"const": true},
+        "occurrences": {"maxItems": 0}, "status": {"const": "complete"}
+      }}}}
+    ]},
+    "refused": {"allOf": [
+      {"$ref": "#/$defs/result"},
+      {"properties": {"form": {"type": "null"}, "report": {"properties": {
+        "diagnostics": {"minItems": 1, "items": {"allOf": [
+          {"$ref": "#/$defs/diagnostic"},
+          {"properties": {"action": {"const": "refused"}}}
+        ]}},
+        "house_complete": {"const": false},
+        "occurrences": {"minItems": 1}, "status": {"const": "refused"}
+      }}}}
+    ]},
+    "preserved": {"allOf": [
+      {"$ref": "#/$defs/result"},
+      {"properties": {"form": {"$ref": "#/$defs/form"}, "report": {"properties": {
+        "diagnostics": {"minItems": 1, "items": {"allOf": [
+          {"$ref": "#/$defs/diagnostic"},
+          {"properties": {"action": {"const": "preserved"}}}
+        ]}},
+        "house_complete": {"const": false},
+        "occurrences": {"minItems": 1}, "status": {"const": "preserved"}
+      }}}}
+    ]},
+    "error": {
+      "type": "object", "additionalProperties": false,
+      "required": ["error", "form"],
+      "properties": {
+        "error": {
+          "type": "object", "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"type": "string", "minLength": 1},
+            "message": {"type": "string"},
+            "path": {"type": "string"}
+          }
+        },
+        "form": {"type": "null"}
+      }
+    }
+  }
+}
