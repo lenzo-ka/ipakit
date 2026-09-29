@@ -94,7 +94,9 @@ ipakit = [
     "data/supplements/*.rng",
     "data/syllables/*.xml",
     "data/syllables/*.rng",
-    "data/bridges/*/*.xml",
+    "data/bridges/kana/*.xml",
+    "data/bridges/mfa/*.xml",
+    "data/bridges/pinyin/*.xml",
     "data/bridges/*.rng",
     "data/rules/*.rules",
     "data/*.json",
@@ -103,7 +105,6 @@ ipakit = [
     "data/phoible/*.txt",
     "data/phoible/*.json",
     "data/phoible/data/*.gz",
-    "data/phoible/mappings/*.gz",
     "data/attested/*.json",
     "data/textgrid/*.json",
     # Attested data are read by validation rather than by the runtime. The

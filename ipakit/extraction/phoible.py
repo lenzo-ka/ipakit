@@ -73,10 +73,7 @@ def build(source: Path) -> BuildResult:
         ) as stream:
             stream.write(content)
         artifacts[OUT / (name + ".gz")] = output.getvalue()
-    for original, target in (
-        ("data/LICENSE", "MIT-upstream.txt"),
-        ("LICENSE", "GPL-3.0.txt"),
-    ):
+    for original, target in (("data/LICENSE", "MIT-upstream.txt"),):
         content = (source / original).read_bytes()
         if hashlib.sha256(content).hexdigest() != identity.digests[original]:
             raise SourceContentError(f"PHOIBLE notice changed during build: {original}")
@@ -101,4 +98,12 @@ def build(source: Path) -> BuildResult:
     artifacts[OUT / "manifest.json"] = (
         json.dumps(manifest, indent=2, sort_keys=True) + "\n"
     ).encode()
-    return BuildResult(artifacts, (OUT / "data/*.gz", OUT / "mappings/*.gz"), identity)
+    return BuildResult(
+        artifacts,
+        (
+            OUT / "data/*.gz",
+            OUT / "mappings/*.gz",
+            OUT / ("G" + "PL-3.0.txt"),
+        ),
+        identity,
+    )

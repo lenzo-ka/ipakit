@@ -202,6 +202,14 @@ def test_the_wheel_carries_every_data_file(built_wheel):
     )
 
 
+def test_wheel_contains_no_gpl_material_or_license_declaration(built_wheel):
+    with zipfile.ZipFile(built_wheel) as archive:
+        matches = [
+            name for name in archive.namelist() if b"gpl" in archive.read(name).lower()
+        ]
+    assert matches == []
+
+
 def test_wheel_requires_tiergraph_0_4_or_later_without_an_upper_cap(built_wheel):
     """Installation requires the compatible 0.4.0 API floor without a cap."""
     with zipfile.ZipFile(built_wheel) as archive:

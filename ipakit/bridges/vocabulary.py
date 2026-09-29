@@ -107,13 +107,19 @@ def _leg(element: ET.Element, direction: str) -> RoundTripLeg:
 class VocabularyBridge(Bridge):
     """Longest-match tokenizer and structural renderer for one declaration."""
 
-    def __init__(self, declaration: Path, *, ipa: IPAFeatures | None = None):
+    def __init__(self, declaration: Path | bytes, *, ipa: IPAFeatures | None = None):
         """Load and check the vocabulary declaration at ``declaration``."""
 
         self.ipa = ipa
-        root = ET.parse(declaration).getroot()
+        declaration_label: str | Path
+        if isinstance(declaration, bytes):
+            root = ET.fromstring(declaration)
+            declaration_label = "in-memory vocabulary declaration"
+        else:
+            root = ET.parse(declaration).getroot()
+            declaration_label = declaration
         if root.tag != "vocabulary":
-            raise ValueError(f"{declaration} is not a vocabulary declaration")
+            raise ValueError(f"{declaration_label} is not a vocabulary declaration")
         report = root.find("round-trip")
         if report is None:
             raise ValueError("vocabulary declaration has no round-trip classification")
@@ -121,7 +127,7 @@ class VocabularyBridge(Bridge):
         inward = report.find("house-to-external")
         if outward is None or inward is None:
             raise ValueError("vocabulary declaration must classify both directions")
-        source_metadata = SourceMetadata.from_root(root, declaration)
+        source_metadata = SourceMetadata.from_root(root, declaration_label)
         super().__init__(
             root.attrib["name"],
             source_metadata.version,

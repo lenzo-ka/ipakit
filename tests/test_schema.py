@@ -442,9 +442,9 @@ _ENUMERATION_ESCAPES = {
         ),
     ),
     "vocabulary.rng": (
-        frozenset({"fidelity", "kind", "source-style"}),
+        frozenset({"fidelity", "source-style"}),
         (
-            "it enumerates fidelity, kind and source-style, and each is a second "
+            "it enumerates fidelity and source-style, and each is a second "
             "copy of a StrEnum in ipakit/bridges/base.py rather than of anything "
             "ipa.xml declares. The Python side already refuses an unknown value by "
             "construction -- Fidelity(...) raises -- so the enumerations are "
@@ -689,7 +689,7 @@ def _mutations(
                 "RELAXNG_ERR_NOELEM",
             ),
         ]
-    if document.suffix == ".xml" and document.parent.name in {"mfa", "espeak"}:
+    if document.suffix == ".xml" and document.parent.name == "mfa":
         return [
             (
                 "atom with no spelling",
@@ -768,7 +768,6 @@ def _negatives() -> Iterator[Any]:
         DATA / "phonemaps" / "cmu.xml",
         SUPPLEMENT_XML,
         DATA / "bridges" / "mfa" / "english.xml",
-        DATA / "bridges" / "espeak" / "en.xml",
     ):
         grammar = _grammars_for(document)[0]
         for label, mutate, code in _mutations(document):

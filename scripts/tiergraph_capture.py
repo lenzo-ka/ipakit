@@ -538,7 +538,10 @@ def capture_artifacts(_: argparse.Namespace) -> None:
         ROOT / "ipakit" / "data" / "confusion.json",
         ROOT / "ipakit" / "data" / "phonemaps" / "xsampa.xml",
         ROOT / "docs" / "tutorial.md",
+        ROOT / "docs" / "inventories.md",
+        ROOT / "docs" / "espeak-vocabularies.md",
         ROOT / "ipakit" / "notebooks" / "ipakit-tutorial.ipynb",
+        ROOT / "ipakit" / "data" / "phoible" / "manifest.json",
         *sorted((ROOT / "docs" / "figures").glob("tract-*.svg")),
         *(path for path, _ in tiergraph_figures),
     ]

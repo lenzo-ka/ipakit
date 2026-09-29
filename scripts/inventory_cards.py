@@ -151,6 +151,8 @@ def validate_spdx() -> int:
 
 
 def _source_paths(card: Card) -> tuple[Path, ...]:
+    if card.family == "espeak":
+        return ()
     paths = tuple(
         path for pattern in card.sources for path in sorted(ROOT.glob(pattern))
     )
@@ -160,6 +162,10 @@ def _source_paths(card: Card) -> tuple[Path, ...]:
 
 
 def _sources(card: Card) -> tuple[SourceMetadata, ...]:
+    if card.family == "espeak":
+        from ipakit.inventories import _espeak_source
+
+        return (_espeak_source(),)
     return tuple(
         SourceMetadata.from_root(ET.parse(path).getroot(), path.relative_to(ROOT))
         for path in _source_paths(card)
@@ -230,6 +236,40 @@ def _panphon_metrics() -> dict[str, object]:
     }
 
 
+def _espeak_metrics() -> tuple[int, int, int, int]:
+    """Count generated inventories without constructing every bridge graph."""
+    from ipakit import normalize
+    from ipakit.espeak_source import declaration_bytes, supplied_source
+    from ipakit.features import IPAFeatures
+    from ipakit.models import _silence_spellings
+    from ipakit.phoneset_map import tie_delimited_entry
+
+    declarations = declaration_bytes(str(supplied_source()))
+    features = IPAFeatures()
+    silence = _silence_spellings()
+    readings: dict[str, str | None] = {}
+    per_language = []
+    union = set()
+    for content in declarations.values():
+        phones = set()
+        for atom in ET.fromstring(content).findall("atom"):
+            if atom.get("kind", "unit") != "unit":
+                continue
+            spelling = atom.attrib["spelling"]
+            if spelling not in readings:
+                phone = normalize(tie_delimited_entry(spelling, features))
+                readings[spelling] = (
+                    phone
+                    if len(features.segments(phone)) == 1 and phone not in silence
+                    else None
+                )
+            if readings[spelling] is not None:
+                phones.add(readings[spelling])
+        per_language.append(len(phones))
+        union.update(phones)
+    return len(declarations), len(union), min(per_language), max(per_language)
+
+
 def _quantitative(
     family: str, names: tuple[str, ...], metrics: dict[str, object]
 ) -> list[tuple[str, str]]:
@@ -242,6 +282,17 @@ def _quantitative(
             ("Declared segment rows", str(metrics["panphon_segments"])),
             ("Declared features", str(metrics["panphon_features"])),
             ("Supplied feature weights", str(metrics["panphon_weights"])),
+        ]
+    if family == "espeak":
+        languages, union, smallest, largest = _espeak_metrics()
+        return [
+            ("Registry entries", str(languages + 1)),
+            ("Finite inventories", str(languages + 1)),
+            (
+                "Phone counts",
+                f"{union} in `espeak` union; {smallest}–{largest} across "
+                f"{languages} scoped members",
+            ),
         ]
     items = [inventory(name) for name in names]
     finite = [item for item in items if item.phones is not None]
@@ -338,7 +389,14 @@ def render(mfa_models: Path) -> str:
                 )
             )
         )
-        paths = ", ".join(f"`{pattern}`" for pattern in card.sources)
+        if card.family == "espeak":
+            from ipakit.espeak_source import languages
+
+            paths = "user-supplied eSpeak NG `phsource`"
+            declaration_count = len(languages())
+        else:
+            paths = ", ".join(f"`{pattern}`" for pattern in card.sources)
+            declaration_count = len(sources)
         lines.extend(
             [
                 "",
@@ -353,7 +411,7 @@ def render(mfa_models: Path) -> str:
                 f"| Pin | `{version}` |",
                 f"| License | `{license_id}` |",
                 f"| Kind | `{kind}` |",
-                f"| Declarations | {paths} ({len(sources)}) |",
+                f"| Declarations | {paths} ({declaration_count}) |",
                 "",
                 "### Quantitative",
                 "",

@@ -137,8 +137,9 @@ and publication require release authorization, not merely preparation approval.
   tag together.
 - **Data files and licenses**: inspect the source-derived inventory census in
   the actual wheel/sdist, not merely whether a `data/` directory exists. Include
-  bridge declarations, canonical Panphon XML, finite CLTS artifacts and PHOIBLE
-  source resources with their hashes and separately scoped notices. The code's
+  shipped bridge declarations, canonical Panphon XML, finite CLTS artifacts and
+  PHOIBLE dataset resources with their hashes and separately scoped notices.
+  Confirm that eSpeak and PHOIBLE mapping data remain user-supplied. The code's
   BSD license does not relicense third-party data. Preserve the precise Panphon
   and PHOIBLE large-file and verbatim-notice hook exceptions.
 - **Source distribution**: `MANIFEST.in` includes `CHANGELOG.md`, Makefile,

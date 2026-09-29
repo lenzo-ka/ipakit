@@ -43,10 +43,10 @@ productive and full semantic import are outside its scope.
 ## Developer orchestration
 
 `ipakit.extraction.phoible.build(source)` builds the separately licensed frozen
-PHOIBLE source aggregate through the same `BuildResult`/`SourceIdentity`
+PHOIBLE dataset and bibliography through the same `BuildResult`/`SourceIdentity`
 contract. `ipakit.phoible_source.source_policy()` owns its single revision/hash
 policy by reading the shared-schema `data/phoible/manifest.json` receipt, the
-sole PHOIBLE authority. Checkout revisions and every consumed data/notice hash are validated;
+sole PHOIBLE authority. Checkout revisions and every shipped data/notice hash are validated;
 archives require the same exact content. The builder preserves original source
 bytes in deterministic gzip transport, without parsing or filtering inventories.
 Its adapter supports status/fetch/build/check/discover with the same managed
@@ -111,7 +111,7 @@ make build/check/fetch/discover exit nonzero. `check` also exits nonzero for
 artifact differences; a successful `build` may report `changed`.
 
 Lifecycle adapters currently support **MFA, the frozen CLTS core and PHOIBLE's
-accepted source aggregate**. `all` includes explicit unsupported
+accepted dataset snapshot**. `all` includes explicit unsupported
 entries for the census's eSpeak, Panphon, ICU, inventory-card, CMU-dictionary,
 ipa-dict, XRMB and internal-generator paths. Those entries record
 operation support; inventories and dependencies retain their existing registries.

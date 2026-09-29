@@ -124,10 +124,5 @@ def test_language_code_cat_is_a_catalog_lookup_not_ipa(monkeypatch, capsys, comm
 
     monkeypatch.setattr("ipakit.bridges.phoible.IPAFeatures", forbidden)
     status, out, error = run(monkeypatch, capsys, "phoible", command, "cat")
-    assert status == 0 and error == ""
-    assert out.splitlines() == [
-        "1138\tstan1289\tph\tcat_carbonell1992\tCatalan",
-        "2425\tstan1289\tea\tlloret2011fonologia\tCatalan (Southern Valencian)",
-        "2555\tstan1289\tea\tlloret2011fonologia\tCatalan (Central)",
-        "2594\tstan1289\tea\tlloret2011fonologia\tCatalan (Mallorcan)",
-    ]
+    assert status == 1 and out == ""
+    assert "set IPAKIT_PHOIBLE" in error

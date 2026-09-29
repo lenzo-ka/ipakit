@@ -11,19 +11,29 @@
       "sha256": "8f16107857d30122e3e824f85115d7f6b1b9d6882e23995ee925cc3cd900c660"
     },
     {
-      "bytes": 6919,
-      "path": "ipakit/data/phonemaps/timit.xml",
-      "sha256": "6b5e3363e4d9842bb42a32ec5a81dbdf80164827af4dd55ff6453ec8b155455e"
-    },
-    {
       "bytes": 39957,
       "path": "docs/tutorial.md",
       "sha256": "6558975bfc4f98eb8dcb69e1f7f42dd6873112ecb56ac592c9e27784fc6be489"
     },
     {
+      "bytes": 21593,
+      "path": "docs/inventories.md",
+      "sha256": "26898104fa2116f30467a480a6b9283e014313f9ddebb9171cb55230e0960bc3"
+    },
+    {
+      "bytes": 367,
+      "path": "docs/espeak-vocabularies.md",
+      "sha256": "9ed957ae7f2022955544e65d6053f1c04ab51b2d411b7c1c0f53e630d6e3cd2b"
+    },
+    {
       "bytes": 51241,
       "path": "ipakit/notebooks/ipakit-tutorial.ipynb",
       "sha256": "94352d2f03499356c70bbb58086dd9ed4659483ee388b7a8293dea984152f906"
+    },
+    {
+      "bytes": 1781,
+      "path": "ipakit/data/phoible/manifest.json",
+      "sha256": "c25372be11f8adf88ef99ed44f1e387835e12359fac55b84dcfce7ab168ce043"
     },
     {
       "bytes": 45435,

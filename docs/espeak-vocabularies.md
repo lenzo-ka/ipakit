@@ -1,6 +1,6 @@
 # eSpeak NG vocabulary generation summary
 
-Generated from eSpeak NG 1.52.0 phoneme tables. Counts are generated; the declarations are the inventory.
+Generated from eSpeak NG 1.52.0 phoneme tables. Counts are generated; runtime declarations are built from the user's pinned source.
 
 - Total languages: 129
 - Fully readable: 129
@@ -8,5 +8,5 @@ Generated from eSpeak NG 1.52.0 phoneme tables. Counts are generated; the declar
 - Unreadable: 0
 - Refusal reason classes:
   - conditional-null: 3
-  - control-or-virtual: 2702
-  - outside-house-ipa: 525
+  - control-or-virtual: 2723
+  - outside-house-ipa: 528
