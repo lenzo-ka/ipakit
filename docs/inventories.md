@@ -215,10 +215,10 @@ The PocketSphinx style presents the CMU phone vocabulary under the stressless co
 
 | Field | Value |
 | --- | --- |
-| Upstream | [TIMIT Acoustic-Phonetic Continuous Speech Corpus](https://catalog.ldc.upenn.edu/LDC93S1) |
-| Artifact | TIMIT 61-phone-to-house-IPA phonemap |
-| Pin | `LDC93S1` |
-| License | `LicenseRef-LDC-TIMIT` |
+| Upstream | [NISTIR 4930 §4.3](https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nistir4930.pdf) |
+| Artifact | Phonetic and Phonemic Symbol Codes transcribed to house IPA |
+| Pin | `NISTIR 4930 (February 1993)` |
+| License | `BSD-2-Clause` |
 | Kind | `speech-corpus-phone-map` |
 | Declarations | `ipakit/data/phonemaps/timit.xml` (1) |
 
@@ -228,7 +228,7 @@ The PocketSphinx style presents the CMU phone vocabulary under the stressless co
 | --- | ---: |
 | Registry entries | 1 |
 | Finite inventories | 1 |
-| Phone counts | 50 |
+| Phone counts | 58 |
 
 ### Qualitative
 

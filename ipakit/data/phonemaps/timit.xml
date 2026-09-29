@@ -1,96 +1,96 @@
 <?xml version='1.0' encoding='utf-8'?>
-<phonemap description="IPA to TIMIT phoneset" from="ipa" to="timit" upstream="TIMIT Acoustic-Phonetic Continuous Speech Corpus" upstream-url="https://catalog.ldc.upenn.edu/LDC93S1" artifact="TIMIT 61-phone-to-house-IPA phonemap" version="LDC93S1" license="LicenseRef-LDC-TIMIT" kind="speech-corpus-phone-map">
+<phonemap description="IPA to TIMIT phoneset" from="ipa" to="timit" upstream="NISTIR 4930 §4.3" upstream-url="https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nistir4930.pdf" artifact="Phonetic and Phonemic Symbol Codes transcribed to house IPA" version="NISTIR 4930 (February 1993)" license="BSD-2-Clause" kind="speech-corpus-phone-map">
     <!--
-    TIMIT: Texas Instruments/MIT speech corpus phoneset (61 phones)
-    Based on CMU/ARPABET but lowercase, with additional allophones.
-    Reference: TIMIT Acoustic-Phonetic Continuous Speech Corpus (LDC93S1)
+    This ipakit-authored BSD-2-Clause map transcribes the TIMIT corpus
+    labels documented by Garofolo et al., NISTIR 4930 (February 1993),
+    §4.3, "Phonetic and Phonemic Symbol Codes," printed pp. 29–31.
+    NIST defines the labels; the house IPA spellings are ipakit's work.
     -->
 
-    <!-- Silence and closures -->
-    <map ipa="␣" timit="h#"/>
+    <!-- Silence -->
+    <map ipa="␣" timit="h#" note="NISTIR 4930 §4.3: begin/end marker for silence or non-speech events"/>
 
     <!-- Vowels -->
-    <map ipa="i" timit="iy"/>
-    <map ipa="ɪ" timit="ih"/>
-    <map ipa="ɛ" timit="eh"/>
-    <map ipa="æ" timit="ae"/>
-    <map ipa="ɑ" timit="aa"/>
-    <map ipa="ɔ" timit="ao"/>
-    <map ipa="ʊ" timit="uh"/>
-    <map ipa="u" timit="uw"/>
-    <map ipa="ʌ" timit="ah"/>
-    <map ipa="ə" timit="ax"/>
-    <map ipa="ɚ" timit="axr"/>
-    <map ipa="ɝ" timit="er"/>
-    <map ipa="ɨ" timit="ix"/>
+    <map ipa="i" timit="iy" note="NISTIR 4930 §4.3: vowel table, iy as in “beet”"/>
+    <map ipa="ɪ" timit="ih" note="NISTIR 4930 §4.3: vowel table, ih as in “bit”"/>
+    <map ipa="ɛ" timit="eh" note="NISTIR 4930 §4.3: vowel table, eh as in “bet”"/>
+    <map ipa="æ" timit="ae" note="NISTIR 4930 §4.3: vowel table, ae as in “bat”"/>
+    <map ipa="ɑ" timit="aa" note="NISTIR 4930 §4.3: vowel table, aa as in “bott”"/>
+    <map ipa="ɔ" timit="ao" note="NISTIR 4930 §4.3: vowel table, ao as in “bought”"/>
+    <map ipa="ʊ" timit="uh" note="NISTIR 4930 §4.3: vowel table, uh as in “book”"/>
+    <map ipa="u" timit="uw" note="NISTIR 4930 §4.3: vowel table, uw as in “boot”"/>
+    <map ipa="ʌ" timit="ah" note="NISTIR 4930 §4.3: vowel table, ah as in “but”"/>
+    <map ipa="ə" timit="ax" note="NISTIR 4930 §4.3: vowel table, ax as in “about”"/>
+    <map ipa="ɚ" timit="axr" note="NISTIR 4930 §4.3: vowel table, axr as in “butter”"/>
+    <map ipa="ɝ" timit="er" note="NISTIR 4930 §4.3: vowel table, er as in “bird”"/>
+    <map ipa="ɨ" timit="ix" note="NISTIR 4930 §4.3: vowel table, ix as in “debit”"/>
 
     <!-- Diphthongs -->
-    <map ipa="e͜ɪ" timit="ey"/>
-    <map ipa="o͜ʊ" timit="ow"/>
-    <map ipa="a͜ɪ" timit="ay"/>
-    <map ipa="a͜ʊ" timit="aw"/>
-    <map ipa="ɔ͜ɪ" timit="oy"/>
+    <map ipa="e͜ɪ" timit="ey" note="NISTIR 4930 §4.3: vowel table, ey as in “bait”"/>
+    <map ipa="o͜ʊ" timit="ow" note="NISTIR 4930 §4.3: vowel table, ow as in “boat”"/>
+    <map ipa="a͜ɪ" timit="ay" note="NISTIR 4930 §4.3: vowel table, ay as in “bite”"/>
+    <map ipa="a͜ʊ" timit="aw" note="NISTIR 4930 §4.3: vowel table, aw as in “bout”"/>
+    <map ipa="ɔ͜ɪ" timit="oy" note="NISTIR 4930 §4.3: vowel table, oy as in “boy”"/>
 
-    <!-- Semivowels/Glides -->
-    <map ipa="j" timit="y"/>
-    <map ipa="w" timit="w"/>
-    <map ipa="ɹ" timit="r"/>
-    <map ipa="l" timit="l"/>
+    <!-- Semivowels and glides -->
+    <map ipa="j" timit="y" note="NISTIR 4930 §4.3: semivowels and glides table, y as in “yacht”"/>
+    <map ipa="w" timit="w" note="NISTIR 4930 §4.3: semivowels and glides table, w as in “way”"/>
+    <map ipa="ɹ" timit="r" note="NISTIR 4930 §4.3: semivowels and glides table, r as in “ray”"/>
+    <map ipa="l" timit="l" note="NISTIR 4930 §4.3: semivowels and glides table, l as in “lay”"/>
 
     <!-- Nasals -->
-    <map ipa="m" timit="m"/>
-    <map ipa="n" timit="n"/>
-    <map ipa="ŋ" timit="ng"/>
-    <map ipa="m̩" timit="em"/>
-    <map ipa="n̩" timit="en"/>
-    <map ipa="ŋ̩" timit="eng"/>
+    <map ipa="m" timit="m" note="NISTIR 4930 §4.3: nasal table, m as in “mom”"/>
+    <map ipa="n" timit="n" note="NISTIR 4930 §4.3: nasal table, n as in “noon”"/>
+    <map ipa="ŋ" timit="ng" note="NISTIR 4930 §4.3: nasal table, ng as in “sing”"/>
+    <map ipa="m̩" timit="em" note="NISTIR 4930 §4.3: nasal table, syllabic em as in “bottom”"/>
+    <map ipa="n̩" timit="en" note="NISTIR 4930 §4.3: nasal table, syllabic en as in “button”"/>
+    <map ipa="ŋ̩" timit="eng" note="NISTIR 4930 §4.3: nasal table, syllabic eng as in “Washington”"/>
 
     <!-- Fricatives -->
-    <map ipa="f" timit="f"/>
-    <map ipa="v" timit="v"/>
-    <map ipa="θ" timit="th"/>
-    <map ipa="ð" timit="dh"/>
-    <map ipa="s" timit="s"/>
-    <map ipa="z" timit="z"/>
-    <map ipa="ʃ" timit="sh"/>
-    <map ipa="ʒ" timit="zh"/>
-    <map ipa="h" timit="hh"/>
-    <map ipa="ɦ" timit="hv"/>
+    <map ipa="f" timit="f" note="NISTIR 4930 §4.3: fricative table, f as in “fin”"/>
+    <map ipa="v" timit="v" note="NISTIR 4930 §4.3: fricative table, v as in “van”"/>
+    <map ipa="θ" timit="th" note="NISTIR 4930 §4.3: fricative table, th as in “thin”"/>
+    <map ipa="ð" timit="dh" note="NISTIR 4930 §4.3: fricative table, dh as in “then”"/>
+    <map ipa="s" timit="s" note="NISTIR 4930 §4.3: fricative table, s as in “sea”"/>
+    <map ipa="z" timit="z" note="NISTIR 4930 §4.3: fricative table, z as in “zone”"/>
+    <map ipa="ʃ" timit="sh" note="NISTIR 4930 §4.3: fricative table, sh as in “she”"/>
+    <map ipa="ʒ" timit="zh" note="NISTIR 4930 §4.3: fricative table, zh as in “azure”"/>
+    <map ipa="h" timit="hh" note="NISTIR 4930 §4.3: semivowels and glides table, hh as in “hay”"/>
+    <map ipa="ɦ" timit="hv" note="NISTIR 4930 §4.3: voiced h, typically intervocalic; example “ahead”"/>
 
     <!-- Affricates -->
-    <map ipa="t͡ʃ" timit="ch"/>
-    <map ipa="d͡ʒ" timit="jh"/>
+    <map ipa="t͡ʃ" timit="ch" note="NISTIR 4930 §4.3: affricate table, ch as in “choke”"/>
+    <map ipa="d͡ʒ" timit="jh" note="NISTIR 4930 §4.3: affricate table, jh as in “joke”"/>
 
     <!-- Plosives -->
-    <map ipa="p" timit="p"/>
-    <map ipa="b" timit="b"/>
-    <map ipa="t" timit="t"/>
-    <map ipa="d" timit="d"/>
-    <map ipa="k" timit="k"/>
-    <map ipa="ɡ" timit="g"/>
-    <map ipa="ʔ" timit="q"/>
+    <map ipa="p" timit="p" note="NISTIR 4930 §4.3: stop table, p as in “pea”"/>
+    <map ipa="b" timit="b" note="NISTIR 4930 §4.3: stop table, b as in “bee”"/>
+    <map ipa="t" timit="t" note="NISTIR 4930 §4.3: stop table, t as in “tea”"/>
+    <map ipa="d" timit="d" note="NISTIR 4930 §4.3: stop table, d as in “day”"/>
+    <map ipa="k" timit="k" note="NISTIR 4930 §4.3: stop table, k as in “key”"/>
+    <map ipa="ɡ" timit="g" note="NISTIR 4930 §4.3: stop table, g as in “gay”"/>
+    <map ipa="ʔ" timit="q" note="NISTIR 4930 §4.3: glottal stop; table example “bat”"/>
 
     <!-- Flaps -->
-    <map ipa="ɾ" timit="dx"/>
-    <map ipa="ɾ̃" timit="nx"/>
+    <map ipa="ɾ" timit="dx" note="NISTIR 4930 §4.3: flap, as in “muddy” or “dirty”"/>
+    <map ipa="ɾ̃" timit="nx" note="NISTIR 4930 §4.3: nasal flap, as in “winner”"/>
 
-    <!-- TIMIT-specific allophones (extras section for less common) -->
     <extras>
-        <!-- Closures (silence before plosive release) -->
-        <map ipa="p" timit="pcl" note="closure"/>
-        <map ipa="b" timit="bcl" note="closure"/>
-        <map ipa="t" timit="tcl" note="closure"/>
-        <map ipa="d" timit="dcl" note="closure"/>
-        <map ipa="k" timit="kcl" note="closure"/>
-        <map ipa="ɡ" timit="gcl" note="closure"/>
+        <!-- Stop closure intervals -->
+        <map ipa="p̚" timit="pcl" note="NISTIR 4930 §4.3: closure interval of p, distinct from its release"/>
+        <map ipa="b̚" timit="bcl" note="NISTIR 4930 §4.3: closure interval of b, distinct from its release"/>
+        <map ipa="t̚" timit="tcl" note="NISTIR 4930 §4.3: closure interval of t, distinct from its release"/>
+        <map ipa="d̚" timit="dcl" note="NISTIR 4930 §4.3: closure interval of d, distinct from its release"/>
+        <map ipa="k̚" timit="kcl" note="NISTIR 4930 §4.3: closure interval of k, distinct from its release"/>
+        <map ipa="ɡ̚" timit="gcl" note="NISTIR 4930 §4.3: closure interval of g, distinct from its release"/>
 
-        <!-- Syllabic L -->
-        <map ipa="l̩" timit="el"/>
+        <!-- Additional allophones -->
+        <map ipa="l̩" timit="el" note="NISTIR 4930 §4.3: semivowels and glides table, syllabic el as in “bottle”"/>
+        <map ipa="u̟" timit="ux" note="NISTIR 4930 §4.3: fronted u, an allophone of uw in alveolar contexts"/>
+        <map ipa="ə̥" timit="ax-h" note="NISTIR 4930 §4.3: short devoiced schwa between voiceless consonants"/>
 
-        <!-- Glottal closure -->
-        <map ipa="ʔ" timit="epi" note="epenthetic"/>
-
-        <!-- Pause markers -->
-        <map ipa="␣" timit="pau" note="pause"/>
+        <!-- Additional silence labels -->
+        <map ipa="␣" timit="epi" note="NISTIR 4930 §4.3: epenthetic silence, as in “slow”"/>
+        <map ipa="␣" timit="pau" note="NISTIR 4930 §4.3: pause"/>
     </extras>
 </phonemap>
