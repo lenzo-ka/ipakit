@@ -31,6 +31,8 @@ def test_shipped_confusion_matches_derived() -> None:
     # because last-bit rounding differs across CPython versions (see confusion.py).
     assert d["phones"] == s["phones"]
     assert d["space"] == s["space"]
+    assert d["metric"] == s["metric"]
+    assert d["base"] == s["base"]
     assert c.triangles_match(d["triangle"], s["triangle"])
 
 
@@ -41,11 +43,15 @@ def test_shipped_confusion_matrix_sha256_is_unchanged() -> None:
     tracked = confusion.read_bytes()
     shipped = json.loads(tracked)
     assert hashlib.sha256(tracked).hexdigest() == (
-        "cff27cc89850c8d6f30fb3c6eb64fe734fefa2d6b1c3f2c2671b82b9db0be566"
+        "653e7d4dc183e5071534908ce9f30d62114e313bc0f20e3f337db08f86631aae"
     )
     assert len(shipped["phones"]) == 140
     assert len(shipped["triangle"]) == 9730
     assert shipped["metric"] == "18c453ca3905931b"
+    assert shipped["base"] == {
+        "fingerprint": "af4baf9abeb4bd81",
+        "phone_count": 140,
+    }
 
 
 def test_validate_subcommand_exit_zero() -> None:
@@ -73,3 +79,15 @@ def test_validate_reports_a_moved_fingerprint(monkeypatch, capsys) -> None:
     assert c.main(["validate"]) == 1
     out = capsys.readouterr().out
     assert "fingerprint" in out and "regenerate confusion.json" in out
+
+
+def test_validate_reports_moved_base_inventory_provenance(monkeypatch, capsys) -> None:
+    c = _load_script()
+    moved = {
+        **c.shipped(),
+        "base": {"fingerprint": "0" * 16, "phone_count": 140},
+    }
+    monkeypatch.setattr(c, "shipped", lambda: moved)
+    assert c.main(["validate"]) == 1
+    out = capsys.readouterr().out
+    assert "base-inventory provenance" in out and "regenerate confusion.json" in out

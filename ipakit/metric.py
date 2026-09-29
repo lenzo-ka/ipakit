@@ -1066,6 +1066,31 @@ def metric_fingerprint(
     return _fingerprint(features, tuple(phones), applicable_only)
 
 
+def base_inventory_provenance(features: IPAFeatures) -> dict[str, str | int]:
+    """Matrix provenance for the ordered base-inventory phone declaration.
+
+    The base is the inventory loaded from :attr:`IPAFeatures.xml_path`, not
+    its optional supplements.  ``IPAFeatures.phones`` keeps declaration
+    order, and :attr:`IPAFeatures.supplement_of` identifies every entry a
+    supplement added.  A length prefix makes the digest unambiguous even for
+    multi-codepoint phone spellings.
+
+    Both matrix-format values are defined here so ``DistanceModel.save`` and
+    the shipped-matrix generator cannot give the ``base`` field different
+    meanings.
+    """
+    phones = tuple(
+        phone for phone in features.phones if phone not in features.supplement_of
+    )
+    digest = hashlib.blake2b(digest_size=FINGERPRINT_BYTES)
+    digest.update(b"ipakit-base-inventory-v1\0")
+    for phone in phones:
+        encoded = phone.encode("utf-8")
+        digest.update(len(encoded).to_bytes(4, "big"))
+        digest.update(encoded)
+    return {"fingerprint": digest.hexdigest(), "phone_count": len(phones)}
+
+
 @functools.cache
 def _fingerprint(
     features: IPAFeatures, phones: tuple[str, ...], applicable_only: bool

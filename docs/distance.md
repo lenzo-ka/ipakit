@@ -347,7 +347,7 @@ The same instrument over the repaired matrix reads differently, and the differen
 
 ```text
 $ pip install -e ".[compare]" && python scripts/geometry.py
-confusion.json SHA-256                  cff27cc89850c8d6f30fb3c6eb64fe734fefa2d6b1c3f2c2671b82b9db0be566
+confusion.json SHA-256                  653e7d4dc183e5071534908ce9f30d62114e313bc0f20e3f337db08f86631aae
 phones                                  139
 negative eigenvalue mass                12.4%
 leading positive variance               43.4%
@@ -366,7 +366,7 @@ from hashlib import sha256
 from pathlib import Path
 
 sha256(Path("ipakit/data/confusion.json").read_bytes()).hexdigest()
-# 'cff27cc89850c8d6f30fb3c6eb64fe734fefa2d6b1c3f2c2671b82b9db0be566'
+# '653e7d4dc183e5071534908ce9f30d62114e313bc0f20e3f337db08f86631aae'
 ```
 
 A distance change moves every one of these, so a reading taken at a different commit will differ. The script states the two predicates the correlations are taken against — a phone is composite when its segment reports more than one constituent, and a vowel when its description ends in the word — because a correlation against an unstated predicate cannot be reproduced at all.
@@ -576,9 +576,13 @@ python scripts/confusion.py generate --write   # rewrite data/confusion.json
 python scripts/confusion.py validate           # CI guard: shipped == derived
 ```
 
-A saved matrix records the space it was derived in. `metric` in the matrix format is a digest of what the metric reads — every comparison bundle over the phones the file itself lists, and every declared feature's value scale — and every reader compares it against the inventory in hand and refuses a disagreement: `from_matrix_file` for a file you name, and `global_` and `for_phoneset` for the shipped one, which is the path `distance_model()` and `similarity_position` take and so the path an edit to `ipa.xml` is actually read on. `phones` cannot stand in for it: a bridge adds a term to the denominator of every distance in the inventory and leaves the phone list byte-identical, so it detects membership drift and nothing else. It is a refusal rather than a warning because the wrong answer is a well-formed percentile from another inventory's reference distribution, and nothing about such a number looks wrong. A file recording no `metric` is read without comment — an empirical TSV grid is not derived from this metric and has nothing to agree with. The bare `DistanceModel(...)` constructor is the deliberate escape: it takes a matrix as an argument and makes no claim about where it came from.
+A saved matrix records two independent facts about what it was derived from. `metric` in the matrix format stays a digest of what the metric reads — every comparison bundle over the phones the file itself lists, and every declared feature's value scale. `base` records `fingerprint`, a digest of the ordered phone spellings declared by the base inventory at `xml_path` with every `supplement_of` entry excluded, and `phone_count`, the number of those spellings. The count is there to make a refusal readable; the fingerprint is the identity check. Every JSON reader compares each fact the file carries against the inventory in hand and refuses a disagreement: `from_matrix_file` for a file you name, and `global_` and `for_phoneset` for the shipped one, which is the path `distance_model()` and `similarity_position` take and so the path an edit to `ipa.xml` is actually read on.
 
-Keying the digest to the phone list the file carries is what keeps it independent of membership. A supplement adds phones and declares nothing, so a supplemented inventory reading a matrix derived before the supplement gets the same digest, correctly: the space did not move. Membership is `phones`' question, and the two keys do not overlap.
+The fields answer different questions. `phones` is the matrix's reference subset. `metric` proves that subset's numbers use the same feature space and denominator; keying it to the file's own rows is what keeps a scoped matrix and a matrix made before an additive supplement loadable. `base` proves that those rows were selected under the same base phone declaration, independently of the subset: adding a phone, removing one, replacing one while keeping the count fixed, or changing declaration order moves its fingerprint, while loading a supplement does not. A bridge instead moves `metric` while leaving `base` unchanged. A disagreement is a refusal rather than a warning because the wrong answer is a well-formed percentile from another inventory's reference distribution, and nothing about such a number looks wrong.
+
+A legacy JSON file without `base` loads as it did before. Its `phones` cannot reveal whether it was an old full-inventory matrix or an intentional scoped subset, so the reader does not guess. A file recording no `metric` is likewise read without that check — an empirical TSV grid is not derived from this metric and has nothing to agree with. The bare `DistanceModel(...)` constructor is the deliberate escape: it takes a matrix as an argument and makes no claim about where it came from.
+
+Keying `metric` to the phone list the file carries is what keeps the feature-space check independent of base membership. A supplement adds phones and declares nothing, so a supplemented inventory reading a matrix derived before the supplement gets the same metric digest and the same supplement-excluding base fingerprint, correctly: the base declaration and the feature space did not move.
 
 The test suite pins the metric's exact properties — `d(ɡ, ɡ͡b) = 1/21 +
 d_b(ɡ,b)/2`, `d(u͡i, u͜i) = 1/3`, the cross-class orderings, symmetry and
