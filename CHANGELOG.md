@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `ᶑ` is the house symbol for the voiced retroflex implosive. The inventory grows, so the metric fingerprint moves: a confusion matrix saved before this change is refused, and inventory-relative similarity positions shift slightly for every pair.
+- `ᶑ` is the house symbol for the voiced retroflex implosive. The shipped confusion matrix's metric fingerprint moves, and inventory-relative similarity positions shift slightly for every pair.
 
 ## [0.4.0] - 2026-09-29
 

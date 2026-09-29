@@ -107,7 +107,7 @@ def test_live_mapping_regeneration_is_current_and_deterministic() -> None:
 def test_four_reviewed_plain_stop_projections_are_import_ready() -> None:
     authority, snapshot = read_authority(), read_snapshot()
     profile = core_bipa_spec()
-    mapping = "sha256:f05e19bad72faba40432d579118420403719bd4c07b51aeb256df1c1d0326c3d"
+    mapping = "sha256:cc668715d91f559983819215804e0174f40b80504048ddcef74f1db23f35292b"
     assert authority.eligibility("p", snapshot, profile=profile) == {
         "token": "p",
         "mapping_identity": mapping,
@@ -929,7 +929,7 @@ def test_import_profile_basis_guard_covers_every_nonmapping_component(
 ) -> None:
     original = core_bipa_spec(
         mapping_identity=(
-            "sha256:f05e19bad72faba40432d579118420403719bd4c07b51aeb256df1c1d0326c3d"
+            "sha256:cc668715d91f559983819215804e0174f40b80504048ddcef74f1db23f35292b"
         )
     )
     if change.get("source") == "changed-version":
@@ -979,7 +979,7 @@ def test_rules_pin_profile_family_and_basis_as_literals() -> None:
         "sha256:097534e091b47a2644896964bd2bcc98e89b6cce71ca36940f2ed4377bae50cd"
     )
     assert read_authority().identity == (
-        "sha256:f05e19bad72faba40432d579118420403719bd4c07b51aeb256df1c1d0326c3d"
+        "sha256:cc668715d91f559983819215804e0174f40b80504048ddcef74f1db23f35292b"
     )
 
 
