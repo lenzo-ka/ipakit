@@ -11,6 +11,11 @@
       "sha256": "8f16107857d30122e3e824f85115d7f6b1b9d6882e23995ee925cc3cd900c660"
     },
     {
+      "bytes": 6919,
+      "path": "ipakit/data/phonemaps/timit.xml",
+      "sha256": "6b5e3363e4d9842bb42a32ec5a81dbdf80164827af4dd55ff6453ec8b155455e"
+    },
+    {
       "bytes": 39957,
       "path": "docs/tutorial.md",
       "sha256": "6558975bfc4f98eb8dcb69e1f7f42dd6873112ecb56ac592c9e27784fc6be489"

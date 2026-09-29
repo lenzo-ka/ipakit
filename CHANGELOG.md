@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The TIMIT map is generated from ipakit's transcription of NISTIR 4930 §4.3: `epi` is silence, the closures are unreleased stops, and `ux` and `ax-h` are mapped.
 - CLTS input documents refuse a second host for one tone, a duplicate relation, an unencodable raw, and an out-of-range integer time, each at its location.
 - Profile-bound CLTS eligibility now derives reviewed plain-stop projections and affricate-juncture refusals.
 - Profile-bound CLTS eligibility reports unattempted occurrences with the `not-attempted` reason.

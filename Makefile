@@ -16,7 +16,7 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial tutorial-basics notebook inventory-cards inventory-cards-check house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check mfa-vocabularies mfa-vocabularies-check panphon-geometry-check lint check gate-subject
+.PHONY: figures figures-clean tutorial tutorial-basics notebook inventory-cards inventory-cards-check house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check mfa-vocabularies mfa-vocabularies-check timit-map timit-map-check panphon-geometry-check lint check gate-subject
 
 ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
 MFA_MODELS ?= $(HOME)/.cache/ipakit/mfa-models
@@ -50,6 +50,12 @@ mfa-vocabularies-check:
 	else \
 		$(PYTHON) scripts/mfa_vocabularies.py check --source "$(MFA_MODELS)"; \
 	fi
+
+timit-map:
+	@$(PYTHON) scripts/timit_map.py generate --write
+
+timit-map-check:
+	@$(PYTHON) scripts/timit_map.py check
 
 ## inventory-cards: regenerate docs/inventories.md from declarations and counts
 inventory-cards:
@@ -177,6 +183,7 @@ check: gate-subject lint
 	@$(NICE) $(PYTHON) scripts/state_of_work.py check
 	@$(MAKE) --no-print-directory espeak-vocabularies-check
 	@$(MAKE) --no-print-directory mfa-vocabularies-check
+	@$(MAKE) --no-print-directory timit-map-check
 	@$(MAKE) --no-print-directory panphon-geometry-check
 	@$(MAKE) --no-print-directory inventory-cards-check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/tutorial.py check all
