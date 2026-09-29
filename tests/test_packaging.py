@@ -17,6 +17,8 @@ today's files, because a guard that lists today's offenders documents
 only the present.
 """
 
+import csv
+import io
 import json
 import os
 import shutil
@@ -40,6 +42,16 @@ PKG = ROOT / "ipakit"
 BUILD_INPUTS = ("pyproject.toml", "MANIFEST.in", "README.md", "LICENSE", "CHANGELOG.md")
 SOURCE_SUPPORT_FILES = ("Makefile", "conftest.py", ".pre-commit-config.yaml")
 SOURCE_SUPPORT_DIRS = ("tests", "scripts", "docs", ".github/workflows")
+PHOIBLE_MAPPING_MARKERS = {
+    ("InventoryID", "BibtexKey", "Source", "Filename", "URI"): {
+        "BibtexKey": "fixture-bib-",
+        "Filename": "fixture-file-",
+        "URI": "https://example.invalid/ipakit-fixture-",
+    },
+    ("InventoryID", "ISO6393", "Glottocode", "LanguageName", "Source"): {
+        "LanguageName": "Fixture language ",
+    },
+}
 
 
 def _package_data_globs() -> list[str]:
@@ -305,6 +317,44 @@ def test_sdist_carries_source_verification_inputs(built_sdist, complete_source):
         assert not any(
             "__pycache__" in name or name.endswith(".pyc") for name in members
         )
+
+
+def test_sdist_phoible_mapping_rows_are_ipakit_synthetic(built_sdist):
+    """No PHOIBLE mapping-table row may hide in the shipped test tree."""
+    matched = []
+    with tarfile.open(built_sdist) as archive:
+        for member in archive.getmembers():
+            if not member.isfile() or "/tests/" not in member.name:
+                continue
+            stream = archive.extractfile(member)
+            assert stream is not None
+            try:
+                header = stream.readline().decode("utf-8-sig")
+            except UnicodeDecodeError:
+                continue
+            fields = tuple(next(csv.reader([header]), ()))
+            markers = PHOIBLE_MAPPING_MARKERS.get(fields)
+            if markers is None:
+                continue
+            text = header + stream.read().decode("utf-8")
+            reader = csv.DictReader(io.StringIO(text))
+            rows = list(reader)
+            matched.append(member.name)
+            assert rows, f"PHOIBLE-shaped mapping fixture has no rows: {member.name}"
+            for row in rows:
+                non_synthetic = [
+                    field
+                    for field, marker in markers.items()
+                    if not row.get(field, "").startswith(marker)
+                ]
+                assert not non_synthetic, (
+                    f"sdist member {member.name} has non-synthetic PHOIBLE "
+                    f"mapping fields: {non_synthetic}"
+                )
+
+    assert len(matched) == 2, (
+        "expected exactly the two synthetic PHOIBLE mapping fixtures, got " f"{matched}"
+    )
 
 
 def test_unpacked_sdist_collects_its_suite(built_sdist, tmp_path):

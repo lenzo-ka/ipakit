@@ -81,13 +81,16 @@ def test_user_supplied_mapping_tables_restore_provenance(monkeypatch):
     second = source.inventory(2175)
     assert (len(first.entries), len(first.refusals)) == (40, 9)
     assert (len(second.entries), len(second.refusals)) == (39, 0)
-    assert first.provenance.bibtex_keys == (
-        "OConner1973",
-        "Gimson1962",
-        "Halle1973",
-        "Fudge1975",
-        "Trnka1968",
-    )
+    with (root / "mappings/InventoryID-Bibtex.csv").open(
+        encoding="utf-8-sig", newline=""
+    ) as stream:
+        expected = tuple(
+            row["BibtexKey"]
+            for row in csv.DictReader(stream)
+            if row["InventoryID"] == "160"
+        )
+    assert len(expected) == 5
+    assert first.provenance.bibtex_keys == expected
 
 
 def test_builder_is_shared_deterministic_and_dirty_input_refuses(archive):

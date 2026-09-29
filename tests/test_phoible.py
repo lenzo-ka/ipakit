@@ -32,7 +32,7 @@ def test_language_query_returns_the_spread_and_never_an_inventory() -> None:
     spread = PhoibleBridge(FIXTURE).language("eng")
     assert [item.inventory_id for item in spread.inventories] == ["160", "2175"]
     assert [item.source for item in spread.inventories] == ["spa", "uz"]
-    assert spread.inventories[0].bibtex_keys == ("OConner1973",)
+    assert spread.inventories[0].bibtex_keys == ("fixture-bib-160",)
     assert PhoibleBridge(FIXTURE).language("stan1293") == spread.__class__(
         "stan1293", spread.inventories
     )
@@ -85,8 +85,8 @@ def test_cli_language_shows_spread_with_sources_and_keys(monkeypatch, capsys) ->
         monkeypatch, capsys, "phoible", "language", "eng", "--phoible", str(FIXTURE)
     )
     assert status == 0
-    assert "160\tstan1293\tspa\tOConner1973\tEnglish" in out
-    assert "2175\tstan1293\tuz\teng_ladefoged1989\tEnglish (American)" in out
+    assert "160\tstan1293\tspa\tfixture-bib-160\tEnglish" in out
+    assert "2175\tstan1293\tuz\tfixture-bib-2175\tEnglish (American)" in out
 
 
 def test_cli_inventory_is_a_phoneset_file(tmp_path, monkeypatch, capsys) -> None:
