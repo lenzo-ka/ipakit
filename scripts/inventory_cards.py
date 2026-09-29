@@ -236,40 +236,6 @@ def _panphon_metrics() -> dict[str, object]:
     }
 
 
-def _espeak_metrics() -> tuple[int, int, int, int]:
-    """Count generated inventories without constructing every bridge graph."""
-    from ipakit import normalize
-    from ipakit.espeak_source import declaration_bytes, supplied_source
-    from ipakit.features import IPAFeatures
-    from ipakit.models import _silence_spellings
-    from ipakit.phoneset_map import tie_delimited_entry
-
-    declarations = declaration_bytes(str(supplied_source()))
-    features = IPAFeatures()
-    silence = _silence_spellings()
-    readings: dict[str, str | None] = {}
-    per_language = []
-    union = set()
-    for content in declarations.values():
-        phones = set()
-        for atom in ET.fromstring(content).findall("atom"):
-            if atom.get("kind", "unit") != "unit":
-                continue
-            spelling = atom.attrib["spelling"]
-            if spelling not in readings:
-                phone = normalize(tie_delimited_entry(spelling, features))
-                readings[spelling] = (
-                    phone
-                    if len(features.segments(phone)) == 1 and phone not in silence
-                    else None
-                )
-            if readings[spelling] is not None:
-                phones.add(readings[spelling])
-        per_language.append(len(phones))
-        union.update(phones)
-    return len(declarations), len(union), min(per_language), max(per_language)
-
-
 def _quantitative(
     family: str, names: tuple[str, ...], metrics: dict[str, object]
 ) -> list[tuple[str, str]]:
@@ -284,14 +250,15 @@ def _quantitative(
             ("Supplied feature weights", str(metrics["panphon_weights"])),
         ]
     if family == "espeak":
-        languages, union, smallest, largest = _espeak_metrics()
+        # Counts depend on the user's checkout, so the card states the shape only.
         return [
-            ("Registry entries", str(languages + 1)),
-            ("Finite inventories", str(languages + 1)),
             (
-                "Phone counts",
-                f"{union} in `espeak` union; {smallest}–{largest} across "
-                f"{languages} scoped members",
+                "Registry entries",
+                "`espeak` plus one `espeak:<code>` per language table",
+            ),
+            (
+                "Finite inventories",
+                "every registered entry, when a checkout is supplied",
             ),
         ]
     items = [inventory(name) for name in names]
@@ -354,8 +321,16 @@ def render(mfa_models: Path) -> str:
     """Render the hand-written introduction and every declared family card."""
     declared_cards = cards()
     family_names = _family_names()
-    expected = set(family_names) | {"panphon"}
     found = {card.family for card in declared_cards}
+    # A family built from a user-supplied source registers only when that
+    # source is present, so its card stands without a registry entry.
+    user_supplied = {
+        card.family
+        for card in declared_cards
+        if card.sources
+        and all(path.startswith("user-supplied") for path in card.sources)
+    }
+    expected = set(family_names) | {"panphon"} | (found & user_supplied)
     if found != expected:
         raise ValueError(
             f"card families disagree with registry families: "
@@ -390,13 +365,12 @@ def render(mfa_models: Path) -> str:
             )
         )
         if card.family == "espeak":
-            from ipakit.espeak_source import languages
-
-            paths = "user-supplied eSpeak NG `phsource`"
-            declaration_count = len(languages())
+            # Built from the user's checkout, so the count is the checkout's,
+            # not the package's; the card names the source instead.
+            declarations = "user-supplied eSpeak NG `phsource` (one per language table)"
         else:
             paths = ", ".join(f"`{pattern}`" for pattern in card.sources)
-            declaration_count = len(sources)
+            declarations = f"{paths} ({len(sources)})"
         lines.extend(
             [
                 "",
@@ -411,7 +385,7 @@ def render(mfa_models: Path) -> str:
                 f"| Pin | `{version}` |",
                 f"| License | `{license_id}` |",
                 f"| Kind | `{kind}` |",
-                f"| Declarations | {paths} ({declaration_count}) |",
+                f"| Declarations | {declarations} |",
                 "",
                 "### Quantitative",
                 "",

@@ -252,19 +252,18 @@ The TIMIT style reads and spells the corpus's acoustic-phonetic segment labels i
 | Field | Value |
 | --- | --- |
 | Upstream | [eSpeak NG](https://github.com/espeak-ng/espeak-ng/tree/4870adfa25b1a32b4361592f1be8a40337c58d6c/phsource) |
-| Artifact | union of 129 generated synthesis-phoneme-table artifacts |
+| Artifact | per-language synthesis-phoneme-table artifacts built from the user's eSpeak NG checkout |
 | Pin | `espeak-ng@4870adfa25b1a32b4361592f1be8a40337c58d6c` |
 | License | `GPL-3.0-or-later` |
 | Kind | `synthesis-phoneme-table` |
-| Declarations | user-supplied eSpeak NG `phsource` (129) |
+| Declarations | user-supplied eSpeak NG `phsource` (one per language table) |
 
 ### Quantitative
 
 | Measure | Value |
 | --- | ---: |
-| Registry entries | 130 |
-| Finite inventories | 130 |
-| Phone counts | 555 in `espeak` union; 56–144 across 129 scoped members |
+| Registry entries | `espeak` plus one `espeak:<code>` per language table |
+| Finite inventories | every registered entry, when a checkout is supplied |
 
 ### Qualitative
 

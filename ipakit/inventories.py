@@ -273,23 +273,20 @@ def _disagreement(
 
 
 def _espeak_source() -> SourceMetadata:
-    """Derive the union's source identity from every language declaration."""
-    from .bridges.espeak import EspeakBridge
-    from .espeak_source import languages
+    """The eSpeak family's source identity, from the pinned revision alone.
 
-    codes = languages()
-    if not codes:
-        raise ValueError("the eSpeak inventory has no declarations")
-    first = EspeakBridge(codes[0]).source
-    if first is None:
-        raise ValueError("an eSpeak declaration has no structured source metadata")
+    The tables are built from the user's eSpeak NG checkout, so the identity
+    names the pinned source they are built from and needs no checkout.
+    """
+    from .espeak_source import KIND, LICENSE, PIN, UPSTREAM, UPSTREAM_URL
+
     return SourceMetadata(
-        first.upstream,
-        first.upstream_url,
-        f"union of {len(codes)} generated {first.kind} artifacts",
-        first.version,
-        first.license,
-        first.kind,
+        UPSTREAM,
+        UPSTREAM_URL,
+        f"per-language {KIND} artifacts built from the user's eSpeak NG checkout",
+        PIN,
+        LICENSE,
+        KIND,
     )
 
 
