@@ -26,10 +26,9 @@ classifiers = [
 ]
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
-    # A tiergraph reader accepts only its own format version, and ipakit's native
-    # documents are written at 0.3.0; alpha minor releases may break APIs, so stay
-    # within 0.3.x.
-    "tiergraph>=0.3.0,<0.4.0",
+    # A tiergraph reader accepts only its own format version. ipakit's native
+    # documents remain at format 0.3.0, and tiergraph 0.4.0 retains that format.
+    "tiergraph>=0.4.0",
 ]
 
 [project.optional-dependencies]

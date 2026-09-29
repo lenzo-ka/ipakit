@@ -202,12 +202,8 @@ def test_the_wheel_carries_every_data_file(built_wheel):
     )
 
 
-def test_wheel_requires_the_tiergraph_line_its_documents_are_written_in(built_wheel):
-    """Installation admits exactly the tiergraph 0.3 line.
-
-    A tiergraph reader accepts only its own format version, so a provider from
-    another line refuses every document ipakit writes or ships.
-    """
+def test_wheel_requires_tiergraph_0_4_or_later_without_an_upper_cap(built_wheel):
+    """Installation requires the compatible 0.4.0 API floor without a cap."""
     with zipfile.ZipFile(built_wheel) as archive:
         metadata_paths = [
             name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
@@ -221,9 +217,7 @@ def test_wheel_requires_the_tiergraph_line_its_documents_are_written_in(built_wh
     assert len(native) == 1
     requirement = native[0]
     assert requirement.url is None and requirement.marker is None
-    assert "0.2.3" not in requirement.specifier
-    assert "0.3.0" in requirement.specifier
-    assert "0.4.0" not in requirement.specifier
+    assert str(requirement.specifier) == ">=0.4.0"
 
 
 def test_the_wheel_carries_one_canonical_panphon_declaration_and_credit(built_wheel):
