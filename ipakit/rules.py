@@ -3540,6 +3540,8 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
         change: Change = {}
         for key, value in pairs.items():
             prosodic = _is_prosodic(key, features)
+            feature = features.features[key]
+            resolved = feature.value_aliases.get(value, value)
             # A variable is taken before the value checks below, exactly
             # as on the left of the arrow, so it is never a value that
             # failed to resolve. Which variables may appear here is
@@ -3551,7 +3553,12 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
                     _check_opposite(rhs, key, features)
                 change[key] = variable
                 continue
-            if value in NULL:
+            # The whole-unit notation accepts ``0`` as a historical spelling
+            # of nothing, but a bundle is already inside one declared
+            # feature's namespace. Let that declaration win: ternary features
+            # name ``0`` as their real, unmarked value. Only a null spelling
+            # that does not resolve to a declared value means absence here.
+            if value in NULL and resolved not in feature.values_set:
                 if not prosodic:
                     raise RuleError(
                         f"{rhs!r} clears {key!r}, but only prosody can be absent: "
@@ -3560,8 +3567,6 @@ def _becomes(rhs: str, features: IPAFeatures) -> Becomes:
                     )
                 change[key] = None
                 continue
-            feature = features.features[key]
-            resolved = feature.value_aliases.get(value, value)
             # A sequence-valued feature takes a run of its values in time
             # order, so every step is checked rather than the spelling of
             # the whole -- 'low>high' is a tone the data never lists and

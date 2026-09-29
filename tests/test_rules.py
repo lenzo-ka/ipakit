@@ -1697,6 +1697,51 @@ class TestProsodyThatCannotBeWrittenIsRefusedOrDeclined:
         assert ipakit.rewrite("t", "t -> [contour=rising]") == "t"
 
 
+class TestADeclaredZeroIsAValue:
+    """A value named ``0`` is unmarked, not absent from the declaration."""
+
+    def test_the_falsy_spelling_census_is_complete(self):
+        declared = {
+            (name, value)
+            for name, feature in FEATURES.features.items()
+            for value in feature.values
+            if value in {"0", ""}
+        }
+        assert declared == {
+            ("tongue-root", "0"),
+            ("fronting", "0"),
+            ("height-mod", "0"),
+        }
+
+    @pytest.mark.parametrize(
+        "feature,marked",
+        [
+            ("tongue-root", "a̘"),
+            ("fronting", "a̟"),
+            ("height-mod", "a̝"),
+        ],
+    )
+    def test_every_feature_declaring_zero_can_assign_it(self, feature, marked):
+        declared = FEATURES.features[feature]
+        assert "0" in declared.values, f"{feature!r} no longer declares zero"
+        assert FEATURES._get_features(marked)[feature] != "0", "test is vacuous"
+
+        spec = f"[{feature}=+] -> [{feature}=0]"
+        assert ipakit.rewrite(marked, spec) == "a"
+
+    def test_a_zero_query_matches_the_unmarked_value(self):
+        asks_zero = R._pattern("[tongue-root=0]", FEATURES)
+        assert asks_zero.matches(R.units("a", FEATURES)[0], FEATURES)
+        assert not asks_zero.matches(R.units("a̘", FEATURES)[0], FEATURES)
+
+    def test_an_undeclared_value_keeps_its_existing_refusal(self):
+        with pytest.raises(
+            ValueError,
+            match=r"'not-declared' is not a value of feature 'tongue-root'",
+        ):
+            ipakit.rewrite("a", "a -> [tongue-root=not-declared]")
+
+
 class TestAssigningThenClearingProsodyReturnsTheSpelling:
     """The sweep. Named cases test the features somebody thought of.
 
