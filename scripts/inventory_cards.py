@@ -151,6 +151,8 @@ def validate_spdx() -> int:
 
 
 def _source_paths(card: Card) -> tuple[Path, ...]:
+    if card.family == "espeak":
+        return ()
     paths = tuple(
         path for pattern in card.sources for path in sorted(ROOT.glob(pattern))
     )
@@ -160,6 +162,10 @@ def _source_paths(card: Card) -> tuple[Path, ...]:
 
 
 def _sources(card: Card) -> tuple[SourceMetadata, ...]:
+    if card.family == "espeak":
+        from ipakit.inventories import _espeak_source
+
+        return (_espeak_source(),)
     return tuple(
         SourceMetadata.from_root(ET.parse(path).getroot(), path.relative_to(ROOT))
         for path in _source_paths(card)
@@ -243,6 +249,18 @@ def _quantitative(
             ("Declared features", str(metrics["panphon_features"])),
             ("Supplied feature weights", str(metrics["panphon_weights"])),
         ]
+    if family == "espeak":
+        # Counts depend on the user's checkout, so the card states the shape only.
+        return [
+            (
+                "Registry entries",
+                "`espeak` plus one `espeak:<code>` per language table",
+            ),
+            (
+                "Finite inventories",
+                "every registered entry, when a checkout is supplied",
+            ),
+        ]
     items = [inventory(name) for name in names]
     finite = [item for item in items if item.phones is not None]
     if not finite:
@@ -303,8 +321,16 @@ def render(mfa_models: Path) -> str:
     """Render the hand-written introduction and every declared family card."""
     declared_cards = cards()
     family_names = _family_names()
-    expected = set(family_names) | {"panphon"}
     found = {card.family for card in declared_cards}
+    # A family built from a user-supplied source registers only when that
+    # source is present, so its card stands without a registry entry.
+    user_supplied = {
+        card.family
+        for card in declared_cards
+        if card.sources
+        and all(path.startswith("user-supplied") for path in card.sources)
+    }
+    expected = set(family_names) | {"panphon"} | (found & user_supplied)
     if found != expected:
         raise ValueError(
             f"card families disagree with registry families: "
@@ -338,7 +364,13 @@ def render(mfa_models: Path) -> str:
                 )
             )
         )
-        paths = ", ".join(f"`{pattern}`" for pattern in card.sources)
+        if card.family == "espeak":
+            # Built from the user's checkout, so the count is the checkout's,
+            # not the package's; the card names the source instead.
+            declarations = "user-supplied eSpeak NG `phsource` (one per language table)"
+        else:
+            paths = ", ".join(f"`{pattern}`" for pattern in card.sources)
+            declarations = f"{paths} ({len(sources)})"
         lines.extend(
             [
                 "",
@@ -353,7 +385,7 @@ def render(mfa_models: Path) -> str:
                 f"| Pin | `{version}` |",
                 f"| License | `{license_id}` |",
                 f"| Kind | `{kind}` |",
-                f"| Declarations | {paths} ({len(sources)}) |",
+                f"| Declarations | {declarations} |",
                 "",
                 "### Quantitative",
                 "",

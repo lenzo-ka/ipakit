@@ -46,7 +46,11 @@ global-exclude *.py[cod] .DS_Store
 prune tests/.pytest_cache
 
 # Bridge declarations and the grammars stating their shape.
-recursive-include ipakit/data/bridges *.xml *.rng
+include ipakit/data/bridges/vocabulary.rng
+recursive-include ipakit/data/bridges/kana *.xml
+recursive-include ipakit/data/bridges/mfa *.xml
+recursive-include ipakit/data/bridges/pinyin *.xml
 recursive-include ipakit/data/textgrid *.json
 recursive-include ipakit/data/feature-models *.xml *.txt *.md *-receipt.json
-recursive-include ipakit/data/phoible *.gz *.txt *.json
+recursive-include ipakit/data/phoible *.txt *.json
+recursive-include ipakit/data/phoible/data *.gz

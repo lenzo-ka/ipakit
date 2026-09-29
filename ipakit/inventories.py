@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from collections.abc import Callable
@@ -18,7 +19,6 @@ if TYPE_CHECKING:
     from .features import IPAFeatures
 
 _DATA = Path(__file__).parent / "data"
-_ESPEAK = _DATA / "bridges" / "espeak"
 _PHONEMAPS = _DATA / "phonemaps"
 
 
@@ -272,35 +272,24 @@ def _disagreement(
     )
 
 
-@functools.lru_cache(maxsize=1)
 def _espeak_source() -> SourceMetadata:
-    """Derive the union's source identity from every language declaration."""
-    sources = [_source(path) for path in sorted(_ESPEAK.glob("*.xml"))]
-    if not sources:
-        raise ValueError("the eSpeak inventory has no declarations")
-    common = {
-        field: {getattr(source, field) for source in sources}
-        for field in ("upstream", "upstream_url", "version", "license", "kind")
-    }
-    disagreements = {
-        field: values for field, values in common.items() if len(values) != 1
-    }
-    if disagreements:
-        raise ValueError(
-            f"eSpeak declarations disagree on source metadata: {disagreements}"
-        )
-    first = sources[0]
+    """The eSpeak family's source identity, from the pinned revision alone.
+
+    The tables are built from the user's eSpeak NG checkout, so the identity
+    names the pinned source they are built from and needs no checkout.
+    """
+    from .espeak_source import KIND, LICENSE, PIN, UPSTREAM, UPSTREAM_URL
+
     return SourceMetadata(
-        first.upstream,
-        first.upstream_url,
-        f"union of {len(sources)} declared {first.kind} artifacts",
-        first.version,
-        first.license,
-        first.kind,
+        UPSTREAM,
+        UPSTREAM_URL,
+        f"per-language {KIND} artifacts built from the user's eSpeak NG checkout",
+        PIN,
+        LICENSE,
+        KIND,
     )
 
 
-@functools.lru_cache(maxsize=1)
 def _espeak_inventory() -> Inventory:
     """Build the cross-language eSpeak name union and agreement-only style.
 
@@ -310,6 +299,7 @@ def _espeak_inventory() -> Inventory:
     """
     from . import normalize
     from .bridges.espeak import EspeakBridge
+    from .espeak_source import languages
     from .features import IPAFeatures
     from .models import _silence_spellings
     from .phoneset_map import tie_delimited_entry
@@ -323,8 +313,7 @@ def _espeak_inventory() -> Inventory:
         lambda: defaultdict(set)
     )
     phones: list[str] = []
-    for declaration in sorted(_ESPEAK.glob("*.xml")):
-        language = declaration.stem
+    for language in languages():
         bridge = EspeakBridge(language)
         for atom in bridge.atoms:
             if atom.kind != "unit":
@@ -466,8 +455,15 @@ def _espeak_language_inventory(code: str) -> Inventory:
     return _bridge_inventory(name, EspeakBridge(code))
 
 
-@functools.lru_cache(maxsize=1)
 def _registry() -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
+    """Return the registry for the currently selected optional eSpeak source."""
+    return _registry_for(os.environ.get("IPAKIT_ESPEAK_NG"))
+
+
+@functools.lru_cache(maxsize=4)
+def _registry_for(
+    espeak_path: str | None,
+) -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
     """Return the one registry table used for listing and loading."""
     from .bridges.mfa import UNION, declarations
 
@@ -484,8 +480,16 @@ def _registry() -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
             functools.partial(_cmu_inventory, "pocketsphinx"),
             cmu_source,
         ),
-        "espeak": (_espeak_inventory, _espeak_source()),
     }
+    if espeak_path is None:
+        espeak_source = None
+    else:
+        try:
+            espeak_source = _espeak_source()
+        except FileNotFoundError:
+            espeak_source = None
+    if espeak_source is not None:
+        registry["espeak"] = (_espeak_inventory, espeak_source)
     for declaration in (UNION, *declarations()):
         path = _DATA / "bridges" / "mfa" / f"{declaration}.xml"
         root = ET.parse(path).getroot()
@@ -496,13 +500,15 @@ def _registry() -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
         )
     if (_PHONEMAPS / "timit.xml").is_file():
         registry["timit"] = (_timit_inventory, _source(_PHONEMAPS / "timit.xml"))
-    for path in sorted(_ESPEAK.glob("*.xml")):
-        code = path.stem
-        name = f"espeak:{code}"
-        registry[name] = (
-            functools.partial(_espeak_language_inventory, code),
-            _source(path),
-        )
+    if espeak_source is not None:
+        from .espeak_source import languages
+
+        for code in languages():
+            name = f"espeak:{code}"
+            registry[name] = (
+                functools.partial(_espeak_language_inventory, code),
+                espeak_source,
+            )
     return registry
 
 
@@ -512,6 +518,13 @@ def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
     try:
         builder, source = registry[name]
     except KeyError as error:
+        if name == "espeak" or name.startswith("espeak:"):
+            from .bridges.espeak import ESPEAK_ENV
+
+            raise ValueError(
+                f"eSpeak NG source is required for {name!r}; set {ESPEAK_ENV} "
+                "to the pinned eSpeak NG checkout"
+            ) from error
         if name.startswith("mfa:"):
             from .bridges.mfa import declarations
 

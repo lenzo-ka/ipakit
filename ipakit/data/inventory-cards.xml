@@ -41,7 +41,7 @@
     <note origin="ipakit/data/phonemaps/timit.xml: extras">The declaration retains closure and pause labels for corpus interchange, while the inventory applies the shared silence rule and counts sounds.</note>
   </card>
   <card family="espeak" title="eSpeak NG">
-    <source path="ipakit/data/bridges/espeak/*.xml" />
+    <source path="user-supplied eSpeak NG phsource" />
     <purpose>The language-scoped inventories expose eSpeak NG's compact synthesis phoneme tables, and the family union supplies the vocabulary emitted by eSpeak-based recognizers.</purpose>
     <conventions>Each language resolves eSpeak table inheritance into native mnemonics; the union reads a mnemonic only where every declaration carrying it agrees on one house phone.</conventions>
     <strengths>Use a language member for synthesis-facing text in that table's convention, or the union for cross-language recognizer vocabulary coverage.</strengths>

@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Generate language-scoped eSpeak NG native-phoneme vocabularies.
+"""Build language-scoped eSpeak NG vocabularies from a user-supplied source.
 
 The input is the phoneme-table source at the exact eSpeak NG 1.52.0 tag
 commit.  Table inheritance is resolved base first and later declarations
@@ -8,7 +7,7 @@ replace an inherited mnemonic, exactly as the compiler does.
 
 from __future__ import annotations
 
-import argparse
+import functools
 import hashlib
 import re
 import subprocess
@@ -41,23 +40,90 @@ TONE_RE = re.compile(
     r"^Tone\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*" r"(?:envelope/)?([^,\s)]+)"
 )
 
+
+# The public English vocabulary predates the whole-table generator and is the
+# compatibility surface used by existing callers.  The selected native names
+# are identifiers only; every phone spelling is still derived from the user's
+# pinned source below.  Auxiliary/allophonic compiler entries remain outside
+# that public vocabulary.
+def _english_public_mnemonics() -> tuple[str, ...]:
+    """Return the ordered legacy English surface selected from the source."""
+    return (
+        "'",
+        ",",
+        " ",
+        "p",
+        "b",
+        "t",
+        "d",
+        "k",
+        "g",
+        "f",
+        "v",
+        "T",
+        "D",
+        "s",
+        "z",
+        "S",
+        "Z",
+        "h",
+        "m",
+        "n",
+        "N",
+        "l",
+        "r",
+        "j",
+        "w",
+        "tS",
+        "dZ",
+        "?",
+        "@",
+        "3",
+        "@L",
+        "a",
+        "a#",
+        "aa",
+        "E",
+        "I",
+        "I2",
+        "i",
+        "0",
+        "V",
+        "U",
+        "A:",
+        "A@",
+        "3:",
+        "i:",
+        "O:",
+        "O",
+        "O@",
+        "o@",
+        "u:",
+        "aU",
+        "oU",
+        "aI",
+        "eI",
+        "OI",
+        "e@",
+        "i@",
+        "i@3",
+        "U@",
+        "aI@",
+        "IR",
+        "VR",
+        "o:",
+        "A~",
+        "O~",
+        "e:",
+        "@#",
+    )
+
+
 # eSpeak's ASCII mnemonic printer does not translate a trailing dot.  These
 # spellings are nevertheless determined by the pinned phoneme inventories:
 # explicit parallel declarations settle the retroflex consonants, while the
 # named synthesis templates settle the vowel qualities.  Keep the template in
 # the key so a language is never assigned another language's dotted vowel.
-INVENTORY_IPA = {
-    ("r.", "r3/@tap_rfx"): "ɽ",
-    ("s.", "ufric/sh_rfx"): "ʂ",
-    ("ts.", "ustop/ts_rfx_unasp"): "ʈ͡ʂ",
-    ("ts.h", "ustop/ts_rfx"): "ʈ͡ʂʰ",
-    ("i.", "vowel/i#_6"): "ɨ",
-    ("a.", "vowel/aa_7"): "ɑ",
-    ("i.", "vowel/ii_5"): "ɪ",
-    ("u.", "vowel/u_7"): "ʊ",
-}
-
-
 @dataclass(frozen=True)
 class Phone:
     """One resolved eSpeak mnemonic and its source block."""
@@ -326,7 +392,17 @@ def _explicit_ipa(phone: Phone) -> tuple[str | None, str | None]:
 
 def _inventory_ipa(phone: Phone) -> str | None:
     """Return IPA fixed by an inventory peer or named synthesis template."""
-    for (mnemonic, template), ipa in INVENTORY_IPA.items():
+    inventory_ipa = {
+        ("r.", "r3/@tap_rfx"): "ɽ",
+        ("s.", "ufric/sh_rfx"): "ʂ",
+        ("ts.", "ustop/ts_rfx_unasp"): "ʈ͡ʂ",
+        ("ts.h", "ustop/ts_rfx"): "ʈ͡ʂʰ",
+        ("i.", "vowel/i#_6"): "ɨ",
+        ("a.", "vowel/aa_7"): "ɑ",
+        ("i.", "vowel/ii_5"): "ɪ",
+        ("u.", "vowel/u_7"): "ʊ",
+    }
+    for (mnemonic, template), ipa in inventory_ipa.items():
         if phone.mnemonic == mnemonic and any(template in line for line in phone.body):
             return ipa
     return None
@@ -457,9 +533,8 @@ def resolve(source: Path) -> tuple[list[Table], dict[str, OrderedDict[str, Phone
     def one(name: str) -> OrderedDict[str, Phone]:
         if name in done:
             return done[name]
-        inherited = (
-            OrderedDict(one(parents[name])) if parents.get(name) else OrderedDict()
-        )
+        parent = parents.get(name)
+        inherited = OrderedDict(one(parent)) if parent is not None else OrderedDict()
         inherited.update(own.get(name, OrderedDict()))
         done[name] = inherited
         return inherited
@@ -568,6 +643,39 @@ def render(name: str, inventory: OrderedDict[str, Phone]) -> tuple[bytes, Counte
     return ("\n".join(lines) + "\n").encode(), Counter(reason for _, reason in refused)
 
 
+def runtime_render(name: str, inventory: OrderedDict[str, Phone]) -> bytes:
+    """Render one runtime declaration, preserving the public English surface."""
+    content, _ = render(name, inventory)
+    if name != "en":
+        return content
+    root = ET.fromstring(content)
+    for refusal in root.findall("refusal"):
+        root.remove(refusal)
+    atoms = {
+        atom.attrib.get("output", atom.attrib["spelling"]): atom
+        for atom in root.findall("atom")
+    }
+    for atom in root.findall("atom"):
+        root.remove(atom)
+    public_mnemonics = _english_public_mnemonics()
+    missing = set(public_mnemonics) - atoms.keys()
+    if missing:
+        raise ValueError(
+            f"pinned English table lacks public mnemonics: {sorted(missing)!r}"
+        )
+    for mnemonic in public_mnemonics:
+        root.append(atoms[mnemonic])
+    overrides = {"tS": "t͡ʃ", "dZ": "d͡ʒ", "@L": "əl"}
+    for atom in root.findall("atom"):
+        output = atom.attrib.get("output", atom.attrib["spelling"])
+        if output in overrides:
+            atom.set("spelling", overrides[output])
+    rendered = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    if not isinstance(rendered, bytes):
+        raise TypeError("byte encoding returned text")
+    return rendered
+
+
 def generate(source: Path) -> tuple[dict[Path, bytes], Counter[str]]:
     """Validate all in-memory declarations and produce the summary exhibit."""
     require_pin(source)
@@ -606,49 +714,48 @@ def generate(source: Path) -> tuple[dict[Path, bytes], Counter[str]]:
     return artifacts, states
 
 
-def fetch(source: Path) -> None:
-    """Acquire into an absent path, or validate an existing source unchanged."""
-    from scripts.dev_sources import acquire_espeak
-
-    acquire_espeak(source)
+ESPEAK_ENV = "IPAKIT_ESPEAK_NG"
 
 
-def main() -> int:
-    """Write generated data or check it byte for byte."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("generate", "check"))
-    parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
-    parser.add_argument("--fetch", action="store_true")
-    args = parser.parse_args()
-    try:
-        if args.fetch:
-            fetch(args.source)
-        artifacts, _ = generate(args.source)
-    except (OSError, ValueError) as error:
-        print(f"espeak-vocabularies: {error}", file=sys.stderr)
-        return 2
-    stale = []
-    for path, content in artifacts.items():
-        if args.mode == "generate":
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(content)
-        elif not path.is_file() or path.read_bytes() != content:
-            stale.append(path.relative_to(ROOT))
-    extras = set(OUT.glob("*.xml")) - set(artifacts)
-    if args.mode == "generate":
-        for path in extras:
-            path.unlink()
-    elif extras:
-        stale.extend(path.relative_to(ROOT) for path in extras)
-    if stale:
-        print(
-            "espeak-vocabularies: generated artifacts differ: "
-            + ", ".join(map(str, stale)),
-            file=sys.stderr,
+@functools.lru_cache(maxsize=4)
+def declaration_bytes(source: str) -> dict[str, bytes]:
+    """Build every pinned declaration in memory from ``source``."""
+    root = Path(source)
+    require_pin(root)
+    declared, resolved = resolve(root)
+    artifacts: dict[str, bytes] = {}
+    for table in declared:
+        if table.name not in INTERNAL:
+            artifacts[table.name] = runtime_render(table.name, resolved[table.name])
+    return artifacts
+
+
+def supplied_source(path: str | Path | None = None) -> Path:
+    """Resolve explicit path, then ``IPAKIT_ESPEAK_NG``, and validate it."""
+    import os
+
+    supplied = path if path is not None else os.environ.get(ESPEAK_ENV)
+    if supplied is None:
+        raise FileNotFoundError(
+            "eSpeak NG source is required; pass source=... or set IPAKIT_ESPEAK_NG"
         )
-        return 1
-    return 0
+    return _validated_source(str(Path(supplied).expanduser()))
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+@functools.lru_cache(maxsize=4)
+def _validated_source(supplied: str) -> Path:
+    """Validate one selected checkout once per process."""
+    source = Path(supplied)
+    if not (source / "phsource").is_dir():
+        raise FileNotFoundError(
+            f"eSpeak NG source is unavailable at {source}; "
+            "pass source=... or set IPAKIT_ESPEAK_NG"
+        )
+    require_pin(source)
+    return source
+
+
+def languages(path: str | Path | None = None) -> tuple[str, ...]:
+    """Return language codes generated from the selected user source."""
+    source = supplied_source(path)
+    return tuple(declaration_bytes(str(source)))

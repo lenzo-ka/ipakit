@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The TIMIT map is generated from ipakit's transcription of NISTIR 4930 §4.3: `epi` is silence, the closures are unreleased stops, and `ux` and `ax-h` are mapped.
 - Requires tiergraph 0.4.0 or later.
+- eSpeak inventories are built from the user's eSpeak NG checkout (`IPAKIT_ESPEAK_NG` or an explicit path); no eSpeak-derived data ships.
+- PHOIBLE's GPL mapping tables are read from the user's PHOIBLE (`IPAKIT_PHOIBLE`); the CC BY-SA main data keeps shipping.
 - CLTS input documents refuse a second host for one tone, a duplicate relation, an unencodable raw, and an out-of-range integer time, each at its location.
 - Profile-bound CLTS eligibility now derives reviewed plain-stop projections and affricate-juncture refusals.
 - Profile-bound CLTS eligibility reports unattempted occurrences with the `not-attempted` reason.

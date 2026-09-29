@@ -21,7 +21,7 @@ PHOIBLE_ENV = "IPAKIT_PHOIBLE"
 
 
 class PhoibleDataUnavailable(FileNotFoundError):
-    """An explicitly selected PHOIBLE checkout is unavailable."""
+    """Required user-supplied PHOIBLE data are unavailable."""
 
 
 @dataclass(frozen=True)
@@ -102,11 +102,7 @@ def _root(path: str | Path | None) -> Path | None:
     resolved = Path(supplied).expanduser()
     if resolved.name == "phoible.csv":
         resolved = resolved.parent.parent
-    required = (
-        resolved / "data" / "phoible.csv",
-        resolved / "mappings" / "InventoryID-LanguageCodes.csv",
-        resolved / "mappings" / "InventoryID-Bibtex.csv",
-    )
+    required = (resolved / "data" / "phoible.csv",)
     missing = [str(item) for item in required if not item.is_file()]
     if missing:
         raise PhoibleDataUnavailable(
@@ -123,7 +119,7 @@ class PhoibleBridge(ProviderBridge):
     """Provider for PHOIBLE inventories without merging rival doculects."""
 
     def __init__(self, path: str | Path | None = None) -> None:
-        """Select explicit path, then environment, otherwise the shipped snapshot."""
+        """Select explicit path, then environment, otherwise shipped CC data."""
         self.root = _root(path)
         super().__init__(
             "phoible",
@@ -135,7 +131,7 @@ class PhoibleBridge(ProviderBridge):
             (
                 f"generated from {self.root}"
                 if self.root is not None
-                else "shipped PHOIBLE development snapshot (separately licensed source aggregate)"
+                else "shipped PHOIBLE main CSV and reference bibliography"
             ),
             RoundTripReport(
                 RoundTripLeg(
@@ -151,9 +147,12 @@ class PhoibleBridge(ProviderBridge):
             ),
         )
         self._metadata = self._read_metadata()
-        self._bibtex = self._read_bibtex()
+        self._bibtex: dict[str, tuple[str, ...]] | None = None
 
     def _open(self, name: str, *, encoding: str = "utf-8") -> TextIO:
+        if name.startswith("mappings/"):
+            root = self._mapping_root()
+            return (root / name).open(encoding=encoding, newline="")
         if self.root is not None:
             return (self.root / name).open(encoding=encoding, newline="")
         return io.TextIOWrapper(
@@ -161,9 +160,39 @@ class PhoibleBridge(ProviderBridge):
         )
 
     def _read_metadata(self) -> dict[str, dict[str, str]]:
-        with self._open("mappings/InventoryID-LanguageCodes.csv") as stream:
-            rows = list(csv.DictReader(stream))
-        return {row["InventoryID"]: row for row in rows}
+        fields = ("InventoryID", "Glottocode", "ISO6393", "LanguageName", "Source")
+        found: dict[str, dict[str, str]] = {}
+        with self._open("data/phoible.csv") as stream:
+            for row in csv.DictReader(stream):
+                key = row["InventoryID"]
+                if any(row[field] is None for field in fields):
+                    continue
+                metadata = {field: row[field] for field in fields}
+                previous = found.setdefault(key, metadata)
+                if previous != metadata:
+                    raise ValueError(
+                        f"PHOIBLE main CSV disagrees within inventory {key}"
+                    )
+        return found
+
+    def _mapping_root(self) -> Path:
+        """Require the user's mapping tables only for mapping-backed fields."""
+        if self.root is None:
+            raise PhoibleDataUnavailable(
+                "PHOIBLE mapping tables are user-supplied; set IPAKIT_PHOIBLE "
+                "or pass path=... to a PHOIBLE checkout"
+            )
+        required = (
+            self.root / "mappings" / "InventoryID-LanguageCodes.csv",
+            self.root / "mappings" / "InventoryID-Bibtex.csv",
+        )
+        missing = [str(item) for item in required if not item.is_file()]
+        if missing:
+            raise PhoibleDataUnavailable(
+                "PHOIBLE mapping tables are unavailable; set IPAKIT_PHOIBLE "
+                "to a complete checkout; missing " + ", ".join(missing)
+            )
+        return self.root
 
     def _read_bibtex(self) -> dict[str, tuple[str, ...]]:
         found: dict[str, list[str]] = defaultdict(list)
@@ -181,6 +210,8 @@ class PhoibleBridge(ProviderBridge):
             row = self._metadata[inventory_id]
         except KeyError as error:
             raise KeyError(f"PHOIBLE has no inventory {inventory_id!r}") from error
+        if self._bibtex is None:
+            self._bibtex = self._read_bibtex()
         keys = self._bibtex.get(inventory_id, ())
         if not keys:
             raise ValueError(f"PHOIBLE inventory {inventory_id} has no BibTeX key")

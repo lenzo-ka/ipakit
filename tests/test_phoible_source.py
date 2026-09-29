@@ -5,6 +5,7 @@ import gzip
 import hashlib
 import io
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -26,18 +27,9 @@ def test_shipped_source_census_and_refusals(monkeypatch):
     source = PhoibleBridge()
     assert source.root is None
     assert len(source._metadata) == 3020
-    assert len(source.language("eng").inventories) == 9
-    first = source.inventory(160)
-    second = source.inventory(2175)
-    assert (len(first.entries), len(first.refusals)) == (40, 9)
-    assert (len(second.entries), len(second.refusals)) == (39, 0)
-    assert first.provenance.bibtex_keys == (
-        "OConner1973",
-        "Gimson1962",
-        "Halle1973",
-        "Fudge1975",
-        "Trnka1968",
-    )
+    assert source.audit().rows == 105484
+    with pytest.raises(PhoibleDataUnavailable, match="set IPAKIT_PHOIBLE"):
+        source.language("eng")
     rows = csv.DictReader(
         io.StringIO(phoible_source.read_source("data/phoible.csv").decode())
     )
@@ -60,7 +52,6 @@ def archive(tmp_path):
         target = root / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(phoible_source.read_source(name))
-    (root / "LICENSE").write_bytes((resource / "GPL-3.0.txt").read_bytes())
     (root / "data/LICENSE").write_bytes((resource / "MIT-upstream.txt").read_bytes())
     return root
 
@@ -72,14 +63,31 @@ def test_same_source_reader_parity_explicit_precedence_and_no_network(
     shipped = PhoibleBridge()
     external = PhoibleBridge(archive)
     assert shipped._metadata == external._metadata
-    assert shipped._bibtex == external._bibtex
-    assert shipped.language("eng") == external.language("eng")
-    for key in (160, 2175):
-        assert shipped.inventory(key) == external.inventory(key)
+    assert shipped.audit() == external.audit()
     monkeypatch.setenv(PHOIBLE_ENV, str(archive / "missing"))
     with pytest.raises(PhoibleDataUnavailable):
         PhoibleBridge()
     assert PhoibleBridge(archive / "data/phoible.csv").root == archive
+
+
+def test_user_supplied_mapping_tables_restore_provenance(monkeypatch):
+    supplied = os.environ.get(PHOIBLE_ENV)
+    if supplied is None:
+        pytest.skip("set IPAKIT_PHOIBLE to run PHOIBLE mapping-table integration")
+    root = Path(supplied)
+    source = PhoibleBridge(root)
+    assert len(source.language("eng").inventories) == 9
+    first = source.inventory(160)
+    second = source.inventory(2175)
+    assert (len(first.entries), len(first.refusals)) == (40, 9)
+    assert (len(second.entries), len(second.refusals)) == (39, 0)
+    assert first.provenance.bibtex_keys == (
+        "OConner1973",
+        "Gimson1962",
+        "Halle1973",
+        "Fudge1975",
+        "Trnka1968",
+    )
 
 
 def test_builder_is_shared_deterministic_and_dirty_input_refuses(archive):

@@ -9,8 +9,32 @@ per session (rather than once per test) keeps the suite fast. The instances are
 treated as read-only by the tests, so sharing them across tests is safe.
 """
 
+import os
+
 import pytest
 from ipakit import CMUMapper, IPAFeatures
+
+
+def pytest_collection_modifyitems(items):  # type: ignore[no-untyped-def]
+    """Skip source-dependent eSpeak integration tests when no source is supplied."""
+    if os.environ.get("IPAKIT_ESPEAK_NG"):
+        return
+    reason = "set IPAKIT_ESPEAK_NG to run tests requiring eSpeak NG source"
+    for item in items:
+        path = item.path.name
+        if (
+            path == "test_espeak_binary.py"
+            or (
+                path in {"test_bridges.py", "test_inventories.py"}
+                and (
+                    "espeak" in item.name
+                    or item.name == "test_styles_normalize_canonically_equivalent_input"
+                )
+                and item.name != "test_espeak_requires_user_source"
+            )
+            or (path == "test_phoneset_comparison.py" and "espeak" in item.nodeid)
+        ):
+            item.add_marker(pytest.mark.skip(reason=reason))
 
 
 @pytest.fixture(autouse=True)

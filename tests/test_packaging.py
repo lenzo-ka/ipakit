@@ -202,6 +202,21 @@ def test_the_wheel_carries_every_data_file(built_wheel):
     )
 
 
+def test_wheel_ships_no_gpl_data(built_wheel):
+    """No shipped data file carries GPL material or a GPL license declaration.
+
+    Python source may name the license of a user-supplied source (eSpeak NG);
+    naming a license ships none of the material it covers.
+    """
+    with zipfile.ZipFile(built_wheel) as archive:
+        matches = [
+            name
+            for name in archive.namelist()
+            if not name.endswith(".py") and b"gpl" in archive.read(name).lower()
+        ]
+    assert matches == []
+
+
 def test_wheel_requires_tiergraph_0_4_or_later_without_an_upper_cap(built_wheel):
     """Installation requires the compatible 0.4.0 API floor without a cap."""
     with zipfile.ZipFile(built_wheel) as archive:

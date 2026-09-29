@@ -1,7 +1,7 @@
 """Bidirectional, fidelity-classified bridges to external representations."""
 
 from .base import Bridge, Fidelity, RoundTripLeg, RoundTripReport
-from .espeak import ESPEAK_EN, EspeakBridge
+from .espeak import ESPEAK_ENV, EspeakBridge
 from .generator import GeneratorDoor
 from .ipa_dict import (
     IPADictEntry,
@@ -36,7 +36,7 @@ from .vocabulary import (
 __all__ = [
     "Atom",
     "Bridge",
-    "ESPEAK_EN",
+    "ESPEAK_ENV",
     "EspeakBridge",
     "Fidelity",
     "GeneratorDoor",

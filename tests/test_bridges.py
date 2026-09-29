@@ -1,10 +1,11 @@
 import json
+import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
 from ipakit.bridges import (
-    ESPEAK_EN,
+    ESPEAK_ENV,
     EspeakBridge,
     Fidelity,
     ProjectionDrop,
@@ -19,6 +20,18 @@ from ipakit.form import Form
 FIXTURE = Path(__file__).parent / "fixtures" / "mfa_english_us_v3_1_0.dict"
 ESPEAK_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_en_1_52_0.txt"
 ESPEAK_CMN_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_cmn_1_52_0.txt"
+
+
+def test_espeak_requires_user_source(monkeypatch) -> None:
+    monkeypatch.delenv(ESPEAK_ENV, raising=False)
+    with pytest.raises(FileNotFoundError, match=ESPEAK_ENV):
+        EspeakBridge("en")
+
+
+def test_espeak_explicit_source_precedes_environment(monkeypatch) -> None:
+    source = os.environ[ESPEAK_ENV]
+    monkeypatch.setenv(ESPEAK_ENV, "/absent/espeak-ng")
+    assert EspeakBridge("en", source=source).language == "en"
 
 
 def grouping_drop_bridge(tmp_path: Path) -> VocabularyBridge:
@@ -204,23 +217,25 @@ def test_mfa_mapper_refuses_undeclared_or_empty_residue_positioned(
 def test_espeak_en_inventory_is_language_scoped_and_pinned() -> None:
     from scripts.espeak_vocabularies import PIN
 
-    assert ESPEAK_EN.language == "en"
-    assert ESPEAK_EN.name == "espeak-en"
-    assert ESPEAK_EN.version == PIN
-    assert ESPEAK_EN.source_style == "text"
-    assert ESPEAK_EN.separator == ""
-    assert len(ESPEAK_EN.atoms) == 67
+    bridge = EspeakBridge("en")
+    assert bridge.language == "en"
+    assert bridge.name == "espeak-en"
+    assert bridge.version == PIN
+    assert bridge.source_style == "text"
+    assert bridge.separator == ""
+    assert len(bridge.atoms) == 67
 
 
 def test_espeak_native_text_fixture_round_trips_byte_exact() -> None:
+    bridge = EspeakBridge("en")
     samples = [
         line
         for line in ESPEAK_FIXTURE.read_text().splitlines()
         if not line.startswith("#")
     ]
     assert len(samples) == 3
-    assert [ESPEAK_EN.emit(ESPEAK_EN.read(sample)) for sample in samples] == samples
-    assert ESPEAK_EN.read(samples[0]).to_ipa() == "həlˈəʊ wˈɜːld"
+    assert [bridge.emit(bridge.read(sample)) for sample in samples] == samples
+    assert bridge.read(samples[0]).to_ipa() == "həlˈəʊ wˈɜːld"
 
 
 def test_espeak_fr_reads_pinned_binary_bonjour_mnemonics() -> None:
@@ -272,21 +287,23 @@ def test_espeak_imported_ipa_and_cantonese_tone_categories() -> None:
 
 
 def test_espeak_external_distinctions_survive_on_the_grouping_tier() -> None:
-    form = ESPEAK_EN.read("@3I2")
+    bridge = EspeakBridge("en")
+    form = bridge.read("@3I2")
     assert form.to_ipa() == "əəɪ"
-    assert ESPEAK_EN.emit(form) == "@3I2"
+    assert bridge.emit(form) == "@3I2"
 
 
 def test_espeak_en_round_trip_classification_names_unimplemented_mapper() -> None:
-    assert ESPEAK_EN.round_trip.external_to_house.fidelity is Fidelity.LOSSLESS
-    ours = ESPEAK_EN.round_trip.house_to_external
+    bridge = EspeakBridge("en")
+    assert bridge.round_trip.external_to_house.fidelity is Fidelity.LOSSLESS
+    ours = bridge.round_trip.house_to_external
     assert ours.fidelity is Fidelity.LOSSY_WITH_REPORT
     assert ours.drops[0] == (
         "the house-to-eSpeak leg awaits a mapper; emit requires an existing "
         "espeak-en grouping tier"
     )
     with pytest.raises(ValueError, match="undeclared tiers: \\['espeak-en'\\]"):
-        ESPEAK_EN.emit(Form.parse("həloʊ", strict=True))
+        bridge.emit(Form.parse("həloʊ", strict=True))
 
 
 def test_espeak_refuses_undeclared_language_and_native_residue() -> None:
@@ -295,16 +312,16 @@ def test_espeak_refuses_undeclared_language_and_native_residue() -> None:
     ):
         EspeakBridge("zz-absent")
     with pytest.raises(VocabularyResidueError, match=r"span \[1:2\]: '\$'"):
-        ESPEAK_EN.read("h$")
+        EspeakBridge("en").read("h$")
 
 
 def test_every_generated_espeak_declaration_loads() -> None:
-    """Sweep the generated set so no language can ship as unloadable XML."""
-    declarations = sorted(
-        (Path(__file__).parent.parent / "ipakit/data/bridges/espeak").glob("*.xml")
-    )
+    """Sweep the user-generated set so no language is unloadable."""
+    from ipakit.espeak_source import languages
+
+    declarations = languages()
     assert len(declarations) == 129
-    assert all(EspeakBridge(path.stem).atoms for path in declarations)
+    assert all(EspeakBridge(language).atoms for language in declarations)
 
 
 def test_espeak_declared_refusal_names_spelling_and_position() -> None:

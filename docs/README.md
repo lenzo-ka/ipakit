@@ -40,7 +40,7 @@ keep source distinctions, coverage and conversion losses explicit.
 | --- | --- |
 | [Comparative systems](systems.md) | Compare organizing principles and implemented boundaries across models. |
 | [Inventories and styles](inventories.md) | Named vocabularies, strict reading/spelling and dictionary-derived inventories. |
-| [PHOIBLE source inventories](phoible.md) | Shipped complete source catalog, explicit checkout overrides, doculect provenance and import refusals. |
+| [PHOIBLE source inventories](phoible.md) | Shipped main catalog, user-supplied mapping tables, doculect provenance and import refusals. |
 | [Inventory supplements](supplements.md) | Extend the house declaration and understand the effects on realization and comparison. |
 | [Pinyin](pinyin.md) | Syllable-hosted tone, orthographic rendering and the internal graph-constructor boundary. |
 | [Kana](kana.md) | Mora-tier rendering and bounded curated-adaptation API/CLI support. |
@@ -52,7 +52,7 @@ keep source distinctions, coverage and conversion losses explicit.
 | [Operations across inventories](inventory-operations.md) | House and Panphon matching and respelling, custom declarations, and all-pairs comparisons across named cost models. |
 | [Feature transformations](feature-transforms.md) | Declared finite re-encoding, explicit loss and preimages, and binary comparison through shared cost/alignment machinery. |
 | [MFA vocabulary exhibit](mfa-vocabularies.md) | Generated declarations, source pins and refusal classes. |
-| [eSpeak vocabulary exhibit](espeak-vocabularies.md) | Generated language-scoped and union vocabulary coverage. |
+| [eSpeak vocabulary exhibit](espeak-vocabularies.md) | User-source-generated language-scoped and union vocabulary coverage. |
 | [House declaration exhibits](house-style-exhibits.md) | Generated tie, boundary and character-class inventories behind the house conventions. |
 
 ## Rules and comparison

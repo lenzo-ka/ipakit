@@ -28,16 +28,10 @@ EXTRACTOR = {"id": "ipakit.extraction.phoible.build", "version": "1"}
 ARTIFACT_INPUTS = {
     "data/phoible-references.bib.gz": "data/phoible-references.bib",
     "data/phoible.csv.gz": "data/phoible.csv",
-    "mappings/InventoryID-Bibtex.csv.gz": "mappings/InventoryID-Bibtex.csv",
-    "mappings/InventoryID-LanguageCodes.csv.gz": (
-        "mappings/InventoryID-LanguageCodes.csv"
-    ),
     "MIT-upstream.txt": "data/LICENSE",
-    "GPL-3.0.txt": "LICENSE",
 }
 NOTICE_FILES = (
     "CC-BY-SA-3.0.txt",
-    "GPL-3.0.txt",
     "MIT-upstream.txt",
     "NOTICE.txt",
 )
@@ -68,7 +62,24 @@ def source_receipt(data_dir: Any | None = None) -> dict[str, Any]:
 
 def source_policy() -> dict[str, Any]:
     """Return a fresh copy of the accepted source pin and consumed hashes."""
-    return dict(source_receipt()["source-policy"])
+    stored = source_receipt()["source-policy"]
+    source = dict(stored["source"])
+    source.update(
+        artifact="PHOIBLE dataset and reference bibliography",
+        license="CC-BY-SA-3.0",
+    )
+    return {
+        "version": stored["version"],
+        "source": source,
+        "inputs": {
+            name: stored["inputs"][name]
+            for name in (
+                "data/LICENSE",
+                "data/phoible-references.bib",
+                "data/phoible.csv",
+            )
+        },
+    }
 
 
 def source_files() -> tuple[str, ...]:

@@ -21,7 +21,7 @@ FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
 MFA_MODELS ?= $(HOME)/.cache/ipakit/mfa-models
 
-## espeak-vocabularies: regenerate every language-scoped eSpeak declaration
+## espeak-vocabularies: validate user-sourced declarations and refresh the summary
 espeak-vocabularies:
 	@if test ! -d "$(ESPEAK_NG)/.git"; then \
 		echo "espeak-vocabularies: pinned checkout absent; nothing regenerated"; \
@@ -62,14 +62,14 @@ inventory-cards:
 	@if test ! -f "$(MFA_MODELS)/dictionary/english/us_mfa/english_us_mfa.dict"; then \
 		echo "inventory-cards: pinned MFA dictionary absent; nothing regenerated"; \
 	else \
-		$(PYTHON) scripts/inventory_cards.py build --mfa-models "$(MFA_MODELS)"; \
+		IPAKIT_ESPEAK_NG="$(ESPEAK_NG)" $(PYTHON) scripts/inventory_cards.py build --mfa-models "$(MFA_MODELS)"; \
 	fi
 
 inventory-cards-check:
 	@if test ! -f "$(MFA_MODELS)/dictionary/english/us_mfa/english_us_mfa.dict"; then \
 		echo "inventory-cards: pinned MFA dictionary absent; generated-document check skipped"; \
 	else \
-		$(PYTHON) scripts/inventory_cards.py check --mfa-models "$(MFA_MODELS)"; \
+		IPAKIT_ESPEAK_NG="$(ESPEAK_NG)" $(PYTHON) scripts/inventory_cards.py check --mfa-models "$(MFA_MODELS)"; \
 	fi
 
 panphon-geometry-check:

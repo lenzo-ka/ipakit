@@ -45,13 +45,13 @@ def _fresh_inventory(name: str):
 
 
 def test_registry_discovers_every_espeak_declaration() -> None:
-    from ipakit.bridges.espeak import _DATA
+    from ipakit.espeak_source import languages
 
     assert {
         name.removeprefix("espeak:")
         for name in ipakit.inventories()
         if name.startswith("espeak:")
-    } == {path.stem for path in _DATA.glob("*.xml")}
+    } == set(languages())
     assert {"cmudict", "pocketsphinx", "espeak"} <= set(ipakit.inventories())
 
 
@@ -225,10 +225,10 @@ def test_mfa_inventory_bridge_is_cached_per_parser_identity() -> None:
     assert custom.read(["pʰ"]).to_ipa() == "pʰ"
 
 
-def test_espeak_union_maps_to_mfa() -> None:
-    mapping = ipakit.phoneset_mapping("espeak", "mfa")
+def test_espeak_language_maps_to_mfa() -> None:
+    mapping = ipakit.phoneset_mapping("espeak:en-us", "mfa:english_us")
     assert mapping.source_inventory is not None
-    assert mapping.source_inventory.name == "espeak"
+    assert mapping.source_inventory.name == "espeak:en-us"
 
 
 def test_mfa_english_maps_to_cmudict_and_spells() -> None:
