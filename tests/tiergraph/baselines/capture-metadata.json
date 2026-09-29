@@ -1,12 +1,12 @@
 {
   "format": 1,
-  "ipakit": "0.3.0",
+  "ipakit": "0.4.0",
   "kind": "lane-a-metadata",
   "perturbation_mover_count": 144,
-  "phone_count": 139,
-  "phone_pair_count": 9591,
+  "phone_count": 140,
+  "phone_pair_count": 9730,
   "python_hash_seed": 0,
   "rule_corpus_words": 156,
   "shipped_rule_count": 86,
-  "sweep_corpus_size": 10012
+  "sweep_corpus_size": 10084
 }
