@@ -1,0 +1,168 @@
+{
+  "licenses": {
+    "BSD-2-Clause": {
+      "spdx": "BSD-2-Clause",
+      "class": "shippable"
+    },
+    "CC-BY-4.0": {
+      "spdx": "CC-BY-4.0",
+      "class": "shippable"
+    },
+    "CC-BY-SA-3.0": {
+      "spdx": "CC-BY-SA-3.0",
+      "class": "shippable-share-alike"
+    },
+    "MIT": {
+      "spdx": "MIT",
+      "class": "shippable"
+    }
+  },
+  "defaults": {
+    "LicenseRef-LDC-*": {
+      "spdx": "LicenseRef-LDC-*",
+      "class": "internal-only"
+    }
+  },
+  "house": {
+    "ipakit/data/attested/miller_nicely_1955.json": {
+      "class": "shippable",
+      "reason": "Factual measurements transcribed with provenance and the Netlib permission notice; shippable by owner ruling."
+    },
+    "ipakit/data/bridges/vocabulary.rng": {
+      "class": "shippable",
+      "reason": "IPAkit-authored RELAX NG schema for bridge vocabulary declarations."
+    },
+    "ipakit/data/clts/import-result.schema.json": {
+      "class": "shippable",
+      "reason": "IPAkit-authored JSON Schema for its CLTS import result envelope."
+    },
+    "ipakit/data/clts/semantic-mapping.json": {
+      "class": "shippable",
+      "reason": "IPAkit-generated semantic comparison audit, not a copy of an upstream CLTS table."
+    },
+    "ipakit/data/clts/semantic-rules.json": {
+      "class": "shippable",
+      "reason": "IPAkit-authored reviewed projection rules from CLTS features into the house model."
+    },
+    "ipakit/data/clts/source.json": {
+      "class": "shippable",
+      "reason": "IPAkit-authored provenance and source-policy metadata containing no upstream dataset rows."
+    },
+    "ipakit/data/confusion.json": {
+      "class": "shippable",
+      "reason": "IPAkit-generated distance matrix derived entirely from the house IPA declaration and metric."
+    },
+    "ipakit/data/heads.rng": {
+      "class": "shippable",
+      "reason": "IPAkit-authored RELAX NG schema for vocal-tract head declarations."
+    },
+    "ipakit/data/heads.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored schematic head model with documented aggregate factual measurements."
+    },
+    "ipakit/data/inventory-cards.rng": {
+      "class": "shippable",
+      "reason": "IPAkit-authored RELAX NG schema for inventory cards."
+    },
+    "ipakit/data/inventory-cards.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored explanatory inventory catalog generated from project declarations and review facts."
+    },
+    "ipakit/data/ipa.rng": {
+      "class": "shippable",
+      "reason": "IPAkit-authored RELAX NG schema for the house IPA declaration."
+    },
+    "ipakit/data/mfa-curation.json": {
+      "class": "shippable",
+      "reason": "IPAkit-authored curation judgments and factual exemplars for interpreting MFA phone sets."
+    },
+    "ipakit/data/phonemaps/kirshenbaum.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored implementation of the publicly documented Kirshenbaum notation."
+    },
+    "ipakit/data/phonemaps/lookalikes.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored policy table for explicit soft reading of keyboard lookalikes."
+    },
+    "ipakit/data/phonemaps/phonemap.rng": {
+      "class": "shippable",
+      "reason": "IPAkit-authored RELAX NG schema for phonemap declarations."
+    },
+    "ipakit/data/phonemaps/xsampa.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-generated interoperability table for the public X-SAMPA notation with curated house overrides."
+    },
+    "ipakit/data/rules/american-english.rules": {
+      "class": "shippable",
+      "reason": "IPAkit-authored example rewrite rules for American English."
+    },
+    "ipakit/data/rules/french-liaison.rules": {
+      "class": "shippable",
+      "reason": "IPAkit-authored example rewrite rules for French liaison."
+    },
+    "ipakit/data/rules/german-final-devoicing.rules": {
+      "class": "shippable",
+      "reason": "IPAkit-authored example rewrite rules for German final devoicing."
+    },
+    "ipakit/data/rules/japanese-moraic.rules": {
+      "class": "shippable",
+      "reason": "IPAkit-authored example rewrite rules for Japanese moraic processes."
+    },
+    "ipakit/data/rules/spanish-accented-english.rules": {
+      "class": "shippable",
+      "reason": "IPAkit-authored example rewrite rules for Spanish-accented English."
+    },
+    "ipakit/data/supplements/aspirated-stops.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored worked example of an opt-in inventory supplement."
+    },
+    "ipakit/data/supplements/supplement.rng": {
+      "class": "shippable",
+      "reason": "IPAkit-authored RELAX NG schema for inventory supplements."
+    },
+    "ipakit/data/syllables/english.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored curated syllable constraints using factual CMUdict attestation counts."
+    },
+    "ipakit/data/syllables/japanese.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored declarative implementation of the documented Japanese mora analysis."
+    },
+    "ipakit/data/syllables/mandarin.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored syllabification declaration referencing the house Pinyin bridge."
+    },
+    "ipakit/data/syllables/spanish.xml": {
+      "class": "shippable",
+      "reason": "IPAkit-authored declarative Spanish syllable constraints."
+    },
+    "ipakit/data/syllables/syllables.rng": {
+      "class": "shippable",
+      "reason": "IPAkit-authored RELAX NG schema for syllabification declarations."
+    },
+    "ipakit/data/textgrid/mfa.json": {
+      "class": "shippable",
+      "reason": "IPAkit-authored TextGrid interchange profile for common MFA tier names."
+    },
+    "ipakit/data/textgrid/prosody.json": {
+      "class": "shippable",
+      "reason": "IPAkit-authored TextGrid interchange profile for prosodic tiers."
+    },
+    "ipakit/data/textgrid/segments.json": {
+      "class": "shippable",
+      "reason": "IPAkit-authored TextGrid interchange profile for segment tiers."
+    },
+    "ipakit/data/textgrid/words.json": {
+      "class": "shippable",
+      "reason": "IPAkit-authored TextGrid interchange profile for word tiers."
+    },
+    "ipakit/notebooks/ipakit-tutorial.ipynb": {
+      "class": "shippable",
+      "reason": "IPAkit-authored rendered tutorial notebook."
+    },
+    "ipakit/py.typed": {
+      "class": "shippable",
+      "reason": "IPAkit-authored PEP 561 package marker."
+    }
+  }
+}
