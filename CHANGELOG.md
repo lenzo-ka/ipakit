@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ᶑ` is the house symbol for the voiced retroflex implosive.
+
 ## [0.4.0] - 2026-09-29
 
 ### Added

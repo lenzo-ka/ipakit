@@ -121,7 +121,7 @@ class TestMaterialBudget:
                 ), (left, right)
                 assert all(row[0] != "segmental" for row in rows)
                 checked += 1
-        assert checked == 2944
+        assert checked == 2967
 
     def test_public_explanation_reconstructs_substitution_cost(
         self, ipa: IPAFeatures
@@ -239,7 +239,7 @@ class TestMaterialBudget:
                 continue
             checked += 1
             assert ipa.distance(left, right) >= release, (left, right)
-        assert checked == 345
+        assert checked == 348
 
     def test_invariant_5_catches_a_weakened_arity_term(
         self, ipa: IPAFeatures, monkeypatch: pytest.MonkeyPatch
@@ -289,7 +289,7 @@ class TestMaterialBudget:
             if active[pair] != pytest.approx(uncharged[pair], abs=1e-12)
         }
         assert movers == expected
-        assert len(movers) == 345
+        assert len(movers) == 348
 
 
 class TestSecondaryArticulation:

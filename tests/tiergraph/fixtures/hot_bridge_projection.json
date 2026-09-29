@@ -2499,7 +2499,7 @@
                       "event"
                     ]
                   ],
-                  "inventory": "sha256:3bce116985b93aeff9d2e465d85361c0c106a50c906f5064b1705884cc49401e",
+                  "inventory": "sha256:fccdd9a6ebb0ad98688d3e3065a19a25f1b60ec7a9ad0cd0faffa739dfcae5fe",
                   "profile": "ipakit-form",
                   "schema": {
                     "closed": true,

@@ -711,6 +711,7 @@
     <phone name="ɕ" channel="grooved" manner="fricative" place="alveolo-palatal" href="Voiceless_alveolo-palatal_fricative"/>
     <phone name="ɖ" manner="plosive" place="alveolar" voiced="+" retroflex="+" href="Voiced_retroflex_plosive"/>
     <phone name="ɗ" manner="plosive" place="alveolar" voiced="+" airstream="implosive" href="Voiced_alveolar_implosive"/>
+    <phone name="ᶑ" manner="plosive" place="alveolar" voiced="+" retroflex="+" airstream="implosive" href="Voiced_retroflex_implosive"/>
     <phone name="ɘ" manner="vowel" height="close-mid" backness="central" rounded="-" voiced="+" href="Close-mid_central_unrounded_vowel"/>
     <phone name="ə" manner="vowel" height="mid" backness="central" rounded="-" voiced="+" href="Schwa"/>
     <phone name="ɚ" manner="vowel" height="mid" backness="central" rounded="-" rhotacized="+" voiced="+" href="R-colored_vowel"/>

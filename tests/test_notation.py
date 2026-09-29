@@ -120,7 +120,7 @@ class TestTheMarkedSet:
     def test_every_phone_but_silence_is_chart_proper(self) -> None:
         off = {p for p in FEATURES.phones if FEATURES.notation_of(p) != CHART}
         assert off == {"␣"}
-        assert len(FEATURES.phones) == 139
+        assert len(FEATURES.phones) == 140
 
     def test_provenance_never_reaches_a_feature_bundle(self) -> None:
         # The whole reason it is a block. Nothing in <notations> may show
@@ -247,4 +247,4 @@ class TestTheModuleLevelPair:
     def test_only_silence_makes_a_framed_phone_impure(self) -> None:
         impure = {p for p in FEATURES.phones if not ipakit.is_pure_ipa(f"a{p}a")}
         assert impure == {"␣"}
-        assert len(FEATURES.phones) == 139
+        assert len(FEATURES.phones) == 140

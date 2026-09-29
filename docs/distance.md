@@ -341,18 +341,18 @@ leading positive variance (silence excluded)               60.3%
 leading-axis/compositeness correlation (silence excluded)  0.977
 ```
 
-The same instrument over the repaired matrix reads differently, and the difference is the repair's measured consequence. The leading axis no longer encodes compositeness (correlation `0.077`, from `0.977`); it correlates `0.917` with the vowel–consonant contrast, with the diphthongs at one end and the affricates at the other — composites ordered by their content rather than their construction. The composite shell is gone: mean distance within the phased composites is `0.268` against `0.323` from composites to atomics, no longer a constant, and the leading positive axis carries `43.5%` of positive variance rather than `60.3%` — the variance spread to more axes because the geometry carries more information. Negative eigenvalue mass rose from `9.1%` to `12.3%`, and that is the honest direction: the flat shell was self-consistent and therefore nearly embeddable while being wrong, whereas the repaired space keeps phase families deliberately tight (the typed-tie commitment above) while their external distances are graded and identity-dependent — near-coincident points with different views of the rest of the space do not embed. The residual non-Euclideanity is the signature of that commitment rather than an artifact, and the closure below remains the route to a metric.
+The same instrument over the repaired matrix reads differently, and the difference is the repair's measured consequence. The leading axis no longer encodes compositeness (correlation `0.073`, from `0.977`); it correlates `0.918` with the vowel–consonant contrast, with the diphthongs at one end and the affricates at the other — composites ordered by their content rather than their construction. The composite shell is gone: mean distance within the phased composites is `0.268` against `0.323` from composites to atomics, no longer a constant, and the leading positive axis carries `43.4%` of positive variance rather than `60.3%` — the variance spread to more axes because the geometry carries more information. Negative eigenvalue mass rose from `9.1%` to `12.4%`, and that is the honest direction: the flat shell was self-consistent and therefore nearly embeddable while being wrong, whereas the repaired space keeps phase families deliberately tight (the typed-tie commitment above) while their external distances are graded and identity-dependent — near-coincident points with different views of the rest of the space do not embed. The residual non-Euclideanity is the signature of that commitment rather than an artifact, and the closure below remains the route to a metric.
 
 `scripts/geometry.py` prints these, and `scripts/geometry.py check` holds the reading below to a fresh measurement of the shipped metric, failing by name on any figure that has moved. The eigendecomposition needs numpy, which the `compare` extra declares; `tests/test_geometry_doc.py` makes the same comparison and runs in the CI job that installs `.[dev]`, skipping where numpy is absent:
 
 ```text
 $ pip install -e ".[compare]" && python scripts/geometry.py
-confusion.json SHA-256                  026088774a47936a801bf09019ea0923ed1b6ebc53c9b1d977bcc52c23cfeb18
-phones                                  138
-negative eigenvalue mass                12.3%
-leading positive variance               43.5%
-leading-axis/compositeness correlation  0.077
-leading-axis/vowelhood correlation      0.917
+confusion.json SHA-256                  cff27cc89850c8d6f30fb3c6eb64fe734fefa2d6b1c3f2c2671b82b9db0be566
+phones                                  139
+negative eigenvalue mass                12.4%
+leading positive variance               43.4%
+leading-axis/compositeness correlation  0.073
+leading-axis/vowelhood correlation      0.918
 mean distance within composites         0.268
 mean distance composites to atomics     0.323
 ```
@@ -366,7 +366,7 @@ from hashlib import sha256
 from pathlib import Path
 
 sha256(Path("ipakit/data/confusion.json").read_bytes()).hexdigest()
-# '026088774a47936a801bf09019ea0923ed1b6ebc53c9b1d977bcc52c23cfeb18'
+# 'cff27cc89850c8d6f30fb3c6eb64fe734fefa2d6b1c3f2c2671b82b9db0be566'
 ```
 
 A distance change moves every one of these, so a reading taken at a different commit will differ. The script states the two predicates the correlations are taken against — a phone is composite when its segment reports more than one constituent, and a vowel when its description ends in the word — because a correlation against an unstated predicate cannot be reproduced at all.
@@ -477,13 +477,13 @@ At `gamma=1.0` substituting straight through is cheaper than a gap on each side 
 
 To choose one, hold out pairs your own task has already labeled — words a lexicon treats as confusable, phones your listeners actually merged — and sweep gamma over `transcription_similarity` on that set, not over `similarity_position`. Sweeping it on the phone-level API is measuring a reparametrized threshold and will look like it is working. Values below 1.0 compress toward 1.0 and make substitutions cheaper, which is occasionally what a noisy-channel task wants; a value at or below 0 is refused at construction, since `p ** g` there is a constant or a reflection out of `[0, 1]` rather than a redistribution of it.
 
-No upper bound is imposed because a useful ceiling depends on the caller's inventory and task, but binary64 arithmetic does impose a practical one: underflow and subtraction rounding eventually collapse distinct positions. Among the four pairs above, the first tie appears at integer gamma `10862`, when `(p, k)` joins `(p, a)` at similarity `0.0`; at gamma `10088`, `(p, k)` is still about `2.67e-301`. All four similarities are `0.0` at gamma `1e6`. Across the full bundled reference, gamma `1e6` leaves only seven of 9,591 pair entries nonzero and only three numeric positions; at `sys.float_info.max`, all 9,591 are `0.0`. The complementary distance loses distinctions sooner: `(p, a)` first rounds to the underivable-pair sentinel `1.0` at integer gamma `24`, and `(p, b)`, `(p, k)`, and `(p, a)` are all `1.0` at gamma `1000`. Treat an extreme gamma as numerically degenerate and verify that the values in any candidate sweep remain distinct enough for the task.
+No upper bound is imposed because a useful ceiling depends on the caller's inventory and task, but binary64 arithmetic does impose a practical one: underflow and subtraction rounding eventually collapse distinct positions. Among the four pairs above, the first tie appears at integer gamma `10989`, when `(p, k)` joins `(p, a)` at similarity `0.0`; at gamma `10088`, `(p, k)` is still about `8.05e-298`. All four similarities are `0.0` at gamma `1e6`. Across the full bundled reference, gamma `1e6` leaves only seven of 9,730 pair entries nonzero and only three numeric positions; at `sys.float_info.max`, all 9,730 are `0.0`. The complementary distance loses distinctions sooner: `(p, a)` first rounds to the underivable-pair sentinel `1.0` at integer gamma `24`, and `(p, b)`, `(p, k)`, and `(p, a)` are all `1.0` at gamma `1050`. Treat an extreme gamma as numerically degenerate and verify that the values in any candidate sweep remain distinct enough for the task.
 
 ```python
 pk, pa = (flat.similarity_position(*pair) for pair in (("p", "k"), ("p", "a")))
-next(g for g in range(1, 20_000) if pk ** g == pa ** g)  # 10862
+next(g for g in range(1, 20_000) if pk ** g == pa ** g)  # 10989
 ipakit.distance_model(gamma=10088).similarity_position("p", "k")
-# 2.6741186064958466e-301
+# 8.045638883362277e-298
 ```
 
 **Gamma has no meaning on the plain `transcription_distance` path.** `ipakit.transcription_distance` and `IPAFeatures.transcription_distance` align on structural feature distance and never build a CDF, so there is no percentile for an exponent to act on and no knob to expose. Likewise `ipakit.similarity_position` and `ipakit.distance_position` are shortcuts onto a default model, fixed at `gamma=1.0`; build a model with `ipakit.distance_model(gamma=...)` to change it.

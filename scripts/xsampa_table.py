@@ -117,6 +117,10 @@ UNMAPPABLE: dict[str, str] = {
     # since; `4_d` or `v\_r` would be invention, and would collide with the
     # dental tap and the raised labiodental approximant respectively.
     "ⱱ": "labiodental flap: no X-SAMPA symbol exists",
+    # ICU passes U+1D91 through unchanged, and X-SAMPA has no dedicated
+    # voiced-retroflex-implosive letter.  Composing `d\`` with the implosive
+    # diacritic would be a new spelling rather than one the standard declares.
+    "ᶑ": "voiced retroflex implosive: no X-SAMPA symbol exists",
     # X-SAMPA's secondary-articulation diacritics are a closed list
     # (_h _w ' _G _?\ ...) with no glottal or schwa member.
     "ˀ": "glottalization: no X-SAMPA diacritic",

@@ -106,7 +106,7 @@ class TestItIsMetricOnlyAndContained:
     def test_the_prosodic_feature_adds_no_phone_term(self, ipa):
         # No shipped phone carries a rider. The exact position is repinned
         # when another segmental declaration moves the reference matrix.
-        assert ipakit.similarity_position("s", "ʃ") == 0.9984361968306923
+        assert ipakit.similarity_position("s", "ʃ") == 0.9984585345802076
 
 
 class TestExplainTrace:

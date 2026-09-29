@@ -5821,7 +5821,7 @@
         "pkg/transcriptionsystems/features.json": "4a2964f6ccdfde87625b7adccc63323996bbf28ce469f62bcc08f437fde03211"
       },
       "ipakit": {
-        "ipa.xml": "0404fb2a3673a786d299f48bb17c17eca0f2177de9439e22a17fdbd5a159a511"
+        "ipa.xml": "201f5caccc44ec6f0947005810ec94458af9cd22d569697dd0c781d9f4a3d6ee"
       }
     },
     "version": 1
@@ -12118,7 +12118,7 @@
       }
     ]
   },
-  "identity": "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be",
+  "identity": "sha256:f05e19bad72faba40432d579118420403719bd4c07b51aeb256df1c1d0326c3d",
   "native_witnesses": {
     "consonant-duration-long/1": {
       "constituents": 1,
@@ -13061,7 +13061,7 @@
       "Resolver witnesses aː, aˑ, aːː, ă, tː, tˑ and tːː assert the reviewed duration values; native feature_values preserves their distinct written length values."
     ],
     "profile_binding": {
-      "basis": "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba",
+      "basis": "sha256:097534e091b47a2644896964bd2bcc98e89b6cce71ca36940f2ed4377bae50cd",
       "profile": {
         "id": "ipakit-clts-source",
         "version": 1

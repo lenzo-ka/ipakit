@@ -1141,7 +1141,7 @@ class TestTheDrawingSeparatesWhatTheFeaturesSeparate:
         for phone in sorted(ipa.phones):
             groups.setdefault(_section("adult-male", phone), []).append(phone)
         collapsed = [g for g in groups.values() if len(g) > 1]
-        assert len(groups) == 123, (
+        assert len(groups) == 124, (
             f"{len(groups)} distinct figures for {len(ipa.phones)} phones; "
             f"{len(collapsed)} groups share one"
         )

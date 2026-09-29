@@ -22,9 +22,9 @@ import tiergraph as tg
 
 P = {
     "domain": "core-bipa",
-    "manifest": "sha256:2d8aa509068014cbec6a3fb017f6ed6fd72e98b0b02eeeec03dd86eb2408070b",
-    "mapping": "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be",
-    "profile": "sha256:ed846c398e47326cfb6fcbbb3133c5ab2cc06703f34db7d9b2ae0fe96cf3ee3e",
+    "manifest": "sha256:354f45e761e8550ac6f99e7439cc8849ebbd93ccd3122db1f8660062c0d1b73e",
+    "mapping": "sha256:f05e19bad72faba40432d579118420403719bd4c07b51aeb256df1c1d0326c3d",
+    "profile": "sha256:bde884344b2c5d5bdd18187e1c54a5e745672b34af7974bdf52aa6745eab9083",
     "snapshot": "sha256:8b5620aed4b88e6d14d02ddbd6e404fbe9bf9b13577851acd244a95b5793dcc4",
 }
 SCHEMA = {"id": "ipakit-clts-import-result", "version": 1}

@@ -125,7 +125,7 @@ import ipakit
 from ipakit.distance_model import _check_fingerprint
 
 matrix = json.loads(Path("ipakit/data/confusion.json").read_text())
-("metric" in matrix, len(matrix["phones"]))  # (True, 139)
+("metric" in matrix, len(matrix["phones"]))  # (True, 140)
 _check_fingerprint(ipakit.IPAFeatures(), matrix["phones"], "not-the-metric", Path("confusion.json"))
 # ValueError: confusion.json was derived in a different feature space
 ```

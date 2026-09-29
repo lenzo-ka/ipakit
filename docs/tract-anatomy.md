@@ -240,7 +240,7 @@ def sagittal(phone):
     )
 
 (len(ipa.phones), len({sagittal(phone) for phone in ipa.phones}))
-# (139, 123)
+# (140, 124)
 ```
 
 ## 11. Open questions

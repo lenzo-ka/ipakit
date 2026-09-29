@@ -107,7 +107,7 @@ def test_live_mapping_regeneration_is_current_and_deterministic() -> None:
 def test_four_reviewed_plain_stop_projections_are_import_ready() -> None:
     authority, snapshot = read_authority(), read_snapshot()
     profile = core_bipa_spec()
-    mapping = "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
+    mapping = "sha256:f05e19bad72faba40432d579118420403719bd4c07b51aeb256df1c1d0326c3d"
     assert authority.eligibility("p", snapshot, profile=profile) == {
         "token": "p",
         "mapping_identity": mapping,
@@ -929,7 +929,7 @@ def test_import_profile_basis_guard_covers_every_nonmapping_component(
 ) -> None:
     original = core_bipa_spec(
         mapping_identity=(
-            "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
+            "sha256:f05e19bad72faba40432d579118420403719bd4c07b51aeb256df1c1d0326c3d"
         )
     )
     if change.get("source") == "changed-version":
@@ -976,10 +976,10 @@ def test_rules_pin_profile_family_and_basis_as_literals() -> None:
     binding = rules["profile_binding"]
     assert binding["profile"] == {"id": "ipakit-clts-source", "version": 1}
     assert binding["basis"] == (
-        "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
+        "sha256:097534e091b47a2644896964bd2bcc98e89b6cce71ca36940f2ed4377bae50cd"
     )
     assert read_authority().identity == (
-        "sha256:d8d67f8a076a6e44ef5f2f908aff74febfe8dabd9fa0c333f8baee57c94603be"
+        "sha256:f05e19bad72faba40432d579118420403719bd4c07b51aeb256df1c1d0326c3d"
     )
 
 
@@ -1020,7 +1020,7 @@ def test_core_basis_does_not_open_semantic_files() -> None:
 
     sys.addaudithook(audit)
     assert core_bipa_basis() == (
-        "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"
+        "sha256:097534e091b47a2644896964bd2bcc98e89b6cce71ca36940f2ed4377bae50cd"
     )
     active = False
     assert not [path for path in opened if Path(path).name.startswith("semantic-")]

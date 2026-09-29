@@ -12,7 +12,7 @@
   ],
   "direction": "clts-to-ipakit",
   "scope": "profile-bound-reviewed-plain-stop-projections-release-and-duration-declarations",
-  "profile_binding": {"profile": {"id": "ipakit-clts-source", "version": 1}, "basis": "sha256:6078e6a669c7517792c96bf1fbdec0a07e44260cba5e20cb0b49d6682b741cba"},
+  "profile_binding": {"profile": {"id": "ipakit-clts-source", "version": 1}, "basis": "sha256:097534e091b47a2644896964bd2bcc98e89b6cce71ca36940f2ed4377bae50cd"},
   "source_kind": "consonant",
   "source_feature_model": "clts",
   "target_feature_model": "ipakit",

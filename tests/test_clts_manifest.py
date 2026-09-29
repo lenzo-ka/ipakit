@@ -160,7 +160,7 @@ def test_manifest_fields_are_literal_and_complete() -> None:
         },
     }
     assert manifest["house-declarations"] == {
-        "fingerprint": "sha256:3bce116985b93aeff9d2e465d85361c0c106a50c906f5064b1705884cc49401e"
+        "fingerprint": "sha256:fccdd9a6ebb0ad98688d3e3065a19a25f1b60ec7a9ad0cd0faffa739dfcae5fe"
     }
     assert manifest["adapter"] == {
         "schema": {"id": "ipakit-clts-core-bipa-resolution", "version": 1},
@@ -183,7 +183,7 @@ def test_manifest_fields_are_literal_and_complete() -> None:
         "version": 1,
     }
     assert manifest["fingerprint"] == (
-        "sha256:2d8aa509068014cbec6a3fb017f6ed6fd72e98b0b02eeeec03dd86eb2408070b"
+        "sha256:354f45e761e8550ac6f99e7439cc8849ebbd93ccd3122db1f8660062c0d1b73e"
     )
     assert "mapping" not in manifest
     assert "profile-fingerprint" not in manifest
@@ -191,7 +191,7 @@ def test_manifest_fields_are_literal_and_complete() -> None:
 
 def test_manifest_verifies_and_final_profile_binds_its_fingerprint() -> None:
     assert verify_manifest() == (
-        "sha256:2d8aa509068014cbec6a3fb017f6ed6fd72e98b0b02eeeec03dd86eb2408070b"
+        "sha256:354f45e761e8550ac6f99e7439cc8849ebbd93ccd3122db1f8660062c0d1b73e"
     )
     spec = core_bipa_spec()
     assert spec.manifest_kind == FINAL_MANIFEST_KIND
