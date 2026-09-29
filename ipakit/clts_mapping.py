@@ -1,8 +1,8 @@
-"""Reviewed directional predicates, distinct from declaration census and import.
+"""Reviewed directional predicates used by the bounded CLTS import.
 
 The authority is deliberately bounded to reviewed plain-stop projections and the
 adjudicated release and duration declarations. Other declarations remain explicitly
-unresolved; public Form import remains pending.
+unresolved; the public adapter reports them as refused or preserved source material.
 """
 
 from __future__ import annotations
@@ -436,7 +436,7 @@ def _source_witnesses(rules: dict[str, Any], snapshot: Snapshot) -> None:
 
 
 class MappingAuthority:
-    """Content-bound research authority; never a completed Form importer."""
+    """Content-bound correspondence authority for the bounded import adapter."""
 
     def __init__(self, data: dict[str, Any]) -> None:
         try:
@@ -707,7 +707,7 @@ class MappingAuthority:
             f"Mapping identity: `{self.identity}`.",
             "",
             "Finite declaration accounting is not complete semantic conversion. "
-            "Reviewed token projections are bound to the source profile; public Form import remains pending.",
+            "Reviewed token projections are bound to the source profile; public import accepts the plain-stop domain and otherwise reports refusal or preservation.",
             "",
             "Generated from the [reviewed mapping authority](clts-mapping.md). "
             "Only master declarations are included; catalog observations remain external research. "
