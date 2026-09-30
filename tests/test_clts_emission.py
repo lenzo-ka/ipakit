@@ -91,6 +91,14 @@ def test_canonical_emission_refuses_an_unauthorized_tie_loss() -> None:
         "tokens": None,
         "error": {"code": "loss-not-authorized", "stage": "emit-bipa"},
         "report": {
+            "changes": [
+                {
+                    "convention": "clts-bipa-canonical-v1",
+                    "source": "t͜s",
+                    "target": "ts",
+                    "token": 0,
+                }
+            ],
             "losses": [
                 {
                     "token": 0,
@@ -98,7 +106,10 @@ def test_canonical_emission_refuses_an_unauthorized_tie_loss() -> None:
                     "target": "ts",
                     "claim": "sequential-juncture",
                 }
-            ]
+            ],
+            "spelling": "bipa",
+            "status": "refused",
+            "unavailable": [],
         },
     }
 

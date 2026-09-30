@@ -8,7 +8,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
-from ipakit.clts import import_tokens
+from ipakit.clts import emit_tokens, import_tokens
 from jsonschema import Draft202012Validator, ValidationError
 from scripts.clts_import_fixtures import fixtures
 
@@ -69,6 +69,27 @@ def test_r1_2_fixtures_validate_with_hand_authored_facts(
     assert (document["form"] is None) is (status == "refused")
 
 
+@pytest.mark.parametrize(
+    ("name", "status", "spelling", "tokens"),
+    [
+        ("emit-source", "complete", "source", ["t͜s"]),
+        ("emit-bipa", "complete", "bipa", ["p", "b"]),
+        ("emit-bipa-authorized-loss", "complete", "bipa", ["ts"]),
+        ("emit-bipa-refused-loss", "refused", "bipa", None),
+        ("emit-bipa-refused-unavailable", "refused", "bipa", None),
+    ],
+)
+def test_emission_fixtures_validate_with_literal_variant_facts(
+    name: str, status: str, spelling: str, tokens: list[str] | None
+) -> None:
+    document = _documents()[name]
+    assert json.loads(fixtures()[f"{name}.json"]) == document
+    _validator().validate(document)
+    assert document["report"]["status"] == status
+    assert document["report"]["spelling"] == spelling
+    assert document["tokens"] == tokens
+
+
 def test_r1_3_schema_rejects_status_and_schema_contradictions() -> None:
     documents = _documents()
     complete = documents["complete"]
@@ -104,6 +125,22 @@ def test_r1_3_schema_rejects_status_and_schema_contradictions() -> None:
     changed = copy.deepcopy(error)
     changed["schema"] = {"id": "ipakit-clts-import-result", "version": 1}
     mutations.append(changed)
+    emission = documents["emit-bipa-refused-loss"]
+    changed = copy.deepcopy(emission)
+    changed["tokens"] = ["ts"]
+    mutations.append(changed)
+    changed = copy.deepcopy(emission)
+    changed["report"]["status"] = "complete"
+    mutations.append(changed)
+    changed = copy.deepcopy(documents["emit-source"])
+    changed["report"]["spelling"] = "bipa"
+    mutations.append(changed)
+    changed = copy.deepcopy(documents["emit-bipa"])
+    changed["report"]["source_fidelity"] = "canonical-with-authorized-loss"
+    mutations.append(changed)
+    changed = copy.deepcopy(documents["emit-bipa-refused-loss"])
+    changed["error"]["code"] = "canonical-unavailable"
+    mutations.append(changed)
 
     validator = _validator()
     for changed in mutations:
@@ -130,5 +167,22 @@ def test_convention_changes_are_schema_checked() -> None:
 
     changed = copy.deepcopy(document)
     del changed["report"]["changes"][0]["convention"]
+    with pytest.raises(ValidationError):
+        _validator().validate(changed)
+
+
+def test_emission_changes_losses_and_refusals_are_schema_checked() -> None:
+    held = import_tokens(["t͜s"], unsupported="preserve")
+    authorized = emit_tokens(held, spelling="bipa", allow_loss=True).to_data()
+    refused = emit_tokens(held, spelling="bipa").to_data()
+    _validator().validate(authorized)
+    _validator().validate(refused)
+
+    changed = copy.deepcopy(authorized)
+    del changed["report"]["losses"][0]["claim"]
+    with pytest.raises(ValidationError):
+        _validator().validate(changed)
+    changed = copy.deepcopy(refused)
+    del changed["report"]["changes"]
     with pytest.raises(ValidationError):
         _validator().validate(changed)

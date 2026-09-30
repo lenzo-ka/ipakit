@@ -5,7 +5,7 @@
       "classification": "constructs-new",
       "evidence": {
         "file": "ipakit/_clts_import.py",
-        "line": 133,
+        "line": 152,
         "note": "builds a new house Form from each reviewed supported projection fact"
       }
     },
@@ -61,7 +61,7 @@
       "classification": "preserves",
       "evidence": {
         "file": "ipakit/features.py",
-        "line": 3689,
+        "line": 3713,
         "note": "returns an input Form unchanged before any string parsing"
       }
     },
@@ -69,7 +69,7 @@
       "classification": "preserves",
       "evidence": {
         "file": "ipakit/features.py",
-        "line": 3734,
+        "line": 3757,
         "note": "delegates to Form.from_json and its profile-scoped restoration"
       }
     },
@@ -109,7 +109,7 @@
       "classification": "constructs-new",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2177,
+        "line": 2180,
         "note": "routes a transcription through the house inventory reader"
       }
     },
@@ -125,7 +125,7 @@
       "classification": "refuses",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2556,
+        "line": 2559,
         "note": "refuses a source-profile Form before rebuilding it from projected units and intervals"
       }
     },
@@ -133,7 +133,7 @@
       "classification": "refuses",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2658,
+        "line": 2661,
         "note": "refuses a source-profile Form before constructing from filtered house units"
       }
     },
@@ -164,8 +164,8 @@
     "ipakit.rules.Derivation.to_form": {
       "classification": "constructs-new",
       "evidence": {
-        "file": "ipakit/_rewrite_graph.py",
-        "line": 377,
+        "file": "ipakit/rules.py",
+        "line": 3818,
         "note": "projects trace spellings onto a new house rewrite graph"
       }
     },

@@ -34,7 +34,7 @@
     },
     "ipakit/data/clts/import-result.schema.json": {
       "class": "shippable",
-      "reason": "IPAkit-authored JSON Schema for its CLTS import result envelope."
+      "reason": "IPAkit-authored JSON Schema for its CLTS import and emission result envelopes."
     },
     "ipakit/data/clts/semantic-mapping.json": {
       "class": "shippable",

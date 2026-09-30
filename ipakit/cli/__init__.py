@@ -5,6 +5,7 @@ Organized into subcommands:
     ipakit describe <phone>     Human-readable phone description
     ipakit notebook             Write the tutorial notebook here, to run
     ipakit corpus ...           Build, inspect, and query form corpora
+    ipakit clts ...             Import or emit reviewed CLTS tokens
     ipakit convert ...          Convert notation, serialize Forms, render katakana
     ipakit query ...            Query phones by features
     ipakit rules ...            Rewrite rules and derived morae
@@ -49,6 +50,7 @@ from pathlib import Path
 from .analysis_cmds import AnalysisGroup, DescribeCommand
 from .analyze import AnalyzeGroup
 from .base import Command, add_lax_arg, register_command
+from .clts import CLTSGroup
 from .convert import ConvertGroup
 from .corpus import CorpusGroup
 from .distance import DistanceGroup
@@ -70,6 +72,7 @@ from .tract import TractGroup
 
 # All command groups for help lookup
 GROUPS = [
+    CLTSGroup,
     CorpusGroup,
     ConvertGroup,
     QueryGroup,
@@ -111,6 +114,7 @@ Examples:
   ipakit features "pʰ" --short         # Get short names for aspirated p
   ipakit describe p                    # "voiceless bilabial plosive"
   ipakit corpus init speech-corpus     # Create an empty form corpus
+  ipakit clts read --tokens-json tokens.json  # Import explicit CLTS tokens
   ipakit inventory list               # List named inventories and styles
   ipakit textgrid write "kæt" -o kæt.TextGrid  # Write a segment-tier TextGrid
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)

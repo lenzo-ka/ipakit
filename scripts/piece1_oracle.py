@@ -213,7 +213,11 @@ def capture(*, at_mutation: str | None = None) -> dict[str, Any]:
             "intervals": [
                 [item.tier, item.start, item.end] for item in projected_intervals
             ],
-            "dataclass_fields": [field.name for field in dataclasses.fields(Form)],
+            "dataclass_fields": [
+                field.name
+                for field in dataclasses.fields(Form)
+                if not field.name.startswith("_")
+            ],
             "replace_intervals": len(replacement.intervals),
             "equality": held == peer,
             "hash": hash(held) == hash(peer),

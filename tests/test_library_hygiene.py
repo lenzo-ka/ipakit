@@ -175,9 +175,16 @@ def clear_import_cache():
 
 
 @pytest.mark.usefixtures("clear_import_cache")
-@pytest.mark.parametrize("name", sorted(PUBLIC_IMPORT_READERS))
-def test_public_clts_import_reader_refuses_or_reports_loss(name: str) -> None:
+@pytest.mark.parametrize("name", sorted(PUBLIC_CLTS_OPERATIONS))
+def test_public_clts_operation_refuses_or_reports_loss(name: str) -> None:
     reader = getattr(ipakit.clts, name)
+    if name == "emit_tokens":
+        held = ipakit.clts.import_tokens(["t͜s"], unsupported="preserve")
+        result = reader(held, spelling="bipa")
+        assert result.status == "refused"
+        assert result.to_data()["error"]["code"] == "loss-not-authorized"
+        assert result.report()["losses"][0]["claim"] == "sequential-juncture"
+        return
     with pytest.raises(ipakit.clts.CLTSInputError) as caught:
         reader("unsegmented")
     assert caught.value.code == (

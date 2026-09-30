@@ -1691,13 +1691,16 @@ class Form:
     #: Exact source where unit-local spellings cannot reproduce its order.
     #: Constructed/edited forms leave this unset, preventing stale source.
     spelling: str | None = None
-    # ``dataclasses.replace`` copies init fields into a fresh constructor.  A
+    # A normal init field, rather than an InitVar: dataclasses.replace is
+    # documented to copy init=True field values from the original object.  A
     # verified source Form installs this private sentinel after restoration so
-    # that generic replacement cannot silently turn it into an ordinary Form.
-    _source_profile_replacement_guard: dataclasses.InitVar[bool] = False
+    # generic replacement cannot silently turn it into an ordinary Form.
+    _source_profile_replacement_guard: bool = dataclasses.field(
+        default=False, repr=False, compare=False
+    )
 
-    def __post_init__(self, _source_profile_replacement_guard: bool) -> None:
-        if _source_profile_replacement_guard:
+    def __post_init__(self) -> None:
+        if self._source_profile_replacement_guard:
             raise FormProjectionError(
                 "dataclasses.replace cannot preserve authoritative "
                 "source/profile facts; source-profile Form transformation refused"
