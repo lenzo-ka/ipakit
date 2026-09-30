@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import io
 import json
 import pkgutil
 import re
+import tokenize
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,8 @@ CLASSES = frozenset({"preserves", "refuses", "constructs-new"})
 ADDITIONAL_PUBLIC_FORM_OPERATIONS = (
     "ipakit.bridges.mfa.MFABridge.read_tokens",
     "ipakit.bridges.vocabulary.VocabularyBridge.read",
+    "ipakit.bridges.zipa.ZIPABridge.read_original",
+    "ipakit.bridges.zipa.ZIPABridge.read_tokens",
     "ipakit.features.IPAFeatures.read",
     "ipakit.features.IPAFeatures.read_json",
     "ipakit.form.FormBuilder.build",
@@ -106,6 +110,27 @@ def _classification() -> dict[str, dict[str, Any]]:
     return document["operations"]
 
 
+def _evidence_lands_on_code(path: Path, line: int) -> bool:
+    """Reject blank, comment, and docstring-only evidence locations."""
+    source = path.read_text(encoding="utf-8")
+    seen_code = False
+    for item in tokenize.generate_tokens(io.StringIO(source).readline):
+        if not (item.start[0] <= line <= item.end[0]):
+            continue
+        if item.type in {tokenize.COMMENT, tokenize.STRING}:
+            continue
+        if item.type not in {
+            tokenize.ENCODING,
+            tokenize.ENDMARKER,
+            tokenize.INDENT,
+            tokenize.DEDENT,
+            tokenize.NEWLINE,
+            tokenize.NL,
+        }:
+            seen_code = True
+    return seen_code
+
+
 def assert_classification_complete(
     classified: Mapping[str, Mapping[str, Any]],
 ) -> None:
@@ -146,6 +171,7 @@ def test_every_public_form_operation_is_classified() -> None:
         assert evidence["line"] <= len(
             path.read_text(encoding="utf-8").splitlines()
         ), name
+        assert _evidence_lands_on_code(path, evidence["line"]), name
 
 
 def test_fault_injection_new_form_method_is_named(
@@ -172,3 +198,17 @@ def test_fault_injection_removed_classification_is_named() -> None:
     with pytest.raises(AssertionError) as caught:
         assert_classification_complete(classified)
     assert str(caught.value) == f"unclassified Form-returning operations: {removed}"
+
+
+def test_fault_injection_zipa_reader_omission_is_named() -> None:
+    classified = _classification()
+    removed = "ipakit.bridges.zipa.ZIPABridge.read_original"
+    del classified[removed]
+    with pytest.raises(AssertionError) as caught:
+        assert_classification_complete(classified)
+    assert str(caught.value) == f"unclassified Form-returning operations: {removed}"
+
+
+def test_evidence_location_rejects_a_docstring_line() -> None:
+    assert not _evidence_lands_on_code(ROOT / "ipakit/form.py", 2549)
+    assert _evidence_lands_on_code(ROOT / "ipakit/form.py", 2556)

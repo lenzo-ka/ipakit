@@ -42,6 +42,43 @@ no reviewed house projection. A preserved result is source-complete and
 house-incomplete. Its `house_form()` method refuses rather than dropping the
 uncovered occurrences.
 
+The default `projection="explicit-only"` uses only reviewed mapping facts.
+`projection="house-convention-v1"` is an explicit opt-in to the existing
+foreign-IPA spelling recipe: normalize declared keyboard lookalikes, add the
+house tie sense to a source spelling that CLTS treats as one sound, and require
+one strict house segment. Each occurrence that needs this assumption is listed
+in `report()["changes"]` with its source spelling, house spelling, and convention.
+The source claims remain independent in the native graph; a convention change
+is never reported as source evidence. A warning or a spelling that does not
+strictly produce one house segment remains unsupported.
+
+```python
+conventional = import_tokens(["ts"], projection="house-convention-v1")
+assert conventional.house_form().to_ipa() == "t͡s"
+assert conventional.report()["changes"][0]["convention"] == "house-convention-v1"
+```
+
+## Source and canonical emission
+
+`emit_tokens` accepts either an import result or a restored source-profile
+`Form`. `spelling="source"` recovers the exact submitted occurrence sequence,
+independently of house coverage or convention projection. `spelling="bipa"`
+uses the stored or shipped canonical BIPA spelling. If that spelling erases a
+source distinction such as a tie sense, the operation refuses until
+`allow_loss=True`; the report names every affected occurrence and claim.
+
+```python
+from ipakit.clts import emit_tokens
+
+held = import_tokens(["t͜s"], unsupported="preserve")
+assert emit_tokens(held, spelling="source").tokens == ("t͜s",)
+refused = emit_tokens(held, spelling="bipa")
+assert refused.to_data()["error"]["code"] == "loss-not-authorized"
+canonical = emit_tokens(held, spelling="bipa", allow_loss=True)
+assert canonical.tokens == ("ts",)
+assert canonical.report()["losses"][0]["claim"] == "sequential-juncture"
+```
+
 ## Saved envelopes
 
 `CLTSImport.to_json()` writes a canonical envelope with `form` and `report`.
@@ -100,6 +137,11 @@ saved = import_tokens(["p", "a"], unsupported="preserve")
 fresh = import_document(saved.source_document(), unsupported="preserve")
 assert fresh.source_document() == saved.source_document()
 ```
+
+Editing that document and importing it again creates a new source revision and
+recomputes resolution, projection, and canonical spellings. Source-profile
+Forms refuse generic `dataclasses.replace` and Form-to-Form rebuilding so an
+edit cannot retain stale source facts or cached derivations.
 
 Provenance equality establishes that the same shipped snapshot, mapping, and
 profile produced the saved result. It does not widen the reviewed import

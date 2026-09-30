@@ -5,7 +5,7 @@
       "classification": "constructs-new",
       "evidence": {
         "file": "ipakit/_clts_import.py",
-        "line": 118,
+        "line": 133,
         "note": "builds a new house Form from each reviewed supported projection fact"
       }
     },
@@ -37,8 +37,24 @@
       "classification": "constructs-new",
       "evidence": {
         "file": "ipakit/bridges/vocabulary.py",
-        "line": 442,
+        "line": 452,
         "note": "builds a new Form from parsed house IPA and vocabulary grouping facts"
+      }
+    },
+    "ipakit.bridges.zipa.ZIPABridge.read_original": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/bridges/zipa.py",
+        "line": 58,
+        "note": "constructs a new Form by applying the declared ZIPA original-text adaptation to strict house IPA"
+      }
+    },
+    "ipakit.bridges.zipa.ZIPABridge.read_tokens": {
+      "classification": "constructs-new",
+      "evidence": {
+        "file": "ipakit/bridges/zipa.py",
+        "line": 30,
+        "note": "delegates explicit ZIPA labels to the vocabulary reader that constructs a new Form"
       }
     },
     "ipakit.features.IPAFeatures.read": {
@@ -61,7 +77,7 @@
       "classification": "preserves",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2227,
+        "line": 2240,
         "note": "delegates native graph admission and source-profile restoration to Form.from_json"
       }
     },
@@ -69,7 +85,7 @@
       "classification": "preserves",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2248,
+        "line": 2260,
         "note": "restores verified CLTS source graphs with profile-scoped identity and authoritative graph facts"
       }
     },
@@ -85,7 +101,7 @@
       "classification": "constructs-new",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2129,
+        "line": 2184,
         "note": "constructs a Form from the supplied house units and intervals"
       }
     },
@@ -93,7 +109,7 @@
       "classification": "constructs-new",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2122,
+        "line": 2177,
         "note": "routes a transcription through the house inventory reader"
       }
     },
@@ -101,7 +117,7 @@
       "classification": "constructs-new",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2513,
+        "line": 2644,
         "note": "constructs from segment and boundary projections plus supplied intervals"
       }
     },
@@ -109,7 +125,7 @@
       "classification": "refuses",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2540,
+        "line": 2556,
         "note": "refuses a source-profile Form before rebuilding it from projected units and intervals"
       }
     },
@@ -117,7 +133,7 @@
       "classification": "refuses",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2642,
+        "line": 2658,
         "note": "refuses a source-profile Form before constructing from filtered house units"
       }
     },
@@ -133,7 +149,7 @@
       "classification": "constructs-new",
       "evidence": {
         "file": "ipakit/__init__.py",
-        "line": 217,
+        "line": 218,
         "note": "parses a string through the default house inventory"
       }
     },
@@ -141,7 +157,7 @@
       "classification": "preserves",
       "evidence": {
         "file": "ipakit/__init__.py",
-        "line": 222,
+        "line": 223,
         "note": "delegates to IPAFeatures.read_json and profile-scoped Form restoration"
       }
     },

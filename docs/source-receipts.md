@@ -24,7 +24,9 @@ CLTS, PHOIBLE and Panphon all ship this schema today.
   fingerprint are deliberately not receipt fields because either creates a
   fingerprint cycle. The projection policy's `unsupported: "error"` records
   the adapter's default action; callers may explicitly preserve unsupported
-  occurrences as source material.
+  occurrences as source material. Its `explicit-only` name likewise records
+  the default projection; the opt-in `house-convention-v1` assumption is
+  recorded per affected occurrence rather than changing the source receipt.
 - PHOIBLE fills `source` and `inputs` in `data/phoible/manifest.json`, records
   the versioned deterministic-gzip extractor, lists the transported main CSV,
   reference bibliography and copied upstream data notice as derived artifacts,
