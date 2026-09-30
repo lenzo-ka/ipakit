@@ -116,6 +116,9 @@ ipakit = [
 ]
 
 [tool.pytest.ini_options]
+# Print each test's duration beside its result, in run order, locally and in CI:
+# speed is a requirement, and a slow test usually exposes a slow library path.
+console_output_style = "times"
 markers = [
     "slow: marks tests as slow (require network, deselect with '-m \"not slow\"')",
 ]
@@ -130,7 +133,7 @@ doctest_optionflags = ["ELLIPSIS"]
 # suite in parallel worktrees, so an uncapped ad-hoc run oversubscribes the
 # box for everyone. `make check` passes its own -n, and -n on the command line
 # overrides this, so a deliberate `pytest -n auto` is still one word away.
-addopts = "-m 'not slow' --doctest-modules -n 3"
+addopts = "-v -m 'not slow' --doctest-modules -n 3"
 
 # ipakit/notebooks/ is out of both style gates. Its one file is a rendering of
 # docs/tutorial.src.md, compared byte for byte against a fresh render by

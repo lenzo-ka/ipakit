@@ -184,7 +184,7 @@ gate-subject:
 	@$(PYTHON) -m scripts.gate_subject
 
 check: gate-subject lint
-	@$(NICE) $(PYTHON) -m pytest -q $(PYTEST_N)
+	@$(NICE) $(PYTHON) -m pytest $(PYTEST_N)
 	@$(PYTHON) -m scripts.gate_subject
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/piece1_oracle.py check
 	@PYTHONHASHSEED=0 $(NICE) $(PYTHON) scripts/piece1_oracle.py prove

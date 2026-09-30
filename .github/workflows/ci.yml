@@ -240,7 +240,7 @@ jobs:
       - name: Figure tests run against installed renderers
         env:
           REQUIRE_RENDERERS: "1"
-        run: pytest tests/test_tract_figures.py tests/test_animation_rest.py tests/test_frontal.py tests/tiergraph/test_dot.py -m "slow or not slow" -q
+        run: pytest tests/test_tract_figures.py tests/test_animation_rest.py tests/test_frontal.py tests/tiergraph/test_dot.py -m "slow or not slow"
 
   docs:
     name: docs (README + tutorial values current)
