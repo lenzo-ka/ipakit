@@ -167,6 +167,10 @@ class VocabularyBridge(Bridge):
                     f"{self.name} vocabulary atom {position} has no spelling"
                 )
             kind = item.attrib.get("kind", "unit")
+            if kind not in {"unit", "prefix", "mark"}:
+                raise ValueError(
+                    f"{self.name} vocabulary atom {position} has unknown kind {kind!r}"
+                )
             probe = (
                 spelling + "a"
                 if kind == "prefix"

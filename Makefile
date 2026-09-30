@@ -16,10 +16,11 @@ HEAD   ?= adult-male
 # put IPA; the symbol it draws is in the second column.
 FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
-.PHONY: figures figures-clean tutorial tutorial-basics notebook inventory-cards inventory-cards-check house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check mfa-vocabularies mfa-vocabularies-check timit-map timit-map-check panphon-geometry-check lint check gate-subject
+.PHONY: figures figures-clean tutorial tutorial-basics notebook inventory-cards inventory-cards-check house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check mfa-vocabularies mfa-vocabularies-check zipa-vocabulary zipa-vocabulary-check timit-map timit-map-check panphon-geometry-check lint check gate-subject
 
 ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
 MFA_MODELS ?= $(HOME)/.cache/ipakit/mfa-models
+ZIPA_VOCAB ?=
 
 ## espeak-vocabularies: validate user-sourced declarations and refresh the summary
 espeak-vocabularies:
@@ -49,6 +50,21 @@ mfa-vocabularies-check:
 		echo "mfa-vocabularies: pinned clone absent; generated-data check skipped"; \
 	else \
 		$(PYTHON) scripts/mfa_vocabularies.py check --source "$(MFA_MODELS)"; \
+	fi
+
+## zipa-vocabulary: regenerate the pinned ZIPA recognizer declaration
+zipa-vocabulary:
+	@if test -z "$(ZIPA_VOCAB)" || test ! -f "$(ZIPA_VOCAB)"; then \
+		echo "zipa-vocabulary: set ZIPA_VOCAB to pinned unigram_127.vocab; nothing regenerated"; \
+	else \
+		$(PYTHON) scripts/zipa_vocabulary.py generate --source "$(ZIPA_VOCAB)"; \
+	fi
+
+zipa-vocabulary-check:
+	@if test -z "$(ZIPA_VOCAB)" || test ! -f "$(ZIPA_VOCAB)"; then \
+		echo "zipa-vocabulary: pinned source absent; generated-data check skipped"; \
+	else \
+		$(PYTHON) scripts/zipa_vocabulary.py check --source "$(ZIPA_VOCAB)"; \
 	fi
 
 timit-map:
@@ -183,6 +199,7 @@ check: gate-subject lint
 	@$(NICE) $(PYTHON) scripts/state_of_work.py check
 	@$(MAKE) --no-print-directory espeak-vocabularies-check
 	@$(MAKE) --no-print-directory mfa-vocabularies-check
+	@$(MAKE) --no-print-directory zipa-vocabulary-check
 	@$(MAKE) --no-print-directory timit-map-check
 	@$(MAKE) --no-print-directory panphon-geometry-check
 	@$(MAKE) --no-print-directory inventory-cards-check

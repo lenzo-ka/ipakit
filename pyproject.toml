@@ -97,6 +97,7 @@ ipakit = [
     "data/bridges/kana/*.xml",
     "data/bridges/mfa/*.xml",
     "data/bridges/pinyin/*.xml",
+    "data/bridges/zipa/*.xml",
     "data/bridges/*.rng",
     "data/rules/*.rules",
     "data/*.json",

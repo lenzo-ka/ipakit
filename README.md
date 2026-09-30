@@ -37,7 +37,7 @@ derived forms, expose structural queries at the shell, and test rule systems
 against paired forms. That is also the substrate on which rule induction can
 run; the inducer itself remains a separate concern.
 
-Praat TextGrids enter and leave through named tier profiles, including an MFA alignment profile. The [inventory registry](https://github.com/lenzo-ka/ipakit/blob/main/docs/inventories.md) includes pinned MFA phone declarations and adds eSpeak NG vocabularies from a user-supplied checkout, while [TextGrid interchange](https://github.com/lenzo-ka/ipakit/blob/main/docs/textgrid.md) applies those inventory styles to tier labels without guessing.
+Praat TextGrids enter and leave through named tier profiles, including an MFA alignment profile. The [inventory registry](https://github.com/lenzo-ka/ipakit/blob/main/docs/inventories.md) includes pinned MFA and ZIPA phone declarations and adds eSpeak NG vocabularies from a user-supplied checkout, while [TextGrid interchange](https://github.com/lenzo-ka/ipakit/blob/main/docs/textgrid.md) applies those inventory styles to tier labels without guessing.
 
 The package uses tiergraph for graph navigation; its phonetic data and geometry
 ship as declarations. It is typed, and the Python API and `ipakit` command expose the
