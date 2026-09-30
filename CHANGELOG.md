@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ipakit clts read` and `clts emit` expose structured source-preserving import and deterministic JSON emission with API-equivalent exit statuses.
+- The CLTS result schema and generated fixtures cover source and canonical emission success, authorized loss, and refusal variants.
 - CLTS imports can opt into a per-occurrence reported house spelling convention.
 - CLTS import results and source-profile Forms emit exact source or loss-authorized canonical BIPA tokens.
 - Verified CLTS source graphs restore as source-profile Forms; house consumers refuse positioned coverage gaps.
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CLTS emission refusals share one report shape; Form-operation evidence is operation-scoped, and source-Form replacement uses a documented dataclass field contract.
 - Source-profile Forms refuse `dataclasses.replace` rather than silently dropping source facts.
 - CLTS operation evidence must point to code, and both ZIPA readers are covered by the Form-operation gate.
 - Form transformations refuse to discard authoritative CLTS source/profile facts, even when every occurrence has a house projection.

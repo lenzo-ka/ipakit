@@ -1,0 +1,1 @@
+{"error":{"code":"loss-not-authorized","stage":"emit-bipa"},"report":{"changes":[{"convention":"clts-bipa-canonical-v1","source":"t͜s","target":"ts","token":0}],"losses":[{"claim":"sequential-juncture","source":"t͜s","target":"ts","token":0}],"spelling":"bipa","status":"refused","unavailable":[]},"tokens":null}

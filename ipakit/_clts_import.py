@@ -8,6 +8,7 @@ import json
 import math
 import warnings
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import tiergraph as tg
@@ -19,6 +20,20 @@ if TYPE_CHECKING:
 
 
 _SCHEMA = {"id": "ipakit-clts-import-result", "version": 1}
+
+
+def _json_text(value: Any, *, pretty: bool = False) -> str:
+    """Encode every public CLTS result with one deterministic JSON policy."""
+    options: dict[str, Any] = {
+        "ensure_ascii": False,
+        "allow_nan": False,
+        "sort_keys": True,
+    }
+    if pretty:
+        options["indent"] = 2
+    else:
+        options["separators"] = (",", ":")
+    return json.dumps(value, **options)
 
 
 class CLTSInputError(ValueError):
@@ -60,6 +75,10 @@ class CLTSInputError(ValueError):
         if self.path is not None:
             error["path"] = self.path
         return {"error": error, "form": None}
+
+    def to_json(self, *, pretty: bool = False) -> str:
+        """Encode the operation error with the shared CLTS result encoder."""
+        return _json_text(self.to_data(), pretty=pretty)
 
 
 @dataclass(frozen=True, init=False, slots=True)
@@ -174,16 +193,7 @@ class CLTSImport:
         }
 
     def to_json(self, *, pretty: bool = False) -> str:
-        options: dict[str, Any] = {
-            "ensure_ascii": False,
-            "allow_nan": False,
-            "sort_keys": True,
-        }
-        if pretty:
-            options["indent"] = 2
-        else:
-            options["separators"] = (",", ":")
-        return json.dumps(self.to_data(), **options)
+        return _json_text(self.to_data(), pretty=pretty)
 
 
 @dataclass(frozen=True, init=False, slots=True)
@@ -237,16 +247,7 @@ class CLTSEmission:
         return data
 
     def to_json(self, *, pretty: bool = False) -> str:
-        options: dict[str, Any] = {
-            "ensure_ascii": False,
-            "allow_nan": False,
-            "sort_keys": True,
-        }
-        if pretty:
-            options["indent"] = 2
-        else:
-            options["separators"] = (",", ":")
-        return json.dumps(self.to_data(), **options)
+        return _json_text(self.to_data(), pretty=pretty)
 
 
 @dataclass
@@ -330,9 +331,51 @@ def _verified_binding() -> _Binding:
         raise CLTSInputError("mapping-invalid", None, str(error)) from error
 
 
+@functools.lru_cache(maxsize=4)
+def _live_binding(source: Path, manifest: Path) -> _Binding:
+    """Rebuild the pinned finite core from an explicitly selected checkout."""
+    from . import _clts_profile as profile
+    from . import clts_mapping as mapping
+    from . import load_ipa_features
+    from .clts import ArtifactInvalid, extract_snapshot
+    from .extraction import SourceError
+
+    try:
+        snapshot = extract_snapshot(source)
+        profile.verify_manifest(manifest)
+        authority = mapping.read_authority()
+        spec = profile.core_bipa_spec(snapshot, mapping_identity=authority.identity)
+        authority_data = authority.to_data()
+        authority.require_import_profile(spec)
+        authority.validate_context(
+            authority_data["census"], snapshot, load_ipa_features()
+        )
+        return _Binding(snapshot, authority, spec)
+    except ArtifactInvalid as error:
+        raise CLTSInputError("artifact-invalid", None, str(error)) from error
+    except mapping.MappingInvalid as error:
+        raise CLTSInputError("mapping-invalid", None, str(error)) from error
+    except SourceError as error:
+        raise CLTSInputError(error.code, None, str(error)) from error
+
+
+def _select_binding(clts: str | Path | None, manifest: str | Path | None) -> _Binding:
+    if (clts is None) != (manifest is None):
+        raise CLTSInputError(
+            "invalid-option",
+            None,
+            "clts and manifest must be supplied together",
+        )
+    if clts is None:
+        return _verified_binding()
+    assert manifest is not None
+    return _live_binding(Path(clts).resolve(), Path(manifest).resolve())
+
+
 def _cache_clear() -> None:
     """Clear the verified binding and its per-raw projection memo for tests."""
     _verified_binding.cache_clear()
+    _live_binding.cache_clear()
 
 
 def _public_error(error: InputError) -> CLTSInputError:
@@ -367,6 +410,7 @@ def _reduce_resolution(record: dict[str, Any]) -> dict[str, Any]:
 def _import(
     document: dict[str, Any],
     *,
+    binding: _Binding,
     projection_policy: Literal["explicit-only", "house-convention-v1"],
     unsupported: Literal["error", "preserve"],
 ) -> CLTSImport:
@@ -387,7 +431,6 @@ def _import(
             'projection must be "explicit-only" or "house-convention-v1"',
         )
 
-    binding = _verified_binding()
     raws = [token["raw"] for token in document["tokens"]]
     try:
         resolutions = profile.core_bipa_resolutions(binding.snapshot, raws)
@@ -476,6 +519,8 @@ def import_tokens(
     *,
     projection: Literal["explicit-only", "house-convention-v1"] = "explicit-only",
     unsupported: Literal["error", "preserve"] = "error",
+    clts: str | Path | None = None,
+    manifest: str | Path | None = None,
 ) -> CLTSImport:
     """Import explicitly segmented CLTS tokens under the selected loss policy."""
     from collections import UserString
@@ -490,7 +535,12 @@ def import_tokens(
         document = decode(list(tokens))
     except InputError as error:
         raise _public_error(error) from error
-    return _import(document, projection_policy=projection, unsupported=unsupported)
+    return _import(
+        document,
+        binding=_select_binding(clts, manifest),
+        projection_policy=projection,
+        unsupported=unsupported,
+    )
 
 
 def import_document(
@@ -498,6 +548,8 @@ def import_document(
     *,
     projection: Literal["explicit-only", "house-convention-v1"] = "explicit-only",
     unsupported: Literal["error", "preserve"] = "error",
+    clts: str | Path | None = None,
+    manifest: str | Path | None = None,
 ) -> CLTSImport:
     """Import one explicit CLTS input document under the selected loss policy."""
     if isinstance(document, str):
@@ -508,7 +560,12 @@ def import_document(
         decoded = decode(document)
     except InputError as error:
         raise _public_error(error) from error
-    return _import(decoded, projection_policy=projection, unsupported=unsupported)
+    return _import(
+        decoded,
+        binding=_select_binding(clts, manifest),
+        projection_policy=projection,
+        unsupported=unsupported,
+    )
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -888,7 +945,13 @@ def emit_tokens(
         return CLTSEmission._create(
             "refused",
             None,
-            {"losses": losses},
+            {
+                "changes": changes,
+                "losses": losses,
+                "spelling": "bipa",
+                "status": "refused",
+                "unavailable": [],
+            },
             {"code": "loss-not-authorized", "stage": "emit-bipa"},
         )
     return CLTSEmission._create(

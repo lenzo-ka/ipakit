@@ -8,7 +8,7 @@ explicit native TierGraph through a separate graph API; see
 
 ## Internal source-profile boundary
 
-The internal CLTS source profile constructs and restores native TierGraph
+The CLTS source profile constructs and restores native TierGraph
 documents independently of house IPA. Its strict occurrence input preserves
 literal ordered tokens, optional `start` plus `duration` in seconds, and supplied
 source tone-host links. Complete qualified declarations and provider/profile
@@ -24,14 +24,22 @@ coexist; the persisted profile family and version remain separately declared.
 
 Restoration validates the constructor layout and refuses changed declarations,
 stale bindings, extra content or other layouts. The profile uses TierGraph's
-native codec and constructors. Its native profile report leaves external resolver
-truth, house coverage and public consumer admission explicitly undecided.
+native codec and constructors. External resolver truth is not inferred during
+restoration: the verified frozen source facts are authoritative.
 
-Source-only or mixed public `Form` admission remains closed. This internal path
-does not change Form identity, IPA rendering, rewriting, distance or animation.
-The finite CLTS scoring artifact alone is not a full structured resolution
-record; integrating real source claims and linguistic hosts requires separately
-validated provider/mapping contracts.
+`Form.from_json` admits only the exact shipped CLTS profile. It retains the
+complete native graph and includes source identity and wire bytes in Form
+identity. House projections are a separate guarded view: rendering, rewriting,
+distance and animation refuse with positioned coverage gaps when an occurrence
+lacks a reviewed projection, while `to_json` and `to_dot` remain available
+because they preserve the source graph.
+
+The native wire is the `form` member of a CLTS result envelope and is governed
+by the TierGraph codec plus the bound source profile. The surrounding
+`{"form": ..., "report": ...}` result is governed by the shipped CLTS result
+schema; it is not a second graph schema. Generic Form reconstruction or
+`dataclasses.replace` cannot preserve this authority and refuses. Edit the
+structured source document and re-import it to create a new source revision.
 
 ## One data structure, two views
 

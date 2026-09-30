@@ -88,7 +88,7 @@ def test_isolated_wheel_runtime_has_no_provider_or_checkout(
         ignore=shutil.ignore_patterns("__pycache__"),
     )
     program = """
-import sys, importlib.util, json, socket
+import sys, importlib.util, json, socket, io, contextlib
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 assert importlib.util.find_spec('pyclts') is None
@@ -97,12 +97,26 @@ def no_network(*a, **kw):
     raise AssertionError('offline runtime attempted network')
 socket.socket = no_network
 import ipakit
+import ipakit.cli
 from ipakit.clts import load_import, read_snapshot
 from ipakit.bridges.costmodel import set_feature_pack, compare_tokens, Segmentation
 assert Path(ipakit.__file__).resolve().is_relative_to(Path(sys.argv[1]))
-saved = load_import(Path(sys.argv[2]).read_text(encoding='utf-8'))
+envelope_path = Path(sys.argv[2])
+saved = load_import(envelope_path.read_text(encoding='utf-8'))
 assert saved.status == 'complete'
 assert saved.house_form().to_ipa() == 'pb'
+tokens_path = Path(sys.argv[3])
+tokens_path.write_text('["p","b"]', encoding='utf-8')
+sys.argv = ['ipakit', 'clts', 'read', '--tokens-json', str(tokens_path)]
+stdout = io.StringIO()
+with contextlib.redirect_stdout(stdout):
+    assert ipakit.cli.main() == 0
+assert stdout.getvalue() == saved.to_json() + '\\n'
+sys.argv = ['ipakit', 'clts', 'emit', '--from-json', str(envelope_path), '--spelling', 'source']
+stdout = io.StringIO()
+with contextlib.redirect_stdout(stdout):
+    assert ipakit.cli.main() == 0
+assert json.loads(stdout.getvalue())['tokens'] == ['p', 'b']
 s = read_snapshot()
 p = set_feature_pack(s.geometry)
 row = compare_tokens(ipakit.load_ipa_features(), p, Segmentation(('a',)), Segmentation(('p',)))
@@ -118,6 +132,7 @@ print(json.dumps({'cost': row.edit_cost, 'identity': s.identity}))
             program,
             str(site),
             str(Path(__file__).parent / "fixtures/clts_import/complete.json"),
+            str(tmp_path / "tokens.json"),
         ],
         cwd=tmp_path,
         capture_output=True,

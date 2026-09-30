@@ -36,8 +36,8 @@ and an account of the laws each model's algebra satisfies.
 The existing cost-pack interface makes this concrete for comparison: models
 supply their own costs to a shared alignment operation, with segmentation, gap
 costs, and normalization identified separately. The tier-based representation
-provides the structural foundation for broader integration; source-preserving
-CLTS adaptation is still work in progress, as detailed below.
+provides the structural foundation for broader integration; the bounded
+source-preserving CLTS adapter and its explicit coverage limits are detailed below.
 
 Here, *fair comparison* means exposing and controlling the assumptions.
 Coverage, refusals, conversion losses, and source-specific features remain part
@@ -228,7 +228,10 @@ graph instead. Verified preserved graphs restore as source-profile Forms. Their
 native JSON and DOT retain source facts, while house consumers name uncovered
 occurrences and house-only transformations refuse to discard source history.
 `house_form()` remains the explicit route to an ordinary Form when coverage is
-complete. The existing scripts provide auditing and approximation.
+complete. The same result encoder and status contract are exposed by `ipakit
+clts read` and `ipakit clts emit`; structured timing and caller-supplied source
+relations round-trip through the native wire. The existing scripts provide
+auditing and approximation.
 
 The [historical ecosystem assessment](design/ecosystem.md) retains the
 measurements and design motivations that led here. Its dated issue states,

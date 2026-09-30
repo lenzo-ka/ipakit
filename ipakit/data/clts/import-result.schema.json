@@ -2,13 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "ipakit-clts-import-result",
   "version": 1,
-  "title": "IPAkit CLTS import result",
+  "title": "IPAkit CLTS operation result",
   "oneOf": [
     {"$ref": "#/$defs/complete"},
     {"$ref": "#/$defs/empty"},
     {"$ref": "#/$defs/refused"},
     {"$ref": "#/$defs/preserved"},
-    {"$ref": "#/$defs/error"}
+    {"$ref": "#/$defs/error"},
+    {"$ref": "#/$defs/source-emission"},
+    {"$ref": "#/$defs/bipa-emission"},
+    {"$ref": "#/$defs/emission-refusal"}
   ],
   "$defs": {
     "fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
@@ -116,7 +119,7 @@
         "token": {"type": "integer", "minimum": 0}
       }
     },
-    "change": {
+    "projection-change": {
       "type": "object", "additionalProperties": false,
       "required": ["convention", "source", "stage", "target", "token"],
       "properties": {
@@ -140,7 +143,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["changes", "diagnostics", "house_complete", "occurrences", "provenance", "schema", "source_complete", "status"],
       "properties": {
-        "changes": {"type": "array", "items": {"$ref": "#/$defs/change"}},
+        "changes": {"type": "array", "items": {"$ref": "#/$defs/projection-change"}},
         "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/diagnostic"}},
         "house_complete": {"type": "boolean"},
         "occurrences": {"type": "array", "items": {"$ref": "#/$defs/occurrence"}},
@@ -214,6 +217,118 @@
         },
         "form": {"type": "null"}
       }
+    },
+    "emission-change": {
+      "type": "object", "additionalProperties": false,
+      "required": ["convention", "source", "target", "token"],
+      "properties": {
+        "convention": {"const": "clts-bipa-canonical-v1"},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "token": {"type": "integer", "minimum": 0}
+      }
+    },
+    "loss": {
+      "type": "object", "additionalProperties": false,
+      "required": ["claim", "source", "target", "token"],
+      "properties": {
+        "claim": {"enum": ["sequential-juncture", "simultaneous-juncture", "source-spelling"]},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "token": {"type": "integer", "minimum": 0}
+      }
+    },
+    "unavailable": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "source", "token"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1},
+        "token": {"type": "integer", "minimum": 0}
+      }
+    },
+    "emission-report": {
+      "type": "object", "additionalProperties": false,
+      "required": ["changes", "losses", "spelling", "status"],
+      "properties": {
+        "changes": {"type": "array", "items": {"$ref": "#/$defs/emission-change"}},
+        "losses": {"type": "array", "items": {"$ref": "#/$defs/loss"}},
+        "source_fidelity": {"enum": ["exact", "canonical", "canonical-with-authorized-loss"]},
+        "spelling": {"enum": ["source", "bipa"]},
+        "status": {"enum": ["complete", "refused"]},
+        "unavailable": {"type": "array", "items": {"$ref": "#/$defs/unavailable"}}
+      }
+    },
+    "source-emission": {
+      "type": "object", "additionalProperties": false,
+      "required": ["report", "tokens"],
+      "properties": {
+        "tokens": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "report": {"allOf": [
+          {"$ref": "#/$defs/emission-report"},
+          {"required": ["source_fidelity"], "properties": {
+            "changes": {"maxItems": 0}, "losses": {"maxItems": 0},
+            "source_fidelity": {"const": "exact"}, "spelling": {"const": "source"},
+            "status": {"const": "complete"}, "unavailable": false
+          }}
+        ]}
+      }
+    },
+    "bipa-emission": {
+      "type": "object", "additionalProperties": false,
+      "required": ["report", "tokens"],
+      "properties": {
+        "tokens": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "report": {"allOf": [
+          {"$ref": "#/$defs/emission-report"},
+          {"required": ["source_fidelity"], "properties": {
+            "spelling": {"const": "bipa"}, "status": {"const": "complete"},
+            "unavailable": false
+          }},
+          {"oneOf": [
+            {"properties": {
+              "losses": {"maxItems": 0}, "source_fidelity": {"const": "canonical"}
+            }},
+            {"properties": {
+              "losses": {"minItems": 1},
+              "source_fidelity": {"const": "canonical-with-authorized-loss"}
+            }}
+          ]}
+        ]}
+      }
+    },
+    "emission-refusal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["error", "report", "tokens"],
+      "properties": {
+        "tokens": {"type": "null"},
+        "error": {
+          "type": "object", "additionalProperties": false,
+          "required": ["code", "stage"],
+          "properties": {
+            "code": {"enum": ["canonical-unavailable", "loss-not-authorized"]},
+            "stage": {"const": "emit-bipa"}
+          }
+        },
+        "report": {"allOf": [
+          {"$ref": "#/$defs/emission-report"},
+          {"required": ["unavailable"], "properties": {
+            "spelling": {"const": "bipa"}, "status": {"const": "refused"}
+          }}
+        ]}
+      },
+      "allOf": [{"oneOf": [
+        {"properties": {
+          "error": {"properties": {"code": {"const": "canonical-unavailable"}}},
+          "report": {"properties": {"unavailable": {"minItems": 1}}}
+        }},
+        {"properties": {
+          "error": {"properties": {"code": {"const": "loss-not-authorized"}}},
+          "report": {"properties": {
+            "losses": {"minItems": 1}, "unavailable": {"maxItems": 0}
+          }}
+        }}
+      ]}]
     }
   }
 }

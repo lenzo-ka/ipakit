@@ -11,6 +11,30 @@ spellings; it does not split a string. `import_document` accepts the version 1
 input object when timing or source-tone host relations are needed.
 
 ```python
+from ipakit.clts import import_document
+
+document = {
+    "format": "ipakit-clts-input",
+    "version": 1,
+    "tokens": [
+        {"raw": "t", "time": {"start": 1.25, "duration": 0.5}},
+        {"raw": "⁵"},
+    ],
+    "relations": [
+        {
+            "type": "clts:source-tone-host",
+            "source": "/tokens/1",
+            "target": "/tokens/0",
+        }
+    ],
+}
+timed = import_document(document, unsupported="preserve")
+assert timed.source_document() == document
+assert timed.report()["occurrences"][0]["time"]["duration"] == 0.5
+assert timed.report()["relations"] == document["relations"]
+```
+
+```python
 from ipakit.clts import import_tokens
 
 result = import_tokens(["p", "b", "t", "d"])
@@ -47,7 +71,9 @@ The default `projection="explicit-only"` uses only reviewed mapping facts.
 foreign-IPA spelling recipe: normalize declared keyboard lookalikes, add the
 house tie sense to a source spelling that CLTS treats as one sound, and require
 one strict house segment. Each occurrence that needs this assumption is listed
-in `report()["changes"]` with its source spelling, house spelling, and convention.
+in `report()["changes"]` with the resolved sound's canonical BIPA spelling in
+`source`, the house spelling in `target`, and the convention. The submitted
+codepoints remain in the corresponding occurrence's `raw` field.
 The source claims remain independent in the native graph; a convention change
 is never reported as source evidence. A warning or a spelling that does not
 strictly produce one house segment remains unsupported.
@@ -114,7 +140,8 @@ library, empty, one-token, and fifty-token `p` imports are 20,545, 23,142, and
 layout favors a complete inspectable native graph over a compact transport.
 
 The shipped [JSON Schema](../ipakit/data/clts/import-result.schema.json)
-describes complete, empty, refused, preserved, and error envelopes. A result
+describes complete, empty, refused, preserved, operation-error, source-emission,
+canonical-emission, and emission-refusal envelopes. A read result
 report carries schema id `ipakit-clts-import-result` and version 1. An error
 from `CLTSInputError.to_data()` instead contains only `error` and a null `form`;
 it is for logging and `load_import` refuses it.
@@ -146,3 +173,30 @@ edit cannot retain stale source facts or cached derivations.
 Provenance equality establishes that the same shipped snapshot, mapping, and
 profile produced the saved result. It does not widen the reviewed import
 domain or assert phonetic equivalence outside it.
+
+## Command line
+
+`ipakit clts read` accepts exactly one explicit input file. The shorthand
+`--tokens-json FILE` contains a JSON string array and delegates to the same
+occurrence decoder as the API. Use `--input-json FILE` for the structured
+document above. `--projection explicit-only|house-convention-v1` and
+`--unsupported error|preserve` mirror the library options.
+
+The default uses the shipped finite artifact and needs neither pyclts nor an
+upstream checkout. An explicit pinned-source verification uses all three
+selection arguments together:
+
+```text
+ipakit clts read --clts PATH --manifest FILE --tokens-json FILE
+```
+
+That route lazily loads the development resolver, validates the checkout and
+manifest, regenerates the approved finite core, and requires it to match the
+shipped profile. It does not enlarge the finite import domain and never falls
+back from artifact lookup to live resolution. No path is retained in the result.
+
+Both complete and intentionally preserved reads exit 0. Strict refusal and
+operation errors exit 1. Every answer is complete deterministic JSON on stdout;
+operational messages use stderr. `ipakit clts emit --from-json FILE --spelling
+source|bipa` accepts either a saved import envelope or its native `form` member.
+Canonical loss requires `--allow-loss` and remains reported in the JSON result.

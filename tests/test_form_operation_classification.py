@@ -131,6 +131,16 @@ def _evidence_lands_on_code(path: Path, line: int) -> bool:
     return seen_code
 
 
+def _evidence_lands_in_operation(name: str, path: Path, line: int) -> bool:
+    """Require the evidence to be executable code inside the named operation."""
+    operation = _resolve(name)
+    source_path = inspect.getsourcefile(operation)
+    if source_path is None or Path(source_path).resolve() != path.resolve():
+        return False
+    source, start = inspect.getsourcelines(operation)
+    return start <= line < start + len(source) and _evidence_lands_on_code(path, line)
+
+
 def assert_classification_complete(
     classified: Mapping[str, Mapping[str, Any]],
 ) -> None:
@@ -171,7 +181,7 @@ def test_every_public_form_operation_is_classified() -> None:
         assert evidence["line"] <= len(
             path.read_text(encoding="utf-8").splitlines()
         ), name
-        assert _evidence_lands_on_code(path, evidence["line"]), name
+        assert _evidence_lands_in_operation(name, path, evidence["line"]), name
 
 
 def test_fault_injection_new_form_method_is_named(
@@ -210,5 +220,12 @@ def test_fault_injection_zipa_reader_omission_is_named() -> None:
 
 
 def test_evidence_location_rejects_a_docstring_line() -> None:
-    assert not _evidence_lands_on_code(ROOT / "ipakit/form.py", 2549)
-    assert _evidence_lands_on_code(ROOT / "ipakit/form.py", 2556)
+    assert not _evidence_lands_on_code(ROOT / "ipakit/form.py", 2552)
+    assert _evidence_lands_on_code(ROOT / "ipakit/form.py", 2559)
+
+
+def test_evidence_location_rejects_code_from_another_operation() -> None:
+    assert _evidence_lands_on_code(ROOT / "ipakit/features.py", 3689)
+    assert not _evidence_lands_in_operation(
+        "ipakit.features.IPAFeatures.read", ROOT / "ipakit/features.py", 3689
+    )
