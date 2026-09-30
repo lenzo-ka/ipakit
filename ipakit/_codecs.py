@@ -48,6 +48,7 @@ class RenderProfile:
 def render_graph(form: Form, profile: RenderProfile) -> str:
     """Render only declared lanes, in input order where that order is retained."""
 
+    form._require_source_profile("graph rendering", complete_projection=True)
     graph = form._graph
     index = form.__dict__["_tiergraph_index"]
     containment = form._containment

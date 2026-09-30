@@ -300,6 +300,8 @@ class Syllabifier:
     def __call__(self, form: Form | str) -> Syllabification:
         if isinstance(form, str):
             form = Form.parse(form, self.features)
+        else:
+            form._require_source_profile("Syllabifier.__call__", preserves_facts=False)
         if self.language.mode == "moraic":
             honored, morae, empty, analyses = self._derive_moraic(form.units, True)
             free, _, _, _ = self._derive_moraic(form.units, False)

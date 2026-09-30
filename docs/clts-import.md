@@ -46,8 +46,11 @@ uncovered occurrences.
 
 `CLTSImport.to_json()` writes a canonical envelope with `form` and `report`.
 The `form` value is a native, source-profile TierGraph document. It is not a
-house Form document, and `Form.from_json` and `read_json` refuse it. Use
-`house_form()` only on a result whose status is `complete`.
+house-only Form document. `Form.from_json` and `read_json` admit a verified
+document as a source-profile Form: its native JSON and source identity remain
+authoritative, while house-only views refuse if any source occurrence is
+uncovered. Use `house_form()` only on a result whose status is `complete` when
+an ordinary Form without source history is specifically wanted.
 
 ```python
 import json
@@ -56,13 +59,17 @@ from ipakit import Form
 from ipakit.clts import import_tokens
 
 result = import_tokens(["p"])
-try:
-    Form.from_json(json.dumps(result.to_data()["form"]))
-except ValueError:
-    pass
-else:
-    raise AssertionError("a source-profile graph was admitted as a house Form")
+form = Form.from_json(json.dumps(result.to_data()["form"]))
+assert form.to_ipa() == "p"
+assert Form.from_json(form.to_json()) == form
 ```
+
+On a preserved import, full-graph JSON and DOT remain available because they
+retain the source/profile facts. House rendering, conversion, measurement,
+rewriting, syllabification, and gesture paths refuse and name every uncovered
+occurrence. Form-to-Form operations that rebuild from house units refuse every
+source-profile Form, including a fully covered one, unless the operation can
+preserve its authoritative source facts and relationships.
 
 The compact envelope has a fixed graph cost: measured from the shipped
 library, empty, one-token, and fifty-token `p` imports are 20,545, 23,142, and

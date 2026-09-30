@@ -488,6 +488,7 @@ class VocabularyBridge(Bridge):
         whose untied sequential spelling is an atom are the only routes.
         Anything else is positioned residue, never a similarity guess.
         """
+        form._require_source_profile("VocabularyBridge.map", preserves_facts=False)
         units = form.units
         if not units:
             raise VocabularyResidueError(

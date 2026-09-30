@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Verified CLTS source graphs restore as source-profile Forms; house consumers refuse positioned coverage gaps.
 - A pinned `zipa` vocabulary bridge reads ZIPA labels and IPAPack++ `custom.original` transcriptions with declared projection losses.
 - `ᶑ` is the house symbol for the voiced retroflex implosive. The shipped confusion matrix's metric fingerprint moves, and inventory-relative similarity positions shift slightly for every pair.
 
 ### Fixed
 
+- Form transformations refuse to discard authoritative CLTS source/profile facts, even when every occurrence has a house projection.
 - A matrix saved against a different base inventory is refused; ipakit-written JSON matrices now include the base fingerprint and phone count.
 
 ## [0.4.0] - 2026-09-29

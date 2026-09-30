@@ -21,7 +21,7 @@ def to_dot(form: Form, *, include_empty_tiers: bool = False) -> str:
 
     if not isinstance(form, Form):
         raise TypeError("form must be an ipakit.Form")
-    return _render_via_sibling(form._graph, include_empty_tiers=include_empty_tiers)
+    return _render_via_sibling(form.graph, include_empty_tiers=include_empty_tiers)
 
 
 # --- Sibling-renderer bridge ---------------------------------------------------
