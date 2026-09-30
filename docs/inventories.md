@@ -68,6 +68,17 @@ The `min_entries` option, spelled `--min-entries N` on the command line, drops p
 
 The command prints a one-phone-per-line house-IPA phoneset by default and reports placeholder refusals on standard error; `--spell native` selects the dictionary notation, and `-f json` reports both spellings, provenance, refusals, attestation counts, and requested drops. The output stays separate from mapping input, so a dictionary-to-MFA mapping is an explicit pipeline: `ipakit inventory from-dict lexicon.dict --style cmudict -o lexicon.phones && ipakit distance map lexicon.phones mfa`.
 
+## Experimental inventory views
+
+`ipakit.inventory_views` provides the versioned, experimental `InventoryView`
+adapter for registry inventories and inventories returned by
+`inventory_from_dictionary()`. Each immutable view retains source identity,
+provenance, declaration order, and one status per member: `present`, `filtered`,
+`dropped`, `unreadable`, `refused`, `unavailable`, or `unresolved`. Dictionary
+counts and drops remain attached to their members. A source without a finite
+population has one explicit `unavailable` member; it is not represented as an
+available empty inventory. Consumers must check the schema identifier and version.
+
 ## Family cards
 
 The cards group registry entries by family. A language or variety is an instance of its family, not a separate scorecard. Panphon is a shipped finite feature-model declaration with a development-only producer; it is not a house notation style.
