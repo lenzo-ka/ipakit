@@ -7,7 +7,7 @@ import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -448,6 +448,19 @@ def _mfa_inventory(declaration: str, ipa: IPAFeatures | None = None) -> Inventor
     )
 
 
+@functools.cache
+def _zipa_inventory(ipa: IPAFeatures | None = None) -> Inventory:
+    """Build the pinned ZIPA phone inventory without its mark or control tokens."""
+    from .bridges.zipa import ZIPABridge
+
+    bridge = ZIPABridge(ipa=ipa)
+    item = _bridge_inventory("zipa", bridge)
+    return replace(
+        item,
+        refusals={refusal.spelling: refusal.reason for refusal in bridge.refusals},
+    )
+
+
 def _espeak_language_inventory(code: str) -> Inventory:
     from .bridges.espeak import EspeakBridge
 
@@ -481,6 +494,8 @@ def _registry_for(
             cmu_source,
         ),
     }
+    zipa_path = _DATA / "bridges" / "zipa" / "zipa.xml"
+    registry["zipa"] = (_zipa_inventory, _source(zipa_path))
     if espeak_path is None:
         espeak_source = None
     else:
@@ -545,6 +560,8 @@ def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
 
         declaration = UNION if name == "mfa" else name.removeprefix("mfa:")
         item = _mfa_inventory(declaration, ipa)
+    elif ipa is not None and name == "zipa":
+        item = _zipa_inventory(ipa)
     else:
         item = builder()
     if item.name != name:

@@ -371,6 +371,11 @@ def test_migrated_declarations_hold_kana_and_pinyin_tables() -> None:
             lambda atoms: atoms[1].set("spelling", "X"),
             r"atom 2 spelling 'X' is not house IPA",
         ),
+        (
+            "unknown-kind",
+            lambda atoms: atoms[1].set("kind", "other"),
+            r"atom 2 has unknown kind 'other'",
+        ),
     ],
 )
 def test_vocabulary_load_refuses_bad_atom_with_identity_and_position(

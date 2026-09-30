@@ -52,6 +52,7 @@ keep source distinctions, coverage and conversion losses explicit.
 | [Operations across inventories](inventory-operations.md) | House and Panphon matching and respelling, custom declarations, and all-pairs comparisons across named cost models. |
 | [Feature transformations](feature-transforms.md) | Declared finite re-encoding, explicit loss and preimages, and binary comparison through shared cost/alignment machinery. |
 | [MFA vocabulary exhibit](mfa-vocabularies.md) | Generated declarations, source pins and refusal classes. |
+| [ZIPA vocabulary bridge](zipa-vocabulary.md) | Pinned recognizer labels, IPAPack++ original-text reading and declared projection losses. |
 | [eSpeak vocabulary exhibit](espeak-vocabularies.md) | User-source-generated language-scoped and union vocabulary coverage. |
 | [House declaration exhibits](house-style-exhibits.md) | Generated tie, boundary and character-class inventories behind the house conventions. |
 

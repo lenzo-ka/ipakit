@@ -50,6 +50,7 @@ include ipakit/data/bridges/vocabulary.rng
 recursive-include ipakit/data/bridges/kana *.xml
 recursive-include ipakit/data/bridges/mfa *.xml
 recursive-include ipakit/data/bridges/pinyin *.xml
+recursive-include ipakit/data/bridges/zipa *.xml
 recursive-include ipakit/data/textgrid *.json
 recursive-include ipakit/data/feature-models *.xml *.txt *.md *-receipt.json
 recursive-include ipakit/data/phoible *.txt *.json

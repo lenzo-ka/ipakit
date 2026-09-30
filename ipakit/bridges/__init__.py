@@ -32,6 +32,7 @@ from .vocabulary import (
     VocabularyProjection,
     VocabularyResidueError,
 )
+from .zipa import ZIPA, ZIPABridge
 
 __all__ = [
     "Atom",
@@ -64,4 +65,6 @@ __all__ = [
     "VocabularyBridge",
     "VocabularyProjection",
     "VocabularyResidueError",
+    "ZIPA",
+    "ZIPABridge",
 ]

@@ -59,6 +59,14 @@
     <note origin="review-state.md: 2026-09-07 MFA en-US tail">`ɱ` occurs in `{labiodental_nasal_entries}` dictionary entry and `{labiodental_nasal_tokens}` token, as an alternate for *infection*; it is labiodental assimilation, not a xenophone. Recording that assimilation for one word is a reasonable lexicographic judgment, while its rarity measures how often the variant was written rather than whether English has the sound.</note>
     <note origin="review-state.md: 2026-09-09 marker-only placeholders">The `{mfa_en_us_placeholders}` marker-only entries — `{mfa_en_us_placeholder_names}` — serve the aligner rather than pronounce words, so dictionary ingestion excludes them from phone counts and reports each one.</note>
   </card>
+  <card family="zipa" title="ZIPA / IPAPack++">
+    <source path="ipakit/data/bridges/zipa/zipa.xml" />
+    <purpose>The pinned multilingual recognizer vocabulary reads ZIPA label streams and preserves the richer ties and word boundaries in IPAPack++ original transcriptions.</purpose>
+    <conventions>The 108 base labels are finite phones, 15 bare diacritics attach as trailing marks, `▁` is a word boundary, and the three control labels are non-phone refusals.</conventions>
+    <strengths>Use it at ZIPA and IPAPack++ boundaries where the recognizer's token inventory and its projection losses must remain explicit.</strengths>
+    <limitations>The vocabulary has no stress or tone, carries at most one diacritic per phone, omits five observed diacritics, and represents tied affricates as base sequences.</limitations>
+    <note origin="lingjzhu/zipa: ipa_simplified/unigram_127.vocab">ASCII `g` maps to house `ɡ` only through this bridge; strict house IPA remains unchanged.</note>
+  </card>
   <card family="panphon" title="Panphon">
     <source path="ipakit/data/feature-models/panphon.xml" />
     <purpose>The shipped finite declaration supports model-relative operations and comparisons using Panphon's own feature geometry, without a runtime Panphon dependency or a mandatory house pivot.</purpose>

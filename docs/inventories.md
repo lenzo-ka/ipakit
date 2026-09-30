@@ -19,11 +19,13 @@ This does not invent a house notation style or require a house feature mapping.
 
 `ipa` is the house notation and finite shipped inventory, while `wild` is the soft IPA reader and has no finite phoneset.
 
-CMUdict, PocketSphinx, TIMIT, and MFA are shipped finite inventories. With user-supplied eSpeak NG source, bare `espeak` and every generated eSpeak language are finite inventories; MFA has the union `mfa` and generated members `mfa:<name>`, while language-scoped eSpeak names have the form `espeak:en`.
+CMUdict, PocketSphinx, TIMIT, MFA, and ZIPA are shipped finite inventories. With user-supplied eSpeak NG source, bare `espeak` and every generated eSpeak language are finite inventories; MFA has the union `mfa` and generated members `mfa:<name>`, while language-scoped eSpeak names have the form `espeak:en`.
 
-These are deliberately different kinds of finite declaration. CMUdict and PocketSphinx expose a pronunciation-dictionary alphabet, TIMIT a labeled speech-corpus phoneset, MFA harmonized dictionary phone sets across languages, and eSpeak language-specific synthesis phoneme tables. House IPA is the pivot among their spellings and feature descriptions; it does not erase those construction purposes. A nearest-feature correspondence therefore means proximity only. In particular, an MFA allophone's nearest CMU phone is not evidence of the phoneme it derives from: that relation must be supplied by a declared phonological rule or correspondence, and may be one-to-many when a rule is not invertible.
+These are deliberately different kinds of finite declaration. CMUdict and PocketSphinx expose a pronunciation-dictionary alphabet, TIMIT a labeled speech-corpus phoneset, MFA harmonized dictionary phone sets across languages, ZIPA a multilingual recognizer vocabulary, and eSpeak language-specific synthesis phoneme tables. House IPA is the pivot among their spellings and feature descriptions; it does not erase those construction purposes. A nearest-feature correspondence therefore means proximity only. In particular, an MFA allophone's nearest CMU phone is not evidence of the phoneme it derives from: that relation must be supplied by a declared phonological rule or correspondence, and may be one-to-many when a rule is not invertible.
 
 Declared refusals are excluded from the phone count and available through `Inventory.refusals`; `inventory show` prints their spellings and reasons separately.
+
+The `zipa` inventory contains the 108 base phones in ZIPA's pinned 127-token vocabulary. `ZIPABridge.read_tokens()` also reads its 15 trailing-mark tokens and `▁` word boundary, while `<blk>`, `<sos/eos>`, and `<unk>` are declared non-phone refusals. `ZIPABridge.read_original()` reads the IPAPack++ `custom.original` field, retaining spaces and tie bars; its ASCII `g` maps to house `ɡ` only at that ZIPA boundary, and the ordinary strict reader continues to refuse `g`. The reverse projection declares the recognizer vocabulary's missing ties, stress, tone, second diacritics, and the absent `̯ ̤ ̆ ̈ ˑ` marks.
 
 Bare `espeak` is the union of the phone names generated in memory from the user's pinned eSpeak NG source, the vocabulary used by wav2vec2 eSpeak phoneme recognizers, while each `espeak:<code>` inventory retains its language's table. `EspeakBridge(code, source=...)` gives an explicit path first priority; otherwise `IPAKIT_ESPEAK_NG` selects the checkout. Both entry points refuse clearly when the source is absent or not at the accepted 1.52.0 tag.
 
@@ -39,8 +41,8 @@ Finite inventories contain sounds. Their construction applies the declared silen
 
 The registry discovers eSpeak members from the selected user source and MFA
 members from their shipped declaration directory. CMUdict, PocketSphinx, the
-eSpeak union when its source is available, and TIMIT (when its declaration is
-available) are explicit registry entries; phonemap and bridge files do not all
+eSpeak union when its source is available, ZIPA, and TIMIT (when its declaration
+is available) are explicit registry entries; phonemap and bridge files do not all
 become named inventories merely by appearing on disk.
 
 ```python
@@ -321,6 +323,41 @@ The language and variety members carry the phone sets of freely shared MFA pronu
 - `ɱ` occurs in `1` dictionary entry and `1` token, as an alternate for *infection*; it is labiodental assimilation, not a xenophone. Recording that assimilation for one word is a reasonable lexicographic judgment, while its rarity measures how often the variant was written rather than whether English has the sound.
 - The `4` marker-only entries — `<cutoff>, <unk>, [bracketed], [laughter]` — serve the aligner rather than pronounce words, so dictionary ingestion excludes them from phone counts and reports each one.
 
+## ZIPA / IPAPack++
+
+### Declared source
+
+| Field | Value |
+| --- | --- |
+| Upstream | [ZIPA](https://github.com/lingjzhu/zipa/blob/d6f7cbc74b29ab7cb0248a5cf2d93f116d79721d/ipa_simplified/unigram_127.vocab) |
+| Artifact | ipa_simplified/unigram_127.vocab |
+| Pin | `lingjzhu/zipa@d6f7cbc74b29ab7cb0248a5cf2d93f116d79721d` |
+| License | `MIT` |
+| Kind | `recognizer-phone-vocabulary` |
+| Declarations | `ipakit/data/bridges/zipa/zipa.xml` (1) |
+
+### Quantitative
+
+| Measure | Value |
+| --- | ---: |
+| Registry entries | 1 |
+| Finite inventories | 1 |
+| Phone counts | 108 |
+
+### Qualitative
+
+The pinned multilingual recognizer vocabulary reads ZIPA label streams and preserves the richer ties and word boundaries in IPAPack++ original transcriptions.
+
+**Conventions.** The 108 base labels are finite phones, 15 bare diacritics attach as trailing marks, `▁` is a word boundary, and the three control labels are non-phone refusals.
+
+**Good at.** Use it at ZIPA and IPAPack++ boundaries where the recognizer's token inventory and its projection losses must remain explicit.
+
+**Less good at.** The vocabulary has no stress or tone, carries at most one diacritic per phone, omits five observed diacritics, and represents tied affricates as base sequences.
+
+### Notes
+
+- ASCII `g` maps to house `ɡ` only through this bridge; strict house IPA remains unchanged.
+
 ## Panphon
 
 ### Declared source
@@ -358,4 +395,4 @@ The shipped finite declaration supports model-relative operations and comparison
 - The declaration contains `6367` segment rows over `24` features and `22` supplied weights; generation normalizes every segment key to NFD and refuses a duplicate normalized key.
 - Feature and weight order differ at the tail, and the generated declaration retains that order instead of quietly repairing the comparison target.
 
-<!-- SPDX identifiers checked: 49. -->
+<!-- SPDX identifiers checked: 50. -->

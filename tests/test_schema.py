@@ -442,13 +442,13 @@ _ENUMERATION_ESCAPES = {
         ),
     ),
     "vocabulary.rng": (
-        frozenset({"fidelity", "source-style"}),
+        frozenset({"fidelity", "kind", "source-style"}),
         (
-            "it enumerates fidelity and source-style, and each is a second "
-            "copy of a StrEnum in ipakit/bridges/base.py rather than of anything "
-            "ipa.xml declares. The Python side already refuses an unknown value by "
-            "construction -- Fidelity(...) raises -- so the enumerations are "
-            "redundant, but removing them is a change to the bridges."
+            "it enumerates fidelity, atom kind and source-style, and each is a "
+            "second copy of a Python-side bridge vocabulary rather than of anything "
+            "ipa.xml declares. The Python side already refuses unknown fidelity and "
+            "atom-kind values, so those enumerations are redundant, but removing "
+            "them is a change to the bridges."
         ),
     ),
 }
