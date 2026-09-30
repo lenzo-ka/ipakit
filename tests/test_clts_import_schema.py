@@ -8,6 +8,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from ipakit.clts import import_tokens
 from jsonschema import Draft202012Validator, ValidationError
 from scripts.clts_import_fixtures import fixtures
 
@@ -121,3 +122,13 @@ def test_jsonschema_is_supplied_only_by_the_test_extra() -> None:
         )
         == 1
     )
+
+
+def test_convention_changes_are_schema_checked() -> None:
+    document = import_tokens(["ts"], projection="house-convention-v1").to_data()
+    _validator().validate(document)
+
+    changed = copy.deepcopy(document)
+    del changed["report"]["changes"][0]["convention"]
+    with pytest.raises(ValidationError):
+        _validator().validate(changed)

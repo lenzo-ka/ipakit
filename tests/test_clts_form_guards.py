@@ -52,6 +52,7 @@ def test_source_profile_identity_and_native_persistence(
     assert incomplete != _source_form("p", "ts")
     assert incomplete.to_dict() == incomplete_again.to_dict()
     assert "digraph" in incomplete.to_dot()
+    assert "_source_profile_document" not in complete.__dict__
 
 
 Consumer = Callable[[Form], Any]

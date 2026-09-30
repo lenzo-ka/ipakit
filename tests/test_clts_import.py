@@ -645,7 +645,7 @@ def test_d2_11_load_import_is_in_the_declared_reader_set():
         for name, function in inspect.getmembers(clts, inspect.isfunction)
         if not name.startswith("_") and function.__module__ == "ipakit._clts_import"
     }
-    assert readers == {"import_tokens", "import_document", "load_import"}
+    assert readers == {"emit_tokens", "import_tokens", "import_document", "load_import"}
 
 
 def test_c_d2a_restore_accepts_the_forged_projection_today():

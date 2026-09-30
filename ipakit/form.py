@@ -1691,8 +1691,17 @@ class Form:
     #: Exact source where unit-local spellings cannot reproduce its order.
     #: Constructed/edited forms leave this unset, preventing stale source.
     spelling: str | None = None
+    # ``dataclasses.replace`` copies init fields into a fresh constructor.  A
+    # verified source Form installs this private sentinel after restoration so
+    # that generic replacement cannot silently turn it into an ordinary Form.
+    _source_profile_replacement_guard: dataclasses.InitVar[bool] = False
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, _source_profile_replacement_guard: bool) -> None:
+        if _source_profile_replacement_guard:
+            raise FormProjectionError(
+                "dataclasses.replace cannot preserve authoritative "
+                "source/profile facts; source-profile Form transformation refused"
+            )
         held_units = object.__getattribute__(self, "units")
         held_intervals = object.__getattribute__(self, "intervals")
         for span in held_intervals:
@@ -2349,7 +2358,7 @@ class Form:
         object.__setattr__(form, "_source_profile_identity", binding.spec.identity)
         object.__setattr__(form, "_source_profile_wire", canonical)
         object.__setattr__(form, "_source_profile_gaps", tuple(gaps))
-        object.__setattr__(form, "_source_profile_document", document)
+        object.__setattr__(form, "_source_profile_replacement_guard", True)
         return form
 
     # -- projections, each named for what it drops -------------------------

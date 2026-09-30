@@ -6,6 +6,7 @@ import copy
 import functools
 import json
 import math
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
@@ -185,6 +186,69 @@ class CLTSImport:
         return json.dumps(self.to_data(), **options)
 
 
+@dataclass(frozen=True, init=False, slots=True)
+class CLTSEmission:
+    """An immutable deterministic source or canonical-BIPA emission result."""
+
+    _status: Literal["complete", "refused"]
+    _tokens: tuple[str, ...] | None
+    _report: dict[str, Any] = field(repr=False)
+    _error: dict[str, Any] | None = field(repr=False)
+    _KEY: ClassVar[object] = object()
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> CLTSEmission:
+        if kwargs.pop("_key", None) is not cls._KEY or args or kwargs:
+            raise TypeError("CLTSEmission has no public constructor")
+        return object.__new__(cls)
+
+    @classmethod
+    def _create(
+        cls,
+        status: Literal["complete", "refused"],
+        tokens: tuple[str, ...] | None,
+        report: dict[str, Any],
+        error: dict[str, Any] | None = None,
+    ) -> CLTSEmission:
+        result = cls(_key=cls._KEY)
+        object.__setattr__(result, "_status", status)
+        object.__setattr__(result, "_tokens", tokens)
+        object.__setattr__(result, "_report", copy.deepcopy(report))
+        object.__setattr__(result, "_error", copy.deepcopy(error))
+        return result
+
+    @property
+    def status(self) -> Literal["complete", "refused"]:
+        return self._status
+
+    @property
+    def tokens(self) -> tuple[str, ...] | None:
+        return self._tokens
+
+    def report(self) -> dict[str, Any]:
+        return copy.deepcopy(self._report)
+
+    def to_data(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "tokens": None if self.tokens is None else list(self.tokens),
+            "report": self.report(),
+        }
+        if self._error is not None:
+            data["error"] = copy.deepcopy(self._error)
+        return data
+
+    def to_json(self, *, pretty: bool = False) -> str:
+        options: dict[str, Any] = {
+            "ensure_ascii": False,
+            "allow_nan": False,
+            "sort_keys": True,
+        }
+        if pretty:
+            options["indent"] = 2
+        else:
+            options["separators"] = (",", ":")
+        return json.dumps(self.to_data(), **options)
+
+
 @dataclass
 class _Binding:
     snapshot: Any
@@ -198,6 +262,47 @@ class _Binding:
                 raw, self.snapshot, self.spec
             )
         return copy.deepcopy(self.projections[raw])
+
+    def convention_projection(
+        self, raw: str, resolution: dict[str, Any]
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        """Apply the declared house convention after explicit mapping."""
+        explicit = self.projection(raw)
+        if explicit["status"] == "supported" or resolution["status"] != "resolved":
+            return explicit, None
+        sounds = resolution.get("sounds", ())
+        if len(sounds) != 1:
+            return explicit, None
+
+        from . import load_ipa_features
+        from .form import Form
+
+        source = sounds[0]["canonical"]
+        inventory = load_ipa_features()
+        target = inventory.add_ties(inventory.normalize_lookalikes(source))
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                form = Form.parse(target, inventory, strict=True)
+                units = form.units
+            if caught or len(units) != 1 or units[0].segment is None:
+                return explicit, None
+            target = form.to_ipa("canonical")
+        except (TypeError, ValueError):
+            return explicit, None
+        return (
+            {
+                "mapping": self.spec.mapping_identity,
+                "status": "supported",
+                "facts": [{"house-kind": "segment", "house-symbol": target}],
+            },
+            {
+                "convention": "house-convention-v1",
+                "source": source,
+                "stage": "house-projection",
+                "target": target,
+            },
+        )
 
 
 @functools.lru_cache(maxsize=1)
@@ -260,7 +365,10 @@ def _reduce_resolution(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def _import(
-    document: dict[str, Any], *, unsupported: Literal["error", "preserve"]
+    document: dict[str, Any],
+    *,
+    projection_policy: Literal["explicit-only", "house-convention-v1"],
+    unsupported: Literal["error", "preserve"],
 ) -> CLTSImport:
     from . import _clts_profile as profile
     from . import clts_mapping as mapping
@@ -272,6 +380,12 @@ def _import(
             None,
             'unsupported must be "error" or "preserve"',
         )
+    if projection_policy not in ("explicit-only", "house-convention-v1"):
+        raise CLTSInputError(
+            "invalid-option",
+            None,
+            'projection must be "explicit-only" or "house-convention-v1"',
+        )
 
     binding = _verified_binding()
     raws = [token["raw"] for token in document["tokens"]]
@@ -282,7 +396,17 @@ def _import(
                 raise ArtifactInvalid(
                     "a resolved CLTS occurrence must contain exactly one sound"
                 )
-        projections = tuple(binding.projection(raw) for raw in raws)
+        projection_changes: list[dict[str, Any]] = []
+        projection_records: list[dict[str, Any]] = []
+        for index, (raw, resolution) in enumerate(zip(raws, resolutions, strict=True)):
+            if projection_policy == "house-convention-v1":
+                projected, change = binding.convention_projection(raw, resolution)
+                if change is not None:
+                    projection_changes.append({"token": index, **change})
+            else:
+                projected = binding.projection(raw)
+            projection_records.append(projected)
+        projections = tuple(projection_records)
         graph = profile.construct(document, resolutions, projections, binding.spec)
     except InputError as error:
         raise _public_error(error) from error
@@ -331,7 +455,7 @@ def _import(
         else "preserved" if unsupported == "preserve" else "refused"
     )
     report: dict[str, Any] = {
-        "changes": [],
+        "changes": projection_changes,
         "diagnostics": diagnostics,
         "house_complete": complete,
         "occurrences": occurrences,
@@ -350,6 +474,7 @@ def _import(
 def import_tokens(
     tokens: list[str] | tuple[str, ...],
     *,
+    projection: Literal["explicit-only", "house-convention-v1"] = "explicit-only",
     unsupported: Literal["error", "preserve"] = "error",
 ) -> CLTSImport:
     """Import explicitly segmented CLTS tokens under the selected loss policy."""
@@ -365,12 +490,13 @@ def import_tokens(
         document = decode(list(tokens))
     except InputError as error:
         raise _public_error(error) from error
-    return _import(document, unsupported=unsupported)
+    return _import(document, projection_policy=projection, unsupported=unsupported)
 
 
 def import_document(
     document: dict[str, Any],
     *,
+    projection: Literal["explicit-only", "house-convention-v1"] = "explicit-only",
     unsupported: Literal["error", "preserve"] = "error",
 ) -> CLTSImport:
     """Import one explicit CLTS input document under the selected loss policy."""
@@ -382,7 +508,7 @@ def import_document(
         decoded = decode(document)
     except InputError as error:
         raise _public_error(error) from error
-    return _import(decoded, unsupported=unsupported)
+    return _import(decoded, projection_policy=projection, unsupported=unsupported)
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -561,6 +687,23 @@ def _source_from_report(report: dict[str, Any]) -> dict[str, Any]:
     return document
 
 
+def _projection_from_report(
+    report: dict[str, Any],
+) -> Literal["explicit-only", "house-convention-v1"]:
+    changes = report["changes"]
+    if not isinstance(changes, list):
+        raise _invalid_envelope("/report/changes", "changes must be an array")
+    return (
+        "house-convention-v1"
+        if any(
+            isinstance(change, dict)
+            and change.get("convention") == "house-convention-v1"
+            for change in changes
+        )
+        else "explicit-only"
+    )
+
+
 def _envelope_input_path(path: str | None) -> str | None:
     if path is None:
         return None
@@ -583,7 +726,11 @@ def load_import(data: str | bytes | dict[str, Any]) -> CLTSImport:
         unsupported: Literal["error", "preserve"] = (
             "preserve" if report["status"] == "preserved" else "error"
         )
-        recomputed = import_document(document, unsupported=unsupported)
+        recomputed = import_document(
+            document,
+            projection=_projection_from_report(report),
+            unsupported=unsupported,
+        )
     except CLTSInputError as error:
         if error.code in _ENVIRONMENT_CODES:
             raise
@@ -598,3 +745,162 @@ def load_import(data: str | bytes | dict[str, Any]) -> CLTSImport:
             "import-mismatch", difference or "", "saved import does not match re-import"
         )
     return recomputed
+
+
+def _emission_source(
+    value: CLTSImport | Form,
+) -> tuple[dict[str, Any], tuple[dict[str, Any], ...]]:
+    if isinstance(value, CLTSImport):
+        report = value.report()
+        return value.source_document(), tuple(
+            copy.deepcopy(occurrence["resolution"])
+            for occurrence in report["occurrences"]
+        )
+
+    from .form import Form
+
+    if not isinstance(value, Form):
+        raise TypeError("emit_tokens requires a CLTSImport or source-profile Form")
+    from ._clts_profile import restore
+
+    binding = _verified_binding()
+    try:
+        document, resolutions, _ = restore(value.graph, binding.spec)
+    except ValueError as error:
+        raise CLTSInputError(
+            "source-profile-required",
+            None,
+            "canonical CLTS emission requires a verified source-profile Form",
+        ) from error
+    return document, tuple(copy.deepcopy(item) for item in resolutions)
+
+
+def _canonical_bipa(
+    raw: str, resolution: dict[str, Any], binding: _Binding
+) -> str | None:
+    if resolution.get("status") == "resolved":
+        canonical = resolution.get("canonical")
+        if canonical is None:
+            sounds = resolution.get("sounds", ())
+            canonical = sounds[0].get("canonical") if len(sounds) == 1 else None
+        return canonical if isinstance(canonical, str) and canonical else None
+
+    # BIPA treats the two tie glyphs as typography.  The finite resolver stays
+    # exact; emission may apply this explicit spelling convention and records
+    # the erased juncture as a loss before using a shipped canonical row.
+    untied = raw.replace("\u0361", "").replace("\u035c", "")
+    if untied == raw:
+        return None
+    entry = binding.snapshot.to_data()["entries"].get(untied)
+    if not isinstance(entry, dict):
+        return None
+    canonical = entry.get("canonical")
+    return canonical if isinstance(canonical, str) and canonical else None
+
+
+def _emission_losses(token: int, source: str, target: str) -> list[dict[str, Any]]:
+    if source == target:
+        return []
+    claims = []
+    if "\u035c" in source:
+        claims.append("sequential-juncture")
+    if "\u0361" in source:
+        claims.append("simultaneous-juncture")
+    if not claims:
+        claims.append("source-spelling")
+    return [
+        {"token": token, "source": source, "target": target, "claim": claim}
+        for claim in claims
+    ]
+
+
+def emit_tokens(
+    value: CLTSImport | Form,
+    *,
+    spelling: Literal["source", "bipa"] = "source",
+    allow_loss: bool = False,
+) -> CLTSEmission:
+    """Emit exact source tokens or canonical BIPA with explicit loss consent."""
+    if spelling not in ("source", "bipa"):
+        raise CLTSInputError(
+            "invalid-option", None, 'spelling must be "source" or "bipa"'
+        )
+    if type(allow_loss) is not bool:
+        raise CLTSInputError("invalid-option", None, "allow_loss must be a boolean")
+
+    document, resolutions = _emission_source(value)
+    source = tuple(token["raw"] for token in document["tokens"])
+    if spelling == "source":
+        return CLTSEmission._create(
+            "complete",
+            source,
+            {
+                "changes": [],
+                "losses": [],
+                "source_fidelity": "exact",
+                "spelling": "source",
+                "status": "complete",
+            },
+        )
+
+    binding = _verified_binding()
+    emitted = []
+    unavailable = []
+    losses: list[dict[str, Any]] = []
+    changes = []
+    for index, (raw, resolution) in enumerate(zip(source, resolutions, strict=True)):
+        canonical = _canonical_bipa(raw, resolution, binding)
+        if canonical is None:
+            unavailable.append(
+                {
+                    "token": index,
+                    "source": raw,
+                    "code": str(resolution.get("status", "canonical-unavailable")),
+                }
+            )
+            continue
+        emitted.append(canonical)
+        current_losses = _emission_losses(index, raw, canonical)
+        losses.extend(current_losses)
+        if raw != canonical:
+            changes.append(
+                {
+                    "convention": "clts-bipa-canonical-v1",
+                    "source": raw,
+                    "target": canonical,
+                    "token": index,
+                }
+            )
+    if unavailable:
+        return CLTSEmission._create(
+            "refused",
+            None,
+            {
+                "changes": changes,
+                "losses": losses,
+                "spelling": "bipa",
+                "status": "refused",
+                "unavailable": unavailable,
+            },
+            {"code": "canonical-unavailable", "stage": "emit-bipa"},
+        )
+    if losses and not allow_loss:
+        return CLTSEmission._create(
+            "refused",
+            None,
+            {"losses": losses},
+            {"code": "loss-not-authorized", "stage": "emit-bipa"},
+        )
+    return CLTSEmission._create(
+        "complete",
+        tuple(emitted),
+        {
+            "changes": changes,
+            "losses": losses,
+            "source_fidelity": (
+                "canonical-with-authorized-loss" if losses else "canonical"
+            ),
+            "spelling": "bipa",
+            "status": "complete",
+        },
+    )

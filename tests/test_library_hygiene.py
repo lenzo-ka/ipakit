@@ -29,6 +29,7 @@ PROBE = f"c{PROBE_SYMBOL}t"
 # in ``ipakit.__all__``. Exact equality makes every future reader declare and
 # exercise its refusal behavior here.
 PUBLIC_IMPORT_READERS = {"import_tokens", "import_document", "load_import"}
+PUBLIC_CLTS_OPERATIONS = PUBLIC_IMPORT_READERS | {"emit_tokens"}
 
 
 # Every function exported by ``ipakit.__all__`` is classified literally.  The
@@ -152,7 +153,7 @@ def test_every_flat_public_function_is_classified() -> None:
     )
 
 
-def _public_import_readers() -> set[str]:
+def _public_clts_operations() -> set[str]:
     return {
         name
         for name, function in inspect.getmembers(ipakit.clts, inspect.isfunction)
@@ -161,7 +162,7 @@ def _public_import_readers() -> set[str]:
 
 
 def test_every_public_clts_import_reader_is_classified() -> None:
-    assert _public_import_readers() == PUBLIC_IMPORT_READERS
+    assert _public_clts_operations() == PUBLIC_CLTS_OPERATIONS
 
 
 @pytest.fixture
@@ -210,7 +211,7 @@ def test_fault_injection_new_clts_import_reader_is_named(monkeypatch) -> None:
 
     import_extra.__module__ = "ipakit._clts_import"
     monkeypatch.setattr(ipakit.clts, "import_extra", import_extra, raising=False)
-    assert _public_import_readers() - PUBLIC_IMPORT_READERS == {"import_extra"}
+    assert _public_clts_operations() - PUBLIC_CLTS_OPERATIONS == {"import_extra"}
 
 
 def test_input_loss_warning_is_a_public_contract() -> None:

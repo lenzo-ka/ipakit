@@ -116,6 +116,17 @@
         "token": {"type": "integer", "minimum": 0}
       }
     },
+    "change": {
+      "type": "object", "additionalProperties": false,
+      "required": ["convention", "source", "stage", "target", "token"],
+      "properties": {
+        "convention": {"const": "house-convention-v1"},
+        "source": {"type": "string", "minLength": 1},
+        "stage": {"const": "house-projection"},
+        "target": {"type": "string", "minLength": 1},
+        "token": {"type": "integer", "minimum": 0}
+      }
+    },
     "relation": {
       "type": "object", "additionalProperties": false,
       "required": ["source", "target", "type"],
@@ -129,7 +140,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["changes", "diagnostics", "house_complete", "occurrences", "provenance", "schema", "source_complete", "status"],
       "properties": {
-        "changes": {"const": []},
+        "changes": {"type": "array", "items": {"$ref": "#/$defs/change"}},
         "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/diagnostic"}},
         "house_complete": {"type": "boolean"},
         "occurrences": {"type": "array", "items": {"$ref": "#/$defs/occurrence"}},
