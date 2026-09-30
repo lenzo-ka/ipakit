@@ -224,10 +224,11 @@ snapshot; development extraction has separate source pins and validation.
 The [CLTS import](clts-import.md) turns explicitly segmented CLTS tokens into
 a house `Form` for the reviewed plain stops `p b t d` and refuses every other
 occurrence with a per-occurrence report; preserve mode keeps the native source
-graph instead. A house `Form` does not carry source-only CLTS claims: a
-preserved import is source-complete and house-incomplete, and `house_form()`
-refuses it. The existing scripts provide auditing and approximation. Full native graph persistence and the public `Form.to_json()`
-linear projection have separate fidelity contracts.
+graph instead. Verified preserved graphs restore as source-profile Forms. Their
+native JSON and DOT retain source facts, while house consumers name uncovered
+occurrences and house-only transformations refuse to discard source history.
+`house_form()` remains the explicit route to an ordinary Form when coverage is
+complete. The existing scripts provide auditing and approximation.
 
 The [historical ecosystem assessment](design/ecosystem.md) retains the
 measurements and design motivations that led here. Its dated issue states,

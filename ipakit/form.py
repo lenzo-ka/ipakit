@@ -1724,15 +1724,57 @@ class Form:
 
     def __getattribute__(self, name: str) -> Any:
         if name in {"units", "intervals"}:
+            self._require_source_profile(name, complete_projection=True)
             namespace = object.__getattribute__(self, "__dict__")
             index = namespace["_tiergraph_index"]
             return index.units if name == "units" else index.intervals
         return object.__getattribute__(self, name)
 
+    def _require_source_profile(
+        self,
+        operation: str,
+        *,
+        complete_projection: bool = False,
+        preserves_facts: bool = True,
+    ) -> None:
+        """Apply the shared coverage and source-fact policy to an operation."""
+        namespace = object.__getattribute__(self, "__dict__")
+        if "_source_profile_graph" not in namespace:
+            return
+        gaps = namespace.get("_source_profile_gaps", ())
+        if complete_projection and gaps:
+            positioned = ", ".join(f"{index} ({code})" for index, code in gaps)
+            raise FormProjectionError(
+                f"{operation} requires complete house projection; "
+                f"uncovered source occurrence(s): {positioned}"
+            )
+        if not preserves_facts:
+            raise FormProjectionError(
+                f"{operation} cannot preserve authoritative source/profile facts; "
+                "source-profile Form transformation refused"
+            )
+
     def _identity(self) -> tuple[Any, ...]:
         namespace = object.__getattribute__(self, "__dict__")
         held_units = namespace.get("_source_units")
         held_intervals = namespace.get("_source_intervals")
+        source_identity = namespace.get("_source_profile_identity")
+        if source_identity is not None:
+            return (
+                "source-profile",
+                source_identity,
+                namespace["_source_profile_wire"],
+                (
+                    held_units
+                    if held_units is not None
+                    else namespace["_tiergraph_index"].units
+                ),
+                (
+                    held_intervals
+                    if held_intervals is not None
+                    else namespace["_tiergraph_index"].intervals
+                ),
+            )
         return (
             held_units if held_units is not None else self.units,
             held_intervals if held_intervals is not None else self.intervals,
@@ -1749,11 +1791,14 @@ class Form:
     @property
     def graph(self) -> Any:
         """The authoritative native Graph, including its Form profile bindings."""
-        return self._graph
+        namespace = object.__getattribute__(self, "__dict__")
+        source_graph = namespace.get("_source_profile_graph")
+        return source_graph if source_graph is not None else self._graph
 
     @property
     def _graph(self) -> Any:
         """The one validated authoritative tiergraph graph."""
+        self._require_source_profile("house graph", complete_projection=True)
         namespace = object.__getattribute__(self, "__dict__")
         graph = namespace.get("_tiergraph_graph")
         if graph is None:
@@ -1871,6 +1916,7 @@ class Form:
         >>> tuple(event["value"] for event in hot.tier_events("mora"))
         ('ho', 't', 'to')
         """
+        self._require_source_profile("Form.tier_events", complete_projection=True)
         return tuple(
             MappingProxyType(dict(event.features))
             for node in self.__dict__["_tiergraph_index"].clock
@@ -2139,6 +2185,7 @@ class Form:
         agreed way to write a mora interval into a transcription, and
         inventing one would put a claim in the string that nothing reads.
         """
+        self._require_source_profile("Form.to_ipa", complete_projection=True)
         if mode == "exact":
             return self.spelling if self.spelling is not None else spell(self.units)
         if mode == "canonical":
@@ -2195,6 +2242,15 @@ class Form:
 
         graph = wire.loads(data)
         inventory = _default(features)
+        from ._clts_profile import NAMESPACE as CLTS_SOURCE_NAMESPACE
+
+        if any(
+            namespace.namespace == CLTS_SOURCE_NAMESPACE
+            for namespace in graph.namespaces
+        ):
+            source_form = cls._from_verified_clts_source_graph(graph, inventory)
+            if source_form is not None:
+                return source_form
         try:
             source, spelling = restore(graph, inventory)
             declared_features = {
@@ -2229,6 +2285,71 @@ class Form:
         object.__setattr__(form, "_tiergraph_graph", graph)
         object.__setattr__(form, "_tiergraph_containment", containment)
         object.__setattr__(form.__dict__["_tiergraph_index"], "_native_graph", graph)
+        return form
+
+    @classmethod
+    def _from_verified_clts_source_graph(
+        cls, graph: Any, inventory: IPAFeatures
+    ) -> Form | None:
+        """Admit a verified CLTS graph; leave other namespace users alone."""
+        from tiergraph import wire
+
+        from ._clts_import import _verified_binding
+        from ._clts_profile import restore
+
+        binding = _verified_binding()
+        try:
+            document, resolutions, projections = restore(graph, binding.spec)
+        except ValueError:
+            return None
+        units: list[Unit] = []
+        gaps: list[tuple[int, str]] = []
+        for index, (resolution, projection) in enumerate(
+            zip(resolutions, projections, strict=True)
+        ):
+            if resolution["status"] != "resolved":
+                gaps.append((index, str(resolution["status"])))
+                continue
+            if projection["status"] != "supported":
+                gaps.append((index, str(projection.get("code", "not-attempted"))))
+                continue
+            facts = projection.get("facts", ())
+            if not facts:
+                raise FormProjectionError(
+                    f"source occurrence {index} has no house projection fact"
+                )
+            for fact in facts:
+                if (
+                    set(fact) != {"house-kind", "house-symbol"}
+                    or fact["house-kind"] != "segment"
+                    or not isinstance(fact["house-symbol"], str)
+                ):
+                    raise FormProjectionError(
+                        f"source occurrence {index} has an invalid house projection fact"
+                    )
+                parsed = cls.parse(fact["house-symbol"], inventory, strict=True)
+                parsed_units = object.__getattribute__(parsed, "__dict__")[
+                    "_tiergraph_index"
+                ].units
+                if len(parsed_units) != 1:
+                    raise FormProjectionError(
+                        f"source occurrence {index} house projection is not one unit"
+                    )
+                units.append(parsed_units[0])
+
+        form = cls(units=tuple(units))
+        canonical = json.dumps(
+            wire.to_data(graph),
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        object.__setattr__(form, "_source_profile_graph", graph)
+        object.__setattr__(form, "_source_profile_identity", binding.spec.identity)
+        object.__setattr__(form, "_source_profile_wire", canonical)
+        object.__setattr__(form, "_source_profile_gaps", tuple(gaps))
+        object.__setattr__(form, "_source_profile_document", document)
         return form
 
     # -- projections, each named for what it drops -------------------------
@@ -2423,6 +2544,7 @@ class Form:
         caller takes, the way syllabification is, and the store it writes
         into is the one both use.
         """
+        self._require_source_profile("Form.with_tier_intervals", preserves_facts=False)
         return Form.of(self.units, [*self.intervals, *self.tier_intervals(features)])
 
     @property
@@ -2524,6 +2646,7 @@ class Form:
         this module is built to avoid -- and shifting them is rebasing,
         which belongs to whatever knows what moved.
         """
+        self._require_source_profile("Form.without_boundaries", preserves_facts=False)
         if self.intervals:
             raise ValueError(
                 "removing boundaries moves the positions "

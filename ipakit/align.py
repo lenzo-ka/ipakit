@@ -229,7 +229,9 @@ def align_entry(
     entry = corpus.read(fileid)
     if text is None and source_role is not None:
         try:
-            text = entry.forms[source_role].to_ipa()
+            source_form = entry.forms[source_role]
+            source_form._require_source_profile("align_entry", preserves_facts=False)
+            text = source_form.to_ipa()
         except KeyError as exc:
             raise ValueError(
                 f"entry {fileid!r} has no source role {source_role!r}"

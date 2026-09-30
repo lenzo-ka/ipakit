@@ -18,11 +18,11 @@
       }
     },
     "ipakit.align.align_entry": {
-      "classification": "constructs-new",
+      "classification": "refuses",
       "evidence": {
         "file": "ipakit/align.py",
-        "line": 245,
-        "note": "calls align after projecting any source-role Form to IPA text"
+        "line": 233,
+        "note": "refuses source-profile Forms before projecting one to alignment text"
       }
     },
     "ipakit.bridges.mfa.MFABridge.read_tokens": {
@@ -50,27 +50,27 @@
       }
     },
     "ipakit.features.IPAFeatures.read_json": {
-      "classification": "refuses",
+      "classification": "preserves",
       "evidence": {
         "file": "ipakit/features.py",
         "line": 3734,
-        "note": "delegates to Form.from_json and its source-only-tier refusal"
+        "note": "delegates to Form.from_json and its profile-scoped restoration"
       }
     },
     "ipakit.form.Form.from_dict": {
-      "classification": "refuses",
+      "classification": "preserves",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2184,
-        "note": "delegates native graph admission to Form.from_json"
+        "line": 2227,
+        "note": "delegates native graph admission and source-profile restoration to Form.from_json"
       }
     },
     "ipakit.form.Form.from_json": {
-      "classification": "refuses",
+      "classification": "preserves",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2218,
-        "note": "raises FormProjectionError when a declared-value tier has no house unit"
+        "line": 2248,
+        "note": "restores verified CLTS source graphs with profile-scoped identity and authoritative graph facts"
       }
     },
     "ipakit.form.Form.from_parsed": {
@@ -106,19 +106,19 @@
       }
     },
     "ipakit.form.Form.with_tier_intervals": {
-      "classification": "constructs-new",
+      "classification": "refuses",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2426,
-        "note": "calls Form.of with projected units and derived intervals"
+        "line": 2540,
+        "note": "refuses a source-profile Form before rebuilding it from projected units and intervals"
       }
     },
     "ipakit.form.Form.without_boundaries": {
-      "classification": "constructs-new",
+      "classification": "refuses",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2532,
-        "note": "constructs from filtered house units after its interval guard"
+        "line": 2642,
+        "note": "refuses a source-profile Form before constructing from filtered house units"
       }
     },
     "ipakit.form.FormBuilder.build": {
@@ -138,11 +138,11 @@
       }
     },
     "ipakit.read_json": {
-      "classification": "refuses",
+      "classification": "preserves",
       "evidence": {
         "file": "ipakit/__init__.py",
         "line": 222,
-        "note": "delegates to IPAFeatures.read_json and Form.from_json admission"
+        "note": "delegates to IPAFeatures.read_json and profile-scoped Form restoration"
       }
     },
     "ipakit.rules.Derivation.to_form": {
@@ -154,30 +154,28 @@
       }
     },
     "ipakit.rules.Rule.rewrite": {
-      "classification": "constructs-new",
+      "classification": "refuses",
       "evidence": {
         "file": "ipakit/rules.py",
-        "line": 2681,
-        "note": "wraps rewritten house units and rebased intervals with Form.of"
+        "line": 2757,
+        "note": "refuses source-profile Forms before rebuilding rewritten house units"
       }
     },
     "ipakit.syllable.Syllabifier.__call__": {
-      "classification": "constructs-new",
+      "classification": "refuses",
       "evidence": {
         "file": "ipakit/syllable.py",
-        "line": 310,
-        "note": "the non-moraic path wraps input house units and derived spans with Form.of"
-      },
-      "uncertain": true
+        "line": 304,
+        "note": "refuses source-profile Forms before either syllabification path rebuilds them"
+      }
     },
     "ipakit.syllable.syllabify": {
-      "classification": "constructs-new",
+      "classification": "refuses",
       "evidence": {
         "file": "ipakit/syllable.py",
-        "line": 693,
-        "note": "delegates to Syllabifier and returns its Form inside Syllabification"
-      },
-      "uncertain": true
+        "line": 683,
+        "note": "delegates source-profile refusal to Syllabifier and otherwise wraps its Form"
+      }
     },
     "ipakit.textgrid.read": {
       "classification": "constructs-new",

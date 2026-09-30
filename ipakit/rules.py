@@ -2753,6 +2753,8 @@ class Rule:
         and answering anyway is what this library does not do.
         """
         self._native_only()
+        if isinstance(form, Form):
+            form._require_source_profile("Rule.rewrite", preserves_facts=False)
         features = _default(features)
         items, spans, found = self._rewritten(form, features)
         return Form.of(cast("list[Unit]", items), rebase(spans, found, features)), found
@@ -4376,6 +4378,8 @@ class RuleSet:
         rule quietly not firing, which is a wrong answer nothing reports.
         :func:`rebase` is the arithmetic and says what it refuses.
         """
+        if isinstance(form, Form):
+            form._require_source_profile("RuleSet.derive", preserves_facts=False)
         for rule in self.rules:
             rule._native_only()
         features = _default(features)
@@ -4459,6 +4463,8 @@ class RuleSet:
         optionality and structure that no measurement here settles. So it
         refuses, and the limit stays known rather than assumed shut.
         """
+        if isinstance(form, Form):
+            form._require_source_profile("RuleSet.variants", preserves_facts=False)
         for rule in self.rules:
             rule._native_only()
         features = _default(features)

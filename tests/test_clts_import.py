@@ -899,13 +899,13 @@ def test_e1_8_public_preserve_import_reproduces_committed_example():
     assert tg.dumps(result.graph) == fixture.read_text()
 
 
-def test_c_e1a_source_profile_fixture_is_not_a_form():
+def test_source_profile_fixture_restores_as_a_guarded_form():
     fixture = (
         Path(__file__).parent / "tiergraph" / "fixtures" / "clts_core_bipa_profile.json"
     )
     text = fixture.read_text()
-    with pytest.raises(ValueError):
-        ipakit.Form.from_json(text)
-    with pytest.raises(ValueError):
-        ipakit.read_json(text)
+    for form in (ipakit.Form.from_json(text), ipakit.read_json(text)):
+        with pytest.raises(ipakit.FormProjectionError) as caught:
+            form.to_ipa()
+        assert "6 (unasserted-house-juncture)" in str(caught.value)
     assert isinstance(ipakit.read_graph_json(text), tg.Graph)
