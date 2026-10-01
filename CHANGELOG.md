@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Experimental versioned pairwise inventory reports preserve current comparison and mapping results.
 - Experimental versioned inventory views preserve ordered registry and derived-dictionary membership accounting.
 - `ipakit clts read` and `clts emit` expose structured source-preserving import and deterministic JSON emission with API-equivalent exit statuses.
 - The CLTS result schema and generated fixtures cover source and canonical emission success, authorized loss, and refusal variants.
