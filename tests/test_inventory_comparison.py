@@ -78,6 +78,21 @@ def test_detailed_matrices_name_both_transposed_orientations() -> None:
     ]
 
 
+def test_empty_population_matrices_preserve_both_orientations() -> None:
+    report = inventory_comparison_report(
+        _view("empty", []),
+        _view("populated", ["b", "i", "t"]),
+        detail=True,
+    ).to_dict()
+    forward = report["matrices"]["a_to_b"]
+    backward = report["matrices"]["b_to_a"]
+
+    assert forward["values"] == []
+    assert len(forward["values"]) == len(forward["rows"])
+    assert backward["values"] == [[], [], []]
+    assert len(backward["values"]) == len(backward["rows"])
+
+
 def test_directional_mapping_states_relation_without_a_hidden_threshold() -> None:
     report = inventory_comparison_report(
         _view("large", ["s", "ʃ", "z"]),
@@ -139,6 +154,34 @@ def test_feature_terms_reconstruct_the_mapped_house_distance() -> None:
             mapping="nearest",
             include_feature_terms=True,
         )
+
+
+def test_zero_term_match_has_no_undefined_feature_reconstruction() -> None:
+    report = inventory_comparison_report(
+        _view("left", ["p"]),
+        _view("right", ["p"]),
+        mapping="nearest",
+        detail=True,
+        include_feature_terms=True,
+    ).to_dict()
+    row = report["mapping"]["a_to_b"]["correspondences"][0]
+
+    assert row["distance"] == 0.0
+    assert "feature_explanation" not in row
+
+
+def test_membership_term_names_normalized_engine_forms() -> None:
+    report = inventory_comparison_report(
+        _view("stressed", ["ˈa"]),
+        _view("plain", ["a"]),
+        detail=True,
+    ).to_dict()
+
+    assert report["membership"]["intersection"] == ["a"]
+    assert report["stripping"]["changed"] == [["ˈa", "a"]]
+    assert report["terms"]["membership"] == (
+        "exact-post-strip-post-tie-engine-form-membership"
+    )
 
 
 def test_summary_and_detail_keep_the_same_accounting() -> None:

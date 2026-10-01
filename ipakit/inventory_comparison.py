@@ -143,11 +143,12 @@ def _correspondence_data(
                 "house-readable phone pair did not produce one explanation step"
             )
         step = steps[0]
-        result["feature_explanation"] = {
-            "distance": step["cost"],
-            "reconstruction": "sum(cost * weight) / sum(weight)",
-            "terms": step["terms"],
-        }
+        if step["terms"]:
+            result["feature_explanation"] = {
+                "distance": step["cost"],
+                "reconstruction": "sum(cost * weight) / sum(weight)",
+                "terms": step["terms"],
+            }
     return result
 
 
@@ -248,7 +249,10 @@ def _membership_data(result: PhonesetComparison, *, detail: bool) -> dict[str, o
 
 def _matrix_data(result: PhonesetComparison) -> dict[str, object]:
     forward = [list(row) for row in result.matrix]
-    reverse = [list(row) for row in zip(*result.matrix, strict=True)]
+    reverse = [
+        [result.matrix[row][column] for row in range(len(result.a))]
+        for column in range(len(result.b))
+    ]
     return {
         "measure": "similarity",
         "a_to_b": {
@@ -345,7 +349,7 @@ class InventoryComparisonReport:
                 "feature_terms": self.include_feature_terms,
             },
             "terms": {
-                "membership": "exact-house-form-membership",
+                "membership": "exact-post-strip-post-tie-engine-form-membership",
                 "distance": "raw-feature-distance",
                 "matrix": "similarity",
                 "mapping": self.strategy,
