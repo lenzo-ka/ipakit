@@ -79,6 +79,15 @@ counts and drops remain attached to their members. A source without a finite
 population has one explicit `unavailable` member; it is not represented as an
 available empty inventory. Consumers must check the schema identifier and version.
 
+`ipakit.inventory_comparison.inventory_comparison_report()` compares exactly two
+available finite views through the existing phoneset comparison and mapping
+engines. Its versioned, experimental `InventoryComparisonReport` preserves both
+input identities and membership accounting. Summary output reports set and
+directional mapping counts; `detail=True` adds members, set rows, both matrix
+orientations, mapping correspondences, and exact strip witnesses. Mapping is
+opt-in as `nearest` or `one-to-one`, and A to B and B to A are independent
+results. Consumers must check this report's schema identifier and version too.
+
 ## Family cards
 
 The cards group registry entries by family. A language or variety is an instance of its family, not a separate scorecard. Panphon is a shipped finite feature-model declaration with a development-only producer; it is not a house notation style.
