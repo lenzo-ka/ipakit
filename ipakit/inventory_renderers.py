@@ -121,6 +121,49 @@ def _input_lines(label: str, item: dict[str, object]) -> list[str]:
     return lines
 
 
+def _membership_rows(document: dict[str, object]) -> dict[str, dict[str, object]]:
+    membership = cast("dict[str, object]", document["membership"])
+    return {
+        cast("str", row["symbol"]): row
+        for row in cast("list[dict[str, object]]", membership.get("rows", []))
+    }
+
+
+def _show_membership(
+    document: dict[str, object], values: list[str], side: str | None = None
+) -> str:
+    rows = _membership_rows(document)
+    shown = []
+    for phone in values:
+        row = rows[phone]
+        labels = ("a", "b") if side is None else (side,)
+        external = [
+            f"{label.upper()}: {row[f'{label}_spelling']}"
+            for label in labels
+            if row.get(f"{label}_spelling") not in {None, phone}
+        ]
+        shown.append(f"{phone} [{'; '.join(external)}]" if external else phone)
+    return " ".join(shown)
+
+
+def _spelling_by_house(document: dict[str, object], side: str) -> dict[str, str | None]:
+    return {
+        phone: cast("str | None", row.get(f"{side}_spelling"))
+        for phone, row in _membership_rows(document).items()
+        if row.get(side)
+    }
+
+
+def _legacy_source_line(label: str, item: dict[str, object]) -> str | None:
+    source = item.get("source")
+    if not isinstance(source, dict):
+        return None
+    return (
+        f"{label}: {item['name']} — {source['kind']}; "
+        f"{source['artifact']}; {source['version']}"
+    )
+
+
 def render_inventory_text(
     report: InventoryComparisonReport, *, direction: Direction | None = None
 ) -> str:
@@ -135,9 +178,13 @@ def render_inventory_text(
             f"denominator={'applicable features only' if options['applicable_only'] else 'all declared features'}; "
             f"strip={options['strip'] or 'none'}"
         ),
-        f"membership term: {terms['membership']}",
-        "inputs:",
     ]
+    if direction is None:
+        for label, item in _inputs(document).items():
+            source_line = _legacy_source_line(label.upper(), item)
+            if source_line is not None:
+                lines.append(source_line)
+    lines.extend([f"membership term: {terms['membership']}", "inputs:"])
     for label, item in _inputs(document).items():
         lines.extend(_input_lines(label.upper(), item))
 
@@ -145,10 +192,10 @@ def render_inventory_text(
     if "union" in membership:
         lines.extend(
             [
-                f"union: {' '.join(cast('list[str]', membership['union']))}",
-                f"intersection: {' '.join(cast('list[str]', membership['intersection']))}",
-                f"only A: {' '.join(cast('list[str]', membership['only_a']))}",
-                f"only B: {' '.join(cast('list[str]', membership['only_b']))}",
+                f"union: {_show_membership(document, cast('list[str]', membership['union']))}",
+                f"intersection: {_show_membership(document, cast('list[str]', membership['intersection']))}",
+                f"only A: {_show_membership(document, cast('list[str]', membership['only_a']), 'a')}",
+                f"only B: {_show_membership(document, cast('list[str]', membership['only_b']), 'b')}",
             ]
         )
     else:
@@ -160,6 +207,11 @@ def render_inventory_text(
                 if key.endswith("_count")
             )
         )
+    if direction is None and document.get("asymmetry") is not None:
+        lines.append(
+            "asymmetry (B->A mean / A->B mean): "
+            f"{cast('float', document['asymmetry']):.4f}"
+        )
 
     for key, row in _mapping_rows(document, direction):
         label = "A -> B" if key == "a_to_b" else "B -> A"
@@ -169,32 +221,75 @@ def render_inventory_text(
         )
         if row.get("mean_distance") is not None:
             lines.append(f"mean distance: {cast('float', row['mean_distance']):.4f}")
+        worst = row.get("worst")
+        if isinstance(worst, dict):
+            lines.append(
+                f"worst: {worst['source']} -> {worst['target']} "
+                f"({cast('float', worst['distance']):.4f})"
+            )
         for coverage in cast("list[dict[str, object]]", row.get("coverage", [])):
             lines.append(
                 f"coverage <= {coverage['max_distance']:g}: "
                 f"{coverage['covered']}/{coverage['total']} "
                 f"({cast('float', coverage['fraction']):.1%})"
             )
+        source_side, target_side = ("a", "b") if key == "a_to_b" else ("b", "a")
+        source_spellings = _spelling_by_house(document, source_side)
+        target_spellings = _spelling_by_house(document, target_side)
         for target, sources in cast(
             "dict[str, list[str]]", row.get("collapses", {})
         ).items():
-            lines.append(f"nearest collapse onto {target}: {' '.join(sources)}")
+            if direction is None:
+                lines.append(f"nearest collapse onto {target}: {' '.join(sources)}")
+            else:
+                shown_target = target_spellings.get(target) or "-"
+                shown_sources = [
+                    source_spellings.get(source) or "-" for source in sources
+                ]
+                lines.append(
+                    f"collapsed onto {shown_target}: {' '.join(shown_sources)}"
+                )
         correspondences = cast(
             "list[dict[str, object]]", row.get("correspondences", [])
         )
         unmapped = [
-            cast("str", item["source"])
+            cast("str | None", item.get("source_spelling")) or "-"
             for item in correspondences
             if item.get("target") is None
         ]
         if unmapped:
             lines.append(f"unmapped: {' '.join(unmapped)}")
         for item in correspondences:
-            mapped_target = cast("str | None", item.get("target")) or "-"
+            source = cast("str", item["source"])
+            mapped_target = cast("str | None", item.get("target"))
+            shown_source = cast("str | None", item.get("source_spelling")) or "-"
+            shown_target = cast("str | None", item.get("target_spelling")) or "-"
             distance = item.get("distance")
-            shown = "-" if distance is None else f"{cast('float', distance):.4f}"
-            reason = "" if item.get("reason") is None else f" ({item['reason']})"
-            lines.append(f"{item['source']}\t{mapped_target}\t{shown}{reason}")
+            if mapped_target is None:
+                reason = "" if item.get("reason") is None else f": {item['reason']}"
+                lines.append(f"{shown_source}\t-\t(unmapped{reason})")
+                continue
+            shown_distance = f"{cast('float', distance):.4f}"
+            house = (
+                f"  [{source} → {mapped_target}]"
+                if shown_source != source or shown_target != mapped_target
+                else ""
+            )
+            ties = cast("list[str]", item.get("ties", []))
+            tie_text = f"  ties: {' '.join(ties)}" if ties else ""
+            lines.append(
+                f"{shown_source}\t{shown_target}\t{shown_distance}{house}{tie_text}"
+            )
+        if direction is not None:
+            unused = [
+                target_spellings.get(phone) or "-"
+                for phone in cast("list[str]", row.get("unused_targets", []))
+            ]
+            if unused:
+                lines.append(f"\nunused targets: {' '.join(unused)}")
+            lines.append(
+                f"\ntotal distance: {cast('float', row['total_distance']):.4f}"
+            )
 
     matrices = document.get("matrices")
     if direction is None and isinstance(matrices, dict):
@@ -207,6 +302,10 @@ def render_inventory_text(
             strict=True,
         ):
             lines.append(phone + "\t" + "\t".join(f"{value:.4f}" for value in values))
+        stripping = cast("dict[str, object]", document["stripping"])
+        changed = cast("list[list[str]]", stripping.get("changed", []))
+        if changed:
+            lines.append("\nstripped: " + " ".join(f"{a}->{b}" for a, b in changed))
 
     authority = document.get("authority_and_loss")
     if authority is not None:

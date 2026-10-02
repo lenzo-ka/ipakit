@@ -730,6 +730,9 @@ class InventoryComparisonReport:
                 "mode": self.comparison.strip,
                 "changed_count": len(self.comparison.stripped),
             },
+            "asymmetry": (
+                self.comparison.asymmetry if self.strategy is not None else None
+            ),
             "mapping": None,
         }
         authority = _authority_and_loss_data(

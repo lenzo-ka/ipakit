@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `distance compare` and `distance map` JSON now use the versioned inventory comparison report, retaining provenance and refusals across JSON, text, TSV, and Markdown.
+- `distance compare` and `distance map` JSON now use the versioned inventory comparison report, retaining provenance and refusals across JSON, text, TSV, and Markdown. Text adds report identity and detailed input rows while retaining the established native-notation, mapping-total, worst-case, asymmetry, and stripping lines.
 - `compare_inventories.py` renders its TSV and SVG from the common report and preserves report order instead of independently reclustering phones.
 
 ## [0.5.0] - 2026-10-01

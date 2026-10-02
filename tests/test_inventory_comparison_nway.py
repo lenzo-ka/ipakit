@@ -90,7 +90,7 @@ def test_nway_report_keeps_symbol_rows_behind_detail() -> None:
     assert "members" in next(iter(detail["inputs"].values()))
 
 
-def test_two_input_serialization_remains_byte_identical_to_pairwise_v1() -> None:
+def test_two_input_serialization_remains_pinned_to_pairwise_v1() -> None:
     left = _view("left", ["p", "a"])
     right = _view("right", ["p", "b"])
     summary = inventory_comparison_report(left, right).to_json()
@@ -99,11 +99,13 @@ def test_two_input_serialization_remains_byte_identical_to_pairwise_v1() -> None
     ).to_json()
 
     assert hashlib.sha256(summary.encode()).hexdigest() == (
-        "fd6ee7031b8c03390aa880d6491ebdc6f58d189d709977432a695cef9abace7f"
+        "3403da530f8cdaf73b65702bbc01cb96c9a133fdea5f65511d3d013217cb5d82"
     )
     assert hashlib.sha256(detail.encode()).hexdigest() == (
-        "0989745fe7b34b0f2095cd7455b457c8c87a4c2b9fd039300a7e0d456da18979"
+        "7e1ac7d689725e4ee0f17cf7222e394ee542d352870850d5ccbc3b5e0d31de75"
     )
+    assert json.loads(summary)["asymmetry"] is None
+    assert json.loads(detail)["asymmetry"] == pytest.approx(0.17033251869954824)
 
 
 def _accounted_view() -> InventoryView:
