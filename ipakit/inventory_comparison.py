@@ -1,9 +1,11 @@
-"""Experimental, versioned pairwise inventory comparison reports.
+"""Experimental, versioned inventory comparison reports.
 
 The report in this module is a serialization layer over the existing
 ``phoneset_comparison()`` and ``phoneset_mapping()`` engines. It does not
 define another distance, normalization, set, or assignment implementation.
-Consumers must check the schema identifier and version.
+Exactly two inputs retain the original pairwise serialization byte for byte;
+other arities use the N-way membership shape. Consumers must check the schema
+identifier and version.
 """
 
 from __future__ import annotations
@@ -36,6 +38,14 @@ _STATUS_ORDER = (
     "refused",
     "unavailable",
     "unresolved",
+)
+
+_COVERAGE_NAMES = (
+    "overlap",
+    "readable/admitted",
+    "reviewed-mapped",
+    "exact representability",
+    "thresholded-nearest",
 )
 
 
@@ -268,18 +278,235 @@ def _matrix_data(result: PhonesetComparison) -> dict[str, object]:
     }
 
 
+def _normalized_population(
+    view: InventoryView,
+    features: IPAFeatures,
+    *,
+    strip: str | None,
+    applicable_only: bool,
+) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
+    """Normalize one view through the current comparison engine."""
+    result = phoneset_comparison(
+        _snapshot_inventory(view, features),
+        Phoneset.from_list([], "empty comparison population"),
+        b_style="ipa",
+        ipa=features,
+        strip=strip,
+        applicable_only=applicable_only,
+    )
+    return tuple(result.a.phones), result.stripped
+
+
+def _input_key(index: int) -> str:
+    return f"input-{index}"
+
+
+def _nway_membership_data(
+    populations: tuple[tuple[str, ...], ...], *, detail: bool
+) -> dict[str, object]:
+    input_sets = tuple(set(population) for population in populations)
+    union = tuple(
+        dict.fromkeys(phone for population in populations for phone in population)
+    )
+    memberships = {
+        phone: tuple(
+            _input_key(index)
+            for index, population in enumerate(input_sets)
+            if phone in population
+        )
+        for phone in union
+    }
+    shared_by_all = tuple(
+        phone
+        for phone in union
+        if populations and len(memberships[phone]) == len(populations)
+    )
+    shared_by_subset = tuple(
+        phone for phone in union if 1 < len(memberships[phone]) < len(populations)
+    )
+    unique_to_one = tuple(phone for phone in union if len(memberships[phone]) == 1)
+
+    subset_groups: dict[tuple[str, ...], list[str]] = {}
+    for phone in shared_by_subset:
+        subset_groups.setdefault(memberships[phone], []).append(phone)
+    unique_groups = {
+        _input_key(index): [
+            phone
+            for phone in unique_to_one
+            if memberships[phone] == (_input_key(index),)
+        ]
+        for index in range(len(populations))
+    }
+
+    data: dict[str, object] = {
+        "input_count": len(populations),
+        "input_sizes": [len(population) for population in populations],
+        "union_count": len(union),
+        "shared_by_all_count": len(shared_by_all),
+        "shared_by_subset_count": len(shared_by_subset),
+        "unique_to_one_count": len(unique_to_one),
+        "shared_by_subset_groups": [
+            {"inputs": list(inputs), "count": len(symbols)}
+            for inputs, symbols in subset_groups.items()
+        ],
+        "unique_to_one_groups": [
+            {"input": input_key, "count": len(symbols)}
+            for input_key, symbols in unique_groups.items()
+        ],
+    }
+    if detail:
+        data.update(
+            {
+                "union": list(union),
+                "shared_by_all": list(shared_by_all),
+                "shared_by_subset": [
+                    {"inputs": list(inputs), "symbols": symbols}
+                    for inputs, symbols in subset_groups.items()
+                ],
+                "unique_to_one": [
+                    {"input": input_key, "symbols": symbols}
+                    for input_key, symbols in unique_groups.items()
+                ],
+                "rows": [
+                    {
+                        "symbol": phone,
+                        "inputs": list(memberships[phone]),
+                        "membership": [
+                            phone in population for population in input_sets
+                        ],
+                    }
+                    for phone in union
+                ],
+            }
+        )
+    return data
+
+
+def _coverage_measure(
+    name: str,
+    numerator: int,
+    denominator: int,
+    definition: str,
+    *,
+    numerator_statuses: tuple[str, ...],
+    denominator_statuses: tuple[str, ...],
+    applicable: bool = True,
+) -> dict[str, object]:
+    if name not in _COVERAGE_NAMES:
+        raise ValueError(f"unknown coverage measure {name!r}")
+    if numerator < 0 or denominator < 0 or numerator > denominator:
+        raise ValueError(f"invalid {name} coverage fraction")
+    unknown = (set(numerator_statuses) | set(denominator_statuses)) - set(_STATUS_ORDER)
+    if unknown:
+        raise ValueError(f"unknown coverage status buckets {sorted(unknown)!r}")
+    return {
+        "name": name,
+        "numerator": numerator,
+        "denominator": denominator,
+        "definition": definition,
+        "status_buckets": {
+            "numerator": list(numerator_statuses),
+            "denominator": list(denominator_statuses),
+        },
+        "applicable": applicable,
+    }
+
+
+def _nway_coverage_data(
+    views: tuple[InventoryView, ...],
+    populations: tuple[tuple[str, ...], ...],
+    *,
+    thresholded_nearest_numerator: int | None,
+) -> list[dict[str, object]]:
+    input_sets = tuple(set(population) for population in populations)
+    union = set().union(*input_sets) if input_sets else set()
+    shared_by_all = set.intersection(*input_sets) if input_sets else set()
+    declared = sum(len(view.members) for view in views)
+    admitted = sum(
+        member.status == "present" for view in views for member in view.members
+    )
+    directed_denominator = sum(
+        len(source)
+        for source_index, source in enumerate(populations)
+        for target_index in range(len(populations))
+        if source_index != target_index
+    )
+    exactly_represented = sum(
+        len(source & target)
+        for source_index, source in enumerate(input_sets)
+        for target_index, target in enumerate(input_sets)
+        if source_index != target_index
+    )
+    threshold_applicable = thresholded_nearest_numerator is not None
+
+    return [
+        _coverage_measure(
+            "overlap",
+            len(shared_by_all),
+            len(union),
+            "symbols present in every selected input divided by symbols present "
+            "in at least one selected input",
+            numerator_statuses=("present",),
+            denominator_statuses=("present",),
+        ),
+        _coverage_measure(
+            "readable/admitted",
+            admitted,
+            declared,
+            "declared source members admitted as present with a house-readable "
+            "form divided by all declared source members",
+            numerator_statuses=("present",),
+            denominator_statuses=_STATUS_ORDER,
+        ),
+        _coverage_measure(
+            "reviewed-mapped",
+            0,
+            0,
+            "members with a reviewed source-native mapping divided by members "
+            "eligible for that review; current registry and dictionary views "
+            "carry no reviewed mapping authority",
+            numerator_statuses=(),
+            denominator_statuses=(),
+            applicable=False,
+        ),
+        _coverage_measure(
+            "exact representability",
+            exactly_represented,
+            directed_denominator,
+            "directed source symbols present exactly in the target divided by "
+            "all directed source-symbol opportunities across distinct inputs",
+            numerator_statuses=("present",),
+            denominator_statuses=("present",),
+            applicable=len(populations) > 1,
+        ),
+        _coverage_measure(
+            "thresholded-nearest",
+            thresholded_nearest_numerator or 0,
+            directed_denominator if threshold_applicable else 0,
+            "directed source symbols with a nearest target at or below the "
+            "explicit maximum distance divided by all directed source-symbol "
+            "opportunities across distinct inputs",
+            numerator_statuses=(("present",) if threshold_applicable else ()),
+            denominator_statuses=(("present",) if threshold_applicable else ()),
+            applicable=threshold_applicable,
+        ),
+    ]
+
+
 @dataclass(frozen=True)
 class InventoryComparisonReport:
-    """A canonical JSON report for exactly two inventory views.
+    """A canonical JSON report for zero or more inventory views.
 
-    Summary output is the default. ``detail`` adds symbol-bearing membership
-    rows, matrices, correspondence rows, and exact strip witnesses. Feature
-    terms are separately opt-in and require detail.
+    Exactly two views retain the lane-B pairwise shape. Other arities use the
+    permutation-invariant N-way shape. Summary output is the default;
+    ``detail`` adds symbol-bearing membership rows and strip witnesses.
+    Pairwise matrices, correspondence rows, and feature terms remain limited
+    to the two-input detail shape.
     """
 
-    a: InventoryView
-    b: InventoryView
-    comparison: PhonesetComparison = field(repr=False)
+    a: InventoryView | None
+    b: InventoryView | None
+    comparison: PhonesetComparison | None = field(repr=False)
     strategy: MappingStrategy | None = None
     max_distance: float | None = None
     detail: bool = False
@@ -287,6 +514,20 @@ class InventoryComparisonReport:
     forward: PhonesetMapping | None = field(default=None, repr=False)
     backward: PhonesetMapping | None = field(default=None, repr=False)
     _features: IPAFeatures = field(repr=False, compare=False, default_factory=_get_ipa)
+    additional: tuple[InventoryView, ...] = ()
+    nway_populations: tuple[tuple[str, ...], ...] = field(default=(), repr=False)
+    nway_stripped: tuple[tuple[tuple[str, str], ...], ...] = field(
+        default=(), repr=False
+    )
+    thresholded_nearest_numerator: int | None = field(default=None, repr=False)
+    nway_strip: str | None = field(default="stress", repr=False)
+    nway_applicable_only: bool = field(default=False, repr=False)
+
+    @property
+    def inputs(self) -> tuple[InventoryView, ...]:
+        """Return the report inputs in their canonical report order."""
+        leading = tuple(view for view in (self.a, self.b) if view is not None)
+        return (*leading, *self.additional)
 
     def __post_init__(self) -> None:
         if self.strategy not in {None, "nearest", "one-to-one"}:
@@ -300,12 +541,46 @@ class InventoryComparisonReport:
                 raise ValueError("max_distance requires a mapping strategy")
             if self.forward is not None or self.backward is not None:
                 raise ValueError("mapping results require a mapping strategy")
-        elif self.forward is None or self.backward is None:
+        elif len(self.inputs) == 2 and (self.forward is None or self.backward is None):
             raise ValueError("mapping strategy requires both directions")
         if self.include_feature_terms and not self.detail:
             raise ValueError("feature terms require detail=True")
         if self.include_feature_terms and self.strategy is None:
             raise ValueError("feature terms require a mapping strategy")
+        if len(self.inputs) != 2:
+            if self.comparison is not None:
+                raise ValueError("N-way report cannot carry one pairwise comparison")
+            if self.forward is not None or self.backward is not None:
+                raise ValueError("N-way report cannot carry pairwise mapping results")
+            if self.include_feature_terms:
+                raise ValueError("feature terms require exactly two inputs")
+            if len(self.nway_populations) != len(self.inputs):
+                raise ValueError("N-way populations must match report inputs")
+            if len(self.nway_stripped) != len(self.inputs):
+                raise ValueError("N-way strip witnesses must match report inputs")
+            if self.strategy not in {None, "nearest"}:
+                raise ValueError("N-way coverage supports only nearest mapping")
+            if self.strategy == "nearest" and self.max_distance is None:
+                raise ValueError(
+                    "N-way nearest coverage requires an explicit max_distance"
+                )
+            if self.strategy is None and self.thresholded_nearest_numerator is not None:
+                raise ValueError("thresholded coverage requires nearest mapping")
+            directed_denominator = sum(
+                len(source)
+                for source_index, source in enumerate(self.nway_populations)
+                for target_index in range(len(self.nway_populations))
+                if source_index != target_index
+            )
+            if self.thresholded_nearest_numerator is not None and not (
+                0 <= self.thresholded_nearest_numerator <= directed_denominator
+            ):
+                raise ValueError("invalid thresholded-nearest numerator")
+            return
+        if self.a is None or self.b is None or self.comparison is None:
+            raise ValueError("two-input report requires its pairwise comparison")
+        if self.additional or self.nway_populations or self.nway_stripped:
+            raise ValueError("two-input report cannot carry N-way material")
         rows = len(self.comparison.a)
         columns = len(self.comparison.b)
         if len(self.comparison.matrix) != rows or any(
@@ -333,7 +608,9 @@ class InventoryComparisonReport:
         """Return the experimental schema version."""
         return INVENTORY_COMPARISON_SCHEMA_VERSION
 
-    def _material(self) -> dict[str, object]:
+    def _pairwise_material(self) -> dict[str, object]:
+        assert self.a is not None and self.b is not None
+        assert self.comparison is not None
         result: dict[str, object] = {
             "schema": {
                 "id": INVENTORY_COMPARISON_SCHEMA_ID,
@@ -406,6 +683,78 @@ class InventoryComparisonReport:
             result["matrices"] = _matrix_data(self.comparison)
         return result
 
+    def _nway_material(self) -> dict[str, object]:
+        views = self.inputs
+        changed = [
+            {
+                "input": _input_key(index),
+                "from": source,
+                "to": target,
+            }
+            for index, rows in enumerate(self.nway_stripped)
+            for source, target in rows
+        ]
+        result: dict[str, object] = {
+            "schema": {
+                "id": INVENTORY_COMPARISON_SCHEMA_ID,
+                "version": INVENTORY_COMPARISON_SCHEMA_VERSION,
+                "stability": "experimental",
+            },
+            "options": {
+                "detail": self.detail,
+                "mapping": self.strategy,
+                "max_distance": self.max_distance,
+                "strip": self.nway_strip,
+                "applicable_only": self.nway_applicable_only,
+                "feature_terms": False,
+            },
+            "terms": {
+                "membership": "exact-post-strip-post-tie-engine-form-membership",
+                "distance": "raw-feature-distance",
+                "matrix": "similarity",
+                "mapping": self.strategy,
+                "directionality": (
+                    "ordered source and target inputs are independent directional results"
+                    if self.strategy is not None
+                    else None
+                ),
+            },
+            "inputs": {
+                _input_key(index): _view_data(view, detail=self.detail)
+                for index, view in enumerate(views)
+            },
+            "membership": _nway_membership_data(
+                self.nway_populations, detail=self.detail
+            ),
+            "coverage": _nway_coverage_data(
+                views,
+                self.nway_populations,
+                thresholded_nearest_numerator=self.thresholded_nearest_numerator,
+            ),
+            "stripping": {
+                "mode": self.nway_strip,
+                "changed_count": len(changed),
+            },
+            "mapping": (
+                None
+                if self.strategy is None
+                else {
+                    "strategy": self.strategy,
+                    "max_distance": self.max_distance,
+                    "directional": True,
+                    "ordered_pair_count": len(views) * max(0, len(views) - 1),
+                }
+            ),
+        }
+        if self.detail:
+            cast("dict[str, object]", result["stripping"])["changed"] = changed
+        return result
+
+    def _material(self) -> dict[str, object]:
+        if len(self.inputs) == 2:
+            return self._pairwise_material()
+        return self._nway_material()
+
     @property
     def identity(self) -> str:
         """Fingerprint the canonical report material, including its options."""
@@ -425,9 +774,9 @@ class InventoryComparisonReport:
 
 
 def inventory_comparison_report(
-    a: InventoryView,
-    b: InventoryView,
-    *,
+    a: InventoryView | None = None,
+    b: InventoryView | None = None,
+    *additional: InventoryView,
     mapping: MappingStrategy | None = None,
     max_distance: float | None = None,
     detail: bool = False,
@@ -436,7 +785,7 @@ def inventory_comparison_report(
     ipa: IPAFeatures | None = None,
     applicable_only: bool = False,
 ) -> InventoryComparisonReport:
-    """Build one pairwise report through the current comparison engines."""
+    """Build one report through the current comparison and mapping engines."""
     if mapping not in {None, "nearest", "one-to-one"}:
         raise ValueError(f"unknown mapping strategy {mapping!r}")
     if max_distance is not None and mapping is None:
@@ -447,8 +796,73 @@ def inventory_comparison_report(
         raise ValueError("feature terms require a mapping strategy")
 
     features = ipa or _get_ipa()
-    left = _snapshot_inventory(a, features)
-    right = _snapshot_inventory(b, features)
+    views = tuple(view for view in (a, b) if view is not None) + additional
+    if len(views) != 2:
+        if include_feature_terms:
+            raise ValueError("feature terms require exactly two inputs")
+        if mapping not in {None, "nearest"}:
+            raise ValueError("N-way coverage supports only nearest mapping")
+        if mapping == "nearest" and max_distance is None:
+            raise ValueError("N-way nearest coverage requires an explicit max_distance")
+        canonical_views = tuple(sorted(views, key=lambda view: view.identity))
+        normalized = tuple(
+            _normalized_population(
+                view,
+                features,
+                strip=strip,
+                applicable_only=applicable_only,
+            )
+            for view in canonical_views
+        )
+        populations = tuple(population for population, _changed in normalized)
+        stripped = tuple(changed for _population, changed in normalized)
+        thresholded_nearest_numerator: int | None = None
+        if mapping == "nearest":
+            assert max_distance is not None
+            inventories = tuple(
+                _mapping_inventory(
+                    view,
+                    Phoneset.from_list(list(population), view.name),
+                    features,
+                )
+                for view, population in zip(canonical_views, populations, strict=True)
+            )
+            thresholded_nearest_numerator = sum(
+                len(
+                    phoneset_mapping(
+                        source,
+                        target,
+                        max_distance=max_distance,
+                        ipa=features,
+                        applicable_only=applicable_only,
+                    ).mapped
+                )
+                for source_index, source in enumerate(inventories)
+                for target_index, target in enumerate(inventories)
+                if source_index != target_index
+            )
+        return InventoryComparisonReport(
+            a=canonical_views[0] if canonical_views else None,
+            b=canonical_views[1] if len(canonical_views) > 1 else None,
+            comparison=None,
+            strategy=mapping,
+            max_distance=max_distance,
+            detail=detail,
+            include_feature_terms=False,
+            forward=None,
+            backward=None,
+            _features=features,
+            additional=canonical_views[2:],
+            nway_populations=populations,
+            nway_stripped=stripped,
+            thresholded_nearest_numerator=thresholded_nearest_numerator,
+            nway_strip=strip,
+            nway_applicable_only=applicable_only,
+        )
+
+    left_view, right_view = views
+    left = _snapshot_inventory(left_view, features)
+    right = _snapshot_inventory(right_view, features)
     comparison = phoneset_comparison(
         left,
         right,
@@ -463,8 +877,8 @@ def inventory_comparison_report(
         forward = comparison.forward
         backward = comparison.backward
     elif mapping is not None:
-        compared_left = _mapping_inventory(a, comparison.a, features)
-        compared_right = _mapping_inventory(b, comparison.b, features)
+        compared_left = _mapping_inventory(left_view, comparison.a, features)
+        compared_right = _mapping_inventory(right_view, comparison.b, features)
         one_to_one = mapping == "one-to-one"
         forward = phoneset_mapping(
             compared_left,
@@ -484,16 +898,16 @@ def inventory_comparison_report(
         )
 
     return InventoryComparisonReport(
-        a,
-        b,
-        comparison,
-        mapping,
-        max_distance,
-        detail,
-        include_feature_terms,
-        forward,
-        backward,
-        features,
+        a=left_view,
+        b=right_view,
+        comparison=comparison,
+        strategy=mapping,
+        max_distance=max_distance,
+        detail=detail,
+        include_feature_terms=include_feature_terms,
+        forward=forward,
+        backward=backward,
+        _features=features,
     )
 
 
