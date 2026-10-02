@@ -76,6 +76,8 @@ def test_partition_seeding_is_optimal_and_refuses_when_sources_are_too_few() -> 
 
 
 def test_mapping_commentary_handles_a_side_without_exclusive_phones(capsys) -> None:
+    pytest.importorskip("numpy")
+    pytest.importorskip("scipy")
     from ipakit.inventory_comparison import inventory_comparison_report
     from ipakit.inventory_views import InventoryView, InventoryViewMember
     from scripts.compare_inventories import print_mappings
