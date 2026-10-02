@@ -37,6 +37,13 @@ from ipakit.inventories import (  # noqa: E402
     inventory,
     inventory_from_dictionary,
 )
+from ipakit.inventory_comparison import (  # noqa: E402
+    InventoryComparisonReport,
+    inventory_comparison_report,
+)
+from ipakit.inventory_views import registry_inventory_view  # noqa: E402
+
+COMPARISON_EXAMPLES_MARKER = "<!-- inventory-comparison-examples -->"
 
 
 @dataclass(frozen=True)
@@ -317,6 +324,51 @@ def _format_note(text: str, metrics: dict[str, object], family: str) -> str:
     return text.format_map(metrics)
 
 
+def _comparison_example_reports() -> (
+    tuple[tuple[str, str, InventoryComparisonReport], ...]
+):
+    """Build the fixed report examples from shipped declarations."""
+    cmudict = registry_inventory_view("cmudict")
+    timit = registry_inventory_view("timit")
+    mfa_english_us = registry_inventory_view("mfa:english_us")
+    return (
+        (
+            "pairwise",
+            "Generated pairwise summary: CMUdict and TIMIT",
+            inventory_comparison_report(cmudict, timit, mapping="nearest"),
+        ),
+        (
+            "n-way",
+            "Generated N-way summary: CMUdict, TIMIT, and MFA English US",
+            inventory_comparison_report(
+                cmudict,
+                timit,
+                mfa_english_us,
+                mapping="nearest",
+                max_distance=0.05,
+            ),
+        ),
+    )
+
+
+def _comparison_examples() -> str:
+    """Render canonical report JSON without copying result values into prose."""
+    lines: list[str] = []
+    for label, title, report in _comparison_example_reports():
+        lines.extend(
+            [
+                f"### {title}",
+                "",
+                f"<!-- inventory-comparison-example: {label} -->",
+                "```json",
+                report.to_json().rstrip(),
+                "```",
+                "",
+            ]
+        )
+    return "\n".join(lines).rstrip()
+
+
 def render(mfa_models: Path) -> str:
     """Render the hand-written introduction and every declared family card."""
     declared_cards = cards()
@@ -338,7 +390,15 @@ def render(mfa_models: Path) -> str:
         )
     spdx_count = validate_spdx()
     metrics = {**_mfa_metrics(mfa_models), **_panphon_metrics()}
-    source_lines = SOURCE.read_text(encoding="utf-8").rstrip().splitlines()
+    source_text = SOURCE.read_text(encoding="utf-8").rstrip()
+    if source_text.count(COMPARISON_EXAMPLES_MARKER) != 1:
+        raise ValueError(
+            "inventory source must contain exactly one comparison-examples marker"
+        )
+    source_text = source_text.replace(
+        COMPARISON_EXAMPLES_MARKER, _comparison_examples()
+    )
+    source_lines = source_text.splitlines()
     if not source_lines or not source_lines[0].startswith("# "):
         raise ValueError("inventory source must open with one level-one heading")
     lines = [source_lines[0], "", BANNER, *source_lines[1:]]

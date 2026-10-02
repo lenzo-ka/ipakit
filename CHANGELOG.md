@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Generated inventory documentation includes canonical pairwise and N-way report examples with named coverage denominators.
 - `inventory compare` aliases the report-owned `distance compare`; comparison surfaces also support Markdown.
 - Experimental inventory views retain bridge loss, PHOIBLE refusal, and reviewed CLTS mapping authority.
 - Experimental inventory comparison reports support N-way membership and named coverage measures.

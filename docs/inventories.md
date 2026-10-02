@@ -79,14 +79,452 @@ counts and drops remain attached to their members. A source without a finite
 population has one explicit `unavailable` member; it is not represented as an
 available empty inventory. Consumers must check the schema identifier and version.
 
-`ipakit.inventory_comparison.inventory_comparison_report()` compares exactly two
-available finite views through the existing phoneset comparison and mapping
-engines. Its versioned, experimental `InventoryComparisonReport` preserves both
-input identities and membership accounting. Summary output reports set and
-directional mapping counts; `detail=True` adds members, set rows, both matrix
-orientations, mapping correspondences, and exact strip witnesses. Mapping is
-opt-in as `nearest` or `one-to-one`, and A to B and B to A are independent
-results. Consumers must check this report's schema identifier and version too.
+`ipakit.inventory_comparison.inventory_comparison_report()` compares available
+finite views through the existing phoneset comparison and mapping engines. Its
+versioned `InventoryComparisonReport` is experimental: consumers must check the
+schema identifier and version. A pair retains the pairwise report shape, while
+other arities use the permutation-invariant N-way membership and coverage shape.
+Summary is the default. `detail=True` adds symbol rows and strip witnesses, plus
+matrices, correspondences, and optional feature terms for a pair. Mapping is
+opt-in, directional, and has no implicit threshold.
+
+### Coverage measure names and denominators
+
+- `overlap`: symbols present in every selected input over the union of symbols
+  present in at least one selected input.
+- `readable/admitted`: declared source members admitted as `present` with a
+  house-readable form over all declared members. Its denominator retains the
+  `present`, `filtered`, `dropped`, `unreadable`, `refused`, `unavailable`, and
+  `unresolved` status buckets.
+- `reviewed-mapped`: members with an explicit reviewed source-native mapping over
+  the `present` and `unresolved` members of views that carry that mapping
+  authority. It is not applicable when no selected view carries one.
+- `exact representability`: exact target-membership hits over all directed
+  source-symbol opportunities between distinct selected inputs.
+- `thresholded-nearest`: source symbols accepted at a caller-supplied maximum
+  distance over those same directed opportunities. It is not applicable when
+  the caller supplies no threshold.
+
+These measures are separate: parser admission, reviewed authority, exact
+membership, and nearest-distance acceptance do not stand in for one another.
+The canonical JSON repeats each definition, numerator and denominator status
+buckets, and applicability beside its result.
+
+### Generated comparison reports
+
+The summaries below come directly from the report object during
+`make inventory-cards`; their result values are not copied into prose. They use
+only the shipped CMUdict, TIMIT, and MFA English US declarations. They do not
+probe live PHOIBLE, CLTS, or eSpeak sources. An absent optional source is an
+explicit `unavailable` view, not an empty inventory.
+
+### Generated pairwise summary: CMUdict and TIMIT
+
+<!-- inventory-comparison-example: pairwise -->
+```json
+{
+  "asymmetry": null,
+  "identity": "sha256:cbd3b95b04a284900697df3cfff87583306c797da077e2f1b4a951611aa771f5",
+  "inputs": {
+    "a": {
+      "availability": "available",
+      "declared_count": 41,
+      "identity": "sha256:c96d741b01fc9f77315d4f7cb34bd19a5319f218246cfa4e4ef5ed32e8ce0215",
+      "kind": "pronunciation-dictionary-phone-map",
+      "name": "cmudict",
+      "provenance": "CMU Pronouncing Dictionary ARPAbet-to-house-IPA phonemap, explicitly unpinned (BSD-2-Clause)",
+      "schema": {
+        "id": "ipakit.inventory-view",
+        "version": 1
+      },
+      "source": {
+        "artifact": "ARPAbet-to-house-IPA phonemap",
+        "kind": "pronunciation-dictionary-phone-map",
+        "license": "BSD-2-Clause",
+        "upstream": "CMU Pronouncing Dictionary",
+        "upstream-url": "https://github.com/cmusphinx/cmudict",
+        "version": "unpinned"
+      },
+      "status_counts": {
+        "dropped": 0,
+        "filtered": 0,
+        "present": 41,
+        "refused": 0,
+        "unavailable": 0,
+        "unreadable": 0,
+        "unresolved": 0
+      },
+      "style": "cmudict",
+      "version": "unpinned"
+    },
+    "b": {
+      "availability": "available",
+      "declared_count": 58,
+      "identity": "sha256:732d0d0d898f9f14fcc9c2e75c92ba64dca89e9e18fa07ae2fb31d0fea6039fd",
+      "kind": "speech-corpus-phone-map",
+      "name": "timit",
+      "provenance": "NISTIR 4930 §4.3 Phonetic and Phonemic Symbol Codes transcribed to house IPA, pinned at NISTIR 4930 (February 1993) (BSD-2-Clause)",
+      "schema": {
+        "id": "ipakit.inventory-view",
+        "version": 1
+      },
+      "source": {
+        "artifact": "Phonetic and Phonemic Symbol Codes transcribed to house IPA",
+        "kind": "speech-corpus-phone-map",
+        "license": "BSD-2-Clause",
+        "upstream": "NISTIR 4930 §4.3",
+        "upstream-url": "https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nistir4930.pdf",
+        "version": "NISTIR 4930 (February 1993)"
+      },
+      "status_counts": {
+        "dropped": 0,
+        "filtered": 0,
+        "present": 58,
+        "refused": 0,
+        "unavailable": 0,
+        "unreadable": 0,
+        "unresolved": 0
+      },
+      "style": "timit",
+      "version": "NISTIR 4930 (February 1993)"
+    }
+  },
+  "mapping": {
+    "a_to_b": {
+      "ambiguous_count": 0,
+      "collapse_count": 0,
+      "exact_count": 41,
+      "mapped_count": 41,
+      "max_distance": null,
+      "mean_distance": 0.0,
+      "relation": "nearest",
+      "source": "a",
+      "source_count": 41,
+      "target": "b",
+      "target_count": 58,
+      "total_distance": 0.0,
+      "unmapped_count": 0,
+      "unused_target_count": 17,
+      "worst": {
+        "distance": 0.0,
+        "source": "i",
+        "target": "i"
+      }
+    },
+    "b_to_a": {
+      "ambiguous_count": 0,
+      "collapse_count": 13,
+      "exact_count": 41,
+      "mapped_count": 58,
+      "max_distance": null,
+      "mean_distance": 0.012825013604964538,
+      "relation": "nearest",
+      "source": "b",
+      "source_count": 58,
+      "target": "a",
+      "target_count": 41,
+      "total_distance": 0.7438507890879432,
+      "unmapped_count": 0,
+      "unused_target_count": 0,
+      "worst": {
+        "distance": 0.08695652173913043,
+        "source": "ə̥",
+        "target": "ə"
+      }
+    },
+    "directional": true,
+    "max_distance": null,
+    "strategy": "nearest"
+  },
+  "membership": {
+    "a_count": 41,
+    "b_count": 58,
+    "intersection_count": 41,
+    "only_a_count": 0,
+    "only_b_count": 17,
+    "union_count": 58
+  },
+  "options": {
+    "applicable_only": false,
+    "detail": false,
+    "feature_terms": false,
+    "mapping": "nearest",
+    "max_distance": null,
+    "strip": "stress"
+  },
+  "schema": {
+    "id": "ipakit.inventory-comparison-report",
+    "stability": "experimental",
+    "version": 1
+  },
+  "stripping": {
+    "changed_count": 0,
+    "mode": "stress"
+  },
+  "terms": {
+    "directionality": "A -> B and B -> A are independent directional results",
+    "distance": "raw-feature-distance",
+    "mapping": "nearest",
+    "matrix": "similarity",
+    "membership": "exact-post-strip-post-tie-engine-form-membership"
+  }
+}
+```
+
+### Generated N-way summary: CMUdict, TIMIT, and MFA English US
+
+<!-- inventory-comparison-example: n-way -->
+```json
+{
+  "coverage": [
+    {
+      "applicable": true,
+      "definition": "symbols present in every selected input divided by symbols present in at least one selected input",
+      "denominator": 98,
+      "name": "overlap",
+      "numerator": 33,
+      "status_buckets": {
+        "denominator": [
+          "present"
+        ],
+        "numerator": [
+          "present"
+        ]
+      }
+    },
+    {
+      "applicable": true,
+      "definition": "declared source members admitted as present with a house-readable form divided by all declared source members",
+      "denominator": 177,
+      "name": "readable/admitted",
+      "numerator": 177,
+      "status_buckets": {
+        "denominator": [
+          "present",
+          "filtered",
+          "dropped",
+          "unreadable",
+          "refused",
+          "unavailable",
+          "unresolved"
+        ],
+        "numerator": [
+          "present"
+        ]
+      }
+    },
+    {
+      "applicable": false,
+      "definition": "members with a reviewed source-native mapping divided by members in a view carrying that mapping authority",
+      "denominator": 0,
+      "name": "reviewed-mapped",
+      "numerator": 0,
+      "status_buckets": {
+        "denominator": [],
+        "numerator": []
+      }
+    },
+    {
+      "applicable": true,
+      "definition": "directed source symbols present exactly in the target divided by all directed source-symbol opportunities across distinct inputs",
+      "denominator": 354,
+      "name": "exact representability",
+      "numerator": 224,
+      "status_buckets": {
+        "denominator": [
+          "present"
+        ],
+        "numerator": [
+          "present"
+        ]
+      }
+    },
+    {
+      "applicable": true,
+      "definition": "directed source symbols with a nearest target at or below the explicit maximum distance divided by all directed source-symbol opportunities across distinct inputs",
+      "denominator": 354,
+      "name": "thresholded-nearest",
+      "numerator": 328,
+      "status_buckets": {
+        "denominator": [
+          "present"
+        ],
+        "numerator": [
+          "present"
+        ]
+      }
+    }
+  ],
+  "identity": "sha256:3c1c55b5020f2605de91652d35f4a293a79fe4837a609dc08cef819eecef787f",
+  "inputs": {
+    "input-0": {
+      "availability": "available",
+      "declared_count": 58,
+      "identity": "sha256:732d0d0d898f9f14fcc9c2e75c92ba64dca89e9e18fa07ae2fb31d0fea6039fd",
+      "kind": "speech-corpus-phone-map",
+      "name": "timit",
+      "provenance": "NISTIR 4930 §4.3 Phonetic and Phonemic Symbol Codes transcribed to house IPA, pinned at NISTIR 4930 (February 1993) (BSD-2-Clause)",
+      "schema": {
+        "id": "ipakit.inventory-view",
+        "version": 1
+      },
+      "source": {
+        "artifact": "Phonetic and Phonemic Symbol Codes transcribed to house IPA",
+        "kind": "speech-corpus-phone-map",
+        "license": "BSD-2-Clause",
+        "upstream": "NISTIR 4930 §4.3",
+        "upstream-url": "https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nistir4930.pdf",
+        "version": "NISTIR 4930 (February 1993)"
+      },
+      "status_counts": {
+        "dropped": 0,
+        "filtered": 0,
+        "present": 58,
+        "refused": 0,
+        "unavailable": 0,
+        "unreadable": 0,
+        "unresolved": 0
+      },
+      "style": "timit",
+      "version": "NISTIR 4930 (February 1993)"
+    },
+    "input-1": {
+      "availability": "available",
+      "declared_count": 41,
+      "identity": "sha256:c96d741b01fc9f77315d4f7cb34bd19a5319f218246cfa4e4ef5ed32e8ce0215",
+      "kind": "pronunciation-dictionary-phone-map",
+      "name": "cmudict",
+      "provenance": "CMU Pronouncing Dictionary ARPAbet-to-house-IPA phonemap, explicitly unpinned (BSD-2-Clause)",
+      "schema": {
+        "id": "ipakit.inventory-view",
+        "version": 1
+      },
+      "source": {
+        "artifact": "ARPAbet-to-house-IPA phonemap",
+        "kind": "pronunciation-dictionary-phone-map",
+        "license": "BSD-2-Clause",
+        "upstream": "CMU Pronouncing Dictionary",
+        "upstream-url": "https://github.com/cmusphinx/cmudict",
+        "version": "unpinned"
+      },
+      "status_counts": {
+        "dropped": 0,
+        "filtered": 0,
+        "present": 41,
+        "refused": 0,
+        "unavailable": 0,
+        "unreadable": 0,
+        "unresolved": 0
+      },
+      "style": "cmudict",
+      "version": "unpinned"
+    },
+    "input-2": {
+      "availability": "available",
+      "declared_count": 78,
+      "identity": "sha256:f0b30d06828537276e79f73d8e69467bbf6c03ff1650e68ea4b20e056ba38ab7",
+      "kind": "dictionary-phone-set",
+      "name": "mfa:english_us",
+      "provenance": "Montreal Forced Aligner english_us_mfa dictionary v3.1.0, pinned at mfa-models@d6eff86a42c6a90b641e17dfdf7a16555b934483 (CC-BY-4.0)",
+      "schema": {
+        "id": "ipakit.inventory-view",
+        "version": 1
+      },
+      "source": {
+        "artifact": "english_us_mfa dictionary v3.1.0",
+        "kind": "dictionary-phone-set",
+        "license": "CC-BY-4.0",
+        "upstream": "Montreal Forced Aligner",
+        "upstream-url": "https://github.com/MontrealCorpusTools/mfa-models/tree/d6eff86a42c6a90b641e17dfdf7a16555b934483",
+        "version": "mfa-models@d6eff86a42c6a90b641e17dfdf7a16555b934483"
+      },
+      "status_counts": {
+        "dropped": 0,
+        "filtered": 0,
+        "present": 78,
+        "refused": 0,
+        "unavailable": 0,
+        "unreadable": 0,
+        "unresolved": 0
+      },
+      "style": "mfa:english_us",
+      "version": "mfa-models@d6eff86a42c6a90b641e17dfdf7a16555b934483"
+    }
+  },
+  "mapping": {
+    "directional": true,
+    "max_distance": 0.05,
+    "ordered_pair_count": 6,
+    "strategy": "nearest"
+  },
+  "membership": {
+    "input_count": 3,
+    "input_sizes": [
+      58,
+      41,
+      78
+    ],
+    "shared_by_all_count": 33,
+    "shared_by_subset_count": 13,
+    "shared_by_subset_groups": [
+      {
+        "count": 8,
+        "inputs": [
+          "input-0",
+          "input-1"
+        ]
+      },
+      {
+        "count": 5,
+        "inputs": [
+          "input-0",
+          "input-2"
+        ]
+      }
+    ],
+    "union_count": 98,
+    "unique_to_one_count": 52,
+    "unique_to_one_groups": [
+      {
+        "count": 12,
+        "input": "input-0"
+      },
+      {
+        "count": 0,
+        "input": "input-1"
+      },
+      {
+        "count": 40,
+        "input": "input-2"
+      }
+    ]
+  },
+  "options": {
+    "applicable_only": false,
+    "detail": false,
+    "feature_terms": false,
+    "mapping": "nearest",
+    "max_distance": 0.05,
+    "strip": "stress"
+  },
+  "schema": {
+    "id": "ipakit.inventory-comparison-report",
+    "stability": "experimental",
+    "version": 1
+  },
+  "stripping": {
+    "changed_count": 0,
+    "mode": "stress"
+  },
+  "terms": {
+    "directionality": "ordered source and target inputs are independent directional results",
+    "distance": "raw-feature-distance",
+    "mapping": "nearest",
+    "matrix": "similarity",
+    "membership": "exact-post-strip-post-tie-engine-form-membership"
+  }
+}
+```
 
 ## Family cards
 

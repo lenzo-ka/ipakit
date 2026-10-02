@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import json
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
+from ipakit._identity import identity_fingerprint
 from ipakit._provenance import SOURCE_ATTRIBUTES, SourceMetadata
 from ipakit.inventories import _registry
-from scripts.inventory_cards import cards, validate_spdx
+from ipakit.inventory_comparison import (
+    INVENTORY_COMPARISON_SCHEMA_ID,
+    INVENTORY_COMPARISON_SCHEMA_VERSION,
+)
+from scripts.inventory_cards import (
+    COMPARISON_EXAMPLES_MARKER,
+    cards,
+    validate_spdx,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -60,3 +71,48 @@ def test_cards_cover_registry_families_and_the_shipped_feature_model() -> None:
     declared = cards()
     assert {card.family for card in declared} == families | {"espeak", "panphon"}
     assert all(card.notes for card in declared)
+
+
+def test_generated_comparison_examples_are_canonical_experimental_reports() -> None:
+    source = (ROOT / "docs/inventories.src.md").read_text(encoding="utf-8")
+    generated = (ROOT / "docs/inventories.md").read_text(encoding="utf-8")
+    assert source.count(COMPARISON_EXAMPLES_MARKER) == 1
+    assert '"union_count"' not in source
+
+    blocks = re.findall(
+        r"<!-- inventory-comparison-example: ([^ ]+) -->\n" r"```json\n(.*?)\n```",
+        generated,
+        re.DOTALL,
+    )
+    assert [label for label, _ in blocks] == ["pairwise", "n-way"]
+    documents = [json.loads(block) for _, block in blocks]
+    for document in documents:
+        assert document["schema"] == {
+            "id": INVENTORY_COMPARISON_SCHEMA_ID,
+            "version": INVENTORY_COMPARISON_SCHEMA_VERSION,
+            "stability": "experimental",
+        }
+        identity = document.pop("identity")
+        assert identity == identity_fingerprint(document)
+
+    pairwise, nway = documents
+    assert [item["name"] for item in pairwise["inputs"].values()] == [
+        "cmudict",
+        "timit",
+    ]
+    assert {item["name"] for item in nway["inputs"].values()} == {
+        "cmudict",
+        "timit",
+        "mfa:english_us",
+    }
+    assert [measure["name"] for measure in nway["coverage"]] == [
+        "overlap",
+        "readable/admitted",
+        "reviewed-mapped",
+        "exact representability",
+        "thresholded-nearest",
+    ]
+    assert all(
+        {"numerator", "denominator", "definition", "status_buckets"} <= measure.keys()
+        for measure in nway["coverage"]
+    )

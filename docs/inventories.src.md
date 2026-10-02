@@ -77,14 +77,46 @@ counts and drops remain attached to their members. A source without a finite
 population has one explicit `unavailable` member; it is not represented as an
 available empty inventory. Consumers must check the schema identifier and version.
 
-`ipakit.inventory_comparison.inventory_comparison_report()` compares exactly two
-available finite views through the existing phoneset comparison and mapping
-engines. Its versioned, experimental `InventoryComparisonReport` preserves both
-input identities and membership accounting. Summary output reports set and
-directional mapping counts; `detail=True` adds members, set rows, both matrix
-orientations, mapping correspondences, and exact strip witnesses. Mapping is
-opt-in as `nearest` or `one-to-one`, and A to B and B to A are independent
-results. Consumers must check this report's schema identifier and version too.
+`ipakit.inventory_comparison.inventory_comparison_report()` compares available
+finite views through the existing phoneset comparison and mapping engines. Its
+versioned `InventoryComparisonReport` is experimental: consumers must check the
+schema identifier and version. A pair retains the pairwise report shape, while
+other arities use the permutation-invariant N-way membership and coverage shape.
+Summary is the default. `detail=True` adds symbol rows and strip witnesses, plus
+matrices, correspondences, and optional feature terms for a pair. Mapping is
+opt-in, directional, and has no implicit threshold.
+
+### Coverage measure names and denominators
+
+- `overlap`: symbols present in every selected input over the union of symbols
+  present in at least one selected input.
+- `readable/admitted`: declared source members admitted as `present` with a
+  house-readable form over all declared members. Its denominator retains the
+  `present`, `filtered`, `dropped`, `unreadable`, `refused`, `unavailable`, and
+  `unresolved` status buckets.
+- `reviewed-mapped`: members with an explicit reviewed source-native mapping over
+  the `present` and `unresolved` members of views that carry that mapping
+  authority. It is not applicable when no selected view carries one.
+- `exact representability`: exact target-membership hits over all directed
+  source-symbol opportunities between distinct selected inputs.
+- `thresholded-nearest`: source symbols accepted at a caller-supplied maximum
+  distance over those same directed opportunities. It is not applicable when
+  the caller supplies no threshold.
+
+These measures are separate: parser admission, reviewed authority, exact
+membership, and nearest-distance acceptance do not stand in for one another.
+The canonical JSON repeats each definition, numerator and denominator status
+buckets, and applicability beside its result.
+
+### Generated comparison reports
+
+The summaries below come directly from the report object during
+`make inventory-cards`; their result values are not copied into prose. They use
+only the shipped CMUdict, TIMIT, and MFA English US declarations. They do not
+probe live PHOIBLE, CLTS, or eSpeak sources. An absent optional source is an
+explicit `unavailable` view, not an empty inventory.
+
+<!-- inventory-comparison-examples -->
 
 ## Family cards
 
