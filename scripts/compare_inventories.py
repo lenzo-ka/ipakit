@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Draw two inventories, then show three answers to "how do they map?"
 
-The library preserves declaration order because that is meaningful source data,
-but declaration order hides structure in a figure. This example clusters the
-shared and side-only groups independently while using one shared-phone order on
-both axes, making exact matches a visible leading diagonal without discarding
-the inventories' unmatched phones.
+The report preserves declaration order because that is meaningful source data.
+This renderer moves the shared group to the front in that report order on both
+axes, making exact matches a visible leading diagonal without independently
+recomputing or reclustering the inventories.
 
 The mapping display fixes every shared phone to its identity first.  It then
 compares the side-only phones in three ways: an unconstrained cover (a source
@@ -25,29 +24,33 @@ notational correspondence between the projects, not an acoustic near-miss.
 from __future__ import annotations
 
 import argparse
-import csv
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 try:
     import numpy as np
-    from scipy.cluster.hierarchy import (
-        leaves_list,
-        linkage,
-        optimal_leaf_ordering,
-    )
-    from scipy.optimize import linear_sum_assignment
-    from scipy.spatial.distance import squareform
+    from scipy.optimize import linear_sum_assignment  # type: ignore[import-untyped]
 except ImportError as error:
     raise SystemExit(
         'inventory comparison extras are required; install with: pip install -e ".[compare]"'
     ) from error
 
 import ipakit  # noqa: E402
+from ipakit.inventories import inventories  # noqa: E402
+from ipakit.inventory_comparison import (  # noqa: E402
+    InventoryComparisonReport,
+    inventory_comparison_report,
+)
+from ipakit.inventory_renderers import (  # noqa: E402
+    inventory_surface_view,
+    render_inventory_tsv,
+)
 from scripts._comparison_order import aligned_orders  # noqa: E402
 
 DEFAULT_CUTOFF = 0.75
@@ -206,8 +209,10 @@ def print_mapping_table(
         print(f"{target:<8}  {', '.join(rendered) or '—'}")
 
 
-def print_mappings(result: ipakit.PhonesetComparison, cutoff: float) -> None:
+def print_mappings(report: InventoryComparisonReport, cutoff: float) -> None:
     """Print fixed identities, three forward modes, and reverse refusal."""
+    result = report.comparison
+    assert result is not None
     sources, targets = result.only_a, result.only_b
     scores = side_similarities(result)
     print(
@@ -215,6 +220,12 @@ def print_mappings(result: ipakit.PhonesetComparison, cutoff: float) -> None:
         "(reported as one block; each maps to itself)"
     )
     print(f"candidate cutoff: similarity >= {cutoff:.2f}")
+    if not sources or not targets:
+        print(
+            "side-only mapping: not applicable because at least one side has "
+            "no exclusive phones"
+        )
+        return
     print_mapping_table(
         "unconstrained cover",
         sources,
@@ -231,12 +242,13 @@ def print_mappings(result: ipakit.PhonesetComparison, cutoff: float) -> None:
         matching_selections(sources, targets, scores),
         cutoff,
     )
-    partition = partition_selections(sources, targets, result.b.phones, scores)
+    all_targets = tuple(result.b.phones)
+    partition = partition_selections(sources, targets, all_targets, scores)
     assert not isinstance(partition, str)
     print_mapping_table(
         "partition (globally optimal seeding; surjection)",
         sources,
-        result.b.phones,
+        all_targets,
         scores,
         partition,
         cutoff,
@@ -253,41 +265,26 @@ def print_mappings(result: ipakit.PhonesetComparison, cutoff: float) -> None:
     reverse = partition_selections(
         targets,
         sources,
-        result.a.phones,
+        tuple(result.a.phones),
         {(target, source): value for (source, target), value in scores.items()},
     )
     assert isinstance(reverse, str)
     print(f"\nreverse partition\n{reverse}")
 
 
-def clustered(phones: tuple[str, ...]) -> tuple[str, ...]:
-    """Order one phone group by average linkage and optimal adjacent leaves."""
-    if len(phones) < 2:
-        return phones
-    similarities = np.asarray(
-        ipakit.phoneset_comparison(phones, phones).matrix, dtype=float
-    )
-    distances = 1.0 - similarities
-    # The phone metric is symmetric, so this is a valid square distance matrix.
-    distances = (distances + distances.T) / 2.0
-    np.fill_diagonal(distances, 0.0)
-    condensed = squareform(distances)
-    tree = linkage(condensed, method="average")
-    tree = optimal_leaf_ordering(tree, condensed)
-    return tuple(phones[index] for index in leaves_list(tree))
-
-
 def ordered_comparison(
-    result: ipakit.PhonesetComparison,
+    report: InventoryComparisonReport,
 ) -> tuple[tuple[str, ...], tuple[str, ...], np.ndarray]:
-    """Return aligned axes and the source matrix permuted onto them."""
+    """Return aligned axes and matrix drawn only from the common report."""
+    result = report.comparison
+    assert result is not None
     rows, columns = aligned_orders(
         result.intersection,
         result.only_a,
         result.only_b,
-        clustered(result.intersection),
-        clustered(result.only_a),
-        clustered(result.only_b),
+        result.intersection,
+        result.only_a,
+        result.only_b,
     )
     row_index = {phone: index for index, phone in enumerate(result.a.phones)}
     column_index = {phone: index for index, phone in enumerate(result.b.phones)}
@@ -301,33 +298,16 @@ def ordered_comparison(
     return rows, columns, matrix
 
 
-def write_tsv(
-    path: Path,
-    rows: tuple[str, ...],
-    columns: tuple[str, ...],
-    matrix: np.ndarray,
-) -> None:
-    """Write a labeled similarity matrix."""
-    with path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
-        writer.writerow(("", *columns))
-        for phone, values in zip(rows, matrix, strict=True):
-            writer.writerow((phone, *(f"{value:.12g}" for value in values)))
-
-
-def axis_label(phone: str, spelling: str | None) -> str:
-    """Label a house phone and its inventory spelling when one is available."""
-    return phone if spelling is None else f"{phone} · {spelling}"
+def write_tsv(path: Path, report: InventoryComparisonReport) -> None:
+    """Write the common TSV renderer, including provenance and refusals."""
+    path.write_text(render_inventory_tsv(report), encoding="utf-8")
 
 
 def write_heatmap(
     path: Path,
-    result: ipakit.PhonesetComparison,
+    report: InventoryComparisonReport,
     rows: tuple[str, ...],
     columns: tuple[str, ...],
-    matrix: np.ndarray,
-    a_name: str,
-    b_name: str,
 ) -> None:
     """Write a self-contained SVG heatmap with the exact-match diagonal marked."""
     try:
@@ -342,28 +322,37 @@ def write_heatmap(
             'pip install -e ".[compare]"'
         ) from error
 
+    document = report.to_dict()
+    matrices = cast("dict[str, dict[str, object]]", document.get("matrices"))
+    if not matrices:
+        raise ValueError("SVG rendering requires a detailed pairwise report")
+    matrix = matrices["a_to_b"]
+    source_rows = cast("list[str]", matrix["rows"])
+    source_columns = cast("list[str]", matrix["columns"])
+    source_values = cast("list[list[float]]", matrix["values"])
+    row_index = {phone: index for index, phone in enumerate(source_rows)}
+    column_index = {phone: index for index, phone in enumerate(source_columns)}
+    values = [
+        [source_values[row_index[left]][column_index[right]] for right in columns]
+        for left in rows
+    ]
     width = max(9.0, 3.5 + 0.23 * len(columns))
     height = max(7.0, 2.5 + 0.23 * len(rows))
     figure, axis = plt.subplots(figsize=(width, height), constrained_layout=True)
-    image = axis.imshow(matrix, cmap="Blues", vmin=0.0, vmax=1.0, aspect="equal")
-    axis.set_xticks(range(len(columns)))
-    axis.set_yticks(range(len(rows)))
-    axis.set_xticklabels(
-        [axis_label(phone, result.spellings[phone][1]) for phone in columns],
-        rotation=90,
-        fontsize=7,
-    )
-    axis.set_yticklabels(
-        [axis_label(phone, result.spellings[phone][0]) for phone in rows],
-        fontsize=7,
-    )
-    axis.set_xlabel(b_name)
-    axis.set_ylabel(a_name)
+    image = axis.imshow(values, cmap="Blues", vmin=0.0, vmax=1.0, aspect="equal")
+    axis.set_xticks(range(len(columns)), labels=columns, rotation=90, fontsize=7)
+    axis.set_yticks(range(len(rows)), labels=rows, fontsize=7)
+    inputs = cast("dict[str, dict[str, object]]", document["inputs"])
+    names = list(inputs.values())
+    axis.set_xlabel(str(names[1]["name"]))
+    axis.set_ylabel(str(names[0]["name"]))
     axis.set_title("Phone inventory similarity (shared phones lead both axes)")
-    for index in range(len(result.intersection)):
+    for phone in set(rows) & set(columns):
+        row = rows.index(phone)
+        column = columns.index(phone)
         axis.add_patch(
             Rectangle(
-                (index - 0.5, index - 0.5),
+                (column - 0.5, row - 0.5),
                 1,
                 1,
                 fill=False,
@@ -373,7 +362,19 @@ def write_heatmap(
         )
     colorbar = figure.colorbar(image, ax=axis, shrink=0.7)
     colorbar.set_label("similarity")
-    figure.savefig(path, format="svg", metadata={"Date": None})
+    metadata = {
+        "Date": None,
+        "Description": json.dumps(
+            {
+                "identity": document["identity"],
+                "inputs": document["inputs"],
+                "authority_and_loss": document.get("authority_and_loss"),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
+    }
+    figure.savefig(path, format="svg", metadata=metadata)
     plt.close(figure)
 
 
@@ -402,16 +403,26 @@ def main() -> int:
     args = parser().parse_args()
     svg_path = args.output
     tsv_path = svg_path.with_suffix(".tsv")
-    result = ipakit.phoneset_comparison(args.a, args.b)
     if not 0.0 <= args.cutoff <= 1.0:
         raise SystemExit("--cutoff must be between 0 and 1")
-    rows, columns, matrix = ordered_comparison(result)
+    known = set(inventories())
+
+    def operand(value: str) -> str | Path:
+        return value if value in known else Path(value)
+
+    features = ipakit.IPAFeatures()
+    left, _ = inventory_surface_view(operand(args.a), ipa=features)
+    right, _ = inventory_surface_view(operand(args.b), ipa=features)
+    report = inventory_comparison_report(
+        left, right, mapping="nearest", detail=True, ipa=features
+    )
+    rows, columns, _matrix = ordered_comparison(report)
     svg_path.parent.mkdir(parents=True, exist_ok=True)
-    write_tsv(tsv_path, rows, columns, matrix)
-    write_heatmap(svg_path, result, rows, columns, matrix, args.a, args.b)
+    write_tsv(tsv_path, report)
+    write_heatmap(svg_path, report, rows, columns)
     print(tsv_path)
     print(svg_path)
-    print_mappings(result, args.cutoff)
+    print_mappings(report, args.cutoff)
     return 0
 
 

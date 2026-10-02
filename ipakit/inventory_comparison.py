@@ -602,6 +602,7 @@ class InventoryComparisonReport:
     thresholded_nearest_numerator: int | None = field(default=None, repr=False)
     nway_strip: str | None = field(default="stress", repr=False)
     nway_applicable_only: bool = field(default=False, repr=False)
+    coverage_at: tuple[float, ...] = ()
 
     @property
     def inputs(self) -> tuple[InventoryView, ...]:
@@ -616,6 +617,10 @@ class InventoryComparisonReport:
             not math.isfinite(self.max_distance) or self.max_distance < 0
         ):
             raise ValueError("max_distance must be a finite nonnegative number")
+        if any(not math.isfinite(value) or value < 0 for value in self.coverage_at):
+            raise ValueError("coverage thresholds must be finite nonnegative numbers")
+        if self.coverage_at and (len(self.inputs) != 2 or self.strategy != "nearest"):
+            raise ValueError("coverage thresholds require pairwise nearest mapping")
         if self.strategy is None:
             if self.max_distance is not None:
                 raise ValueError("max_distance requires a mapping strategy")
@@ -761,6 +766,24 @@ class InventoryComparisonReport:
                     applicable_only=self.comparison.applicable_only,
                 ),
             }
+            if self.coverage_at:
+                mapping = cast("dict[str, object]", result["mapping"])
+                for key, direction in (
+                    ("a_to_b", self.forward),
+                    ("b_to_a", self.backward),
+                ):
+                    row = cast("dict[str, object]", mapping[key])
+                    row["coverage"] = [
+                        {
+                            "max_distance": item.max_distance,
+                            "covered": item.covered,
+                            "total": item.total,
+                            "fraction": item.fraction,
+                        }
+                        for item in (
+                            direction.coverage(value) for value in self.coverage_at
+                        )
+                    ]
         if self.detail:
             cast("dict[str, object]", result["stripping"])["changed"] = [
                 list(row) for row in self.comparison.stripped
@@ -873,6 +896,7 @@ def inventory_comparison_report(
     max_distance: float | None = None,
     detail: bool = False,
     include_feature_terms: bool = False,
+    coverage_at: tuple[float, ...] = (),
     strip: str | None = "stress",
     ipa: IPAFeatures | None = None,
     applicable_only: bool = False,
@@ -889,6 +913,8 @@ def inventory_comparison_report(
 
     features = ipa or _get_ipa()
     views = tuple(view for view in (a, b) if view is not None) + additional
+    if coverage_at and (len(views) != 2 or mapping != "nearest"):
+        raise ValueError("coverage thresholds require pairwise nearest mapping")
     if len(views) != 2:
         if include_feature_terms:
             raise ValueError("feature terms require exactly two inputs")
@@ -950,6 +976,7 @@ def inventory_comparison_report(
             thresholded_nearest_numerator=thresholded_nearest_numerator,
             nway_strip=strip,
             nway_applicable_only=applicable_only,
+            coverage_at=coverage_at,
         )
 
     left_view, right_view = views
@@ -1000,6 +1027,7 @@ def inventory_comparison_report(
         forward=forward,
         backward=backward,
         _features=features,
+        coverage_at=coverage_at,
     )
 
 

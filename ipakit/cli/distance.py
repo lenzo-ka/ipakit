@@ -14,7 +14,6 @@ from .metrics import AcrossCommand, MetricsCommand
 
 if TYPE_CHECKING:
     from ..features import IPAFeatures
-    from ..phoneset_map import PhonesetMapping
 
 
 def add_applicable_only_arg(parser: argparse.ArgumentParser) -> None:
@@ -806,12 +805,19 @@ class MapCommand(Command):
             help="Refuse a pairing past this distance; the phone is reported unmapped",
         )
         add_applicable_only_arg(parser)
-        add_format_arg(parser)
+        add_format_arg(parser, ["text", "json", "tsv", "markdown"])
+        add_output_arg(parser)
 
     def run(self) -> int:
-        import ipakit
-
-        from ..inventories import Style, inventories
+        from ..inventories import inventories
+        from ..inventory_comparison import inventory_comparison_report
+        from ..inventory_renderers import (
+            inventory_surface_view,
+            render_inventory_json,
+            render_inventory_markdown,
+            render_inventory_text,
+            render_inventory_tsv,
+        )
 
         known = set(inventories())
 
@@ -848,48 +854,28 @@ class MapCommand(Command):
             return f"cannot read {phone!r} as one phone{suffix}"
 
         try:
-            from ..phoneset_map import read_inventory_entry
-
-            resolved = [resolve(self.args.source), resolve(self.args.target)]
-            for index, (side, selected) in enumerate(
-                zip(resolved, (from_style, to_style), strict=True)
-            ):
-                if isinstance(side, Path) and (selected is None or selected == "wild"):
-                    path = side
-                    raw = Phoneset.from_file(path)
-                    for phone in raw:
-                        if self.args.no_tie and len(self.ipa.segments(phone)) != 1:
-                            raise ValueError(one_phone_error(phone, selected))
-                        _, steps = read_inventory_entry(
-                            phone,
-                            self.ipa,
-                            wild=selected == "wild",
-                            tie=not self.args.no_tie,
-                        )
-                        for kind, before, after in steps:
-                            print(f"{kind}: {before} -> {after}", file=sys.stderr)
-                    resolved[index] = raw
-            mapping = ipakit.phoneset_mapping(
+            operands = (resolve(self.args.source), resolve(self.args.target))
+            resolved = []
+            for side, selected in zip(operands, (from_style, to_style), strict=True):
+                view, changes = inventory_surface_view(
+                    side,
+                    style=selected,
+                    ipa=self.ipa,
+                    tied=not self.args.no_tie,
+                )
+                resolved.append(view)
+                for kind, before, after in changes:
+                    print(f"{kind}: {before} -> {after}", file=sys.stderr)
+            report = inventory_comparison_report(
                 resolved[0],
                 resolved[1],
-                one_to_one=self.args.one_to_one,
+                mapping="one-to-one" if self.args.one_to_one else "nearest",
                 max_distance=self.args.max_distance,
-                source_style=from_style,
-                target_style=to_style,
-                tied=not self.args.no_tie,
+                detail=True,
+                strip=None,
                 ipa=self.ipa,
                 applicable_only=self.args.applicable_only,
             )
-            for phones, style in (
-                (mapping.source.phones, from_style),
-                (mapping.target.phones, to_style),
-            ):
-                for phone in phones:
-                    if len(self.ipa.segments(phone)) != 1:
-                        print(
-                            f"Error: {one_phone_error(phone, style)}", file=sys.stderr
-                        )
-                        return 3
         except FileNotFoundError as error:
             return self.error(str(error))
         except OSError as error:
@@ -901,112 +887,31 @@ class MapCommand(Command):
             return self.error(str(error))
 
         unreadable = [
-            ("source", c.source, c.reason) for c in mapping if c.reason is not None
-        ] + [("target", entry, reason) for entry, reason in mapping.unreadable_targets]
+            (side, member.source_token, member.reason)
+            for side, view in zip(("source", "target"), resolved, strict=True)
+            for member in view.members
+            if member.status == "unreadable"
+        ]
         for side, entry, reason in unreadable:
-            style = mapping.source_style if side == "source" else mapping.target_style
-            name = style.name if style is not None else "ipa"
+            selected = from_style if side == "source" else to_style
+            name = selected or "ipa"
+            if reason == f"cannot read {entry!r} as one phone":
+                reason = one_phone_error(entry, selected)
             print(
                 f"Error: cannot read {entry!r} as {name} on {side} side: {reason}",
                 file=sys.stderr,
             )
         status = 3 if unreadable else 0
-
-        def spelled(style: Style | None, phone: str) -> str | None:
-            if style is None:
-                return phone
-            try:
-                return style.spell(phone)
-            except ValueError:
-                return None
-
         if self.format == "json":
-            self.output_json(
-                {
-                    "kind": mapping.kind,
-                    "source": mapping.source.name,
-                    "target": mapping.target.name,
-                    "source_inventory": (
-                        mapping.source_inventory.name
-                        if mapping.source_inventory
-                        else None
-                    ),
-                    "target_inventory": (
-                        mapping.target_inventory.name
-                        if mapping.target_inventory
-                        else None
-                    ),
-                    "correspondences": [
-                        {
-                            "source": c.source,
-                            "target": c.target,
-                            "source_spelling": c.source_spelling,
-                            "target_spelling": c.target_spelling,
-                            "reason": c.reason,
-                            "distance": (
-                                None if c.distance is None else round(c.distance, 4)
-                            ),
-                            "ties": list(c.ties),
-                        }
-                        for c in mapping
-                    ],
-                    "collapses": {
-                        (spelled(mapping.target_style, k) or "-"): [
-                            spelled(mapping.source_style, value) for value in v
-                        ]
-                        for k, v in mapping.collapses.items()
-                    },
-                    "unmapped": [
-                        spelled(mapping.source_style, value)
-                        for value in mapping.unmapped
-                    ],
-                    "unused_targets": [
-                        spelled(mapping.target_style, value)
-                        for value in mapping.unused_targets
-                    ],
-                    "unreadable_targets": list(mapping.unreadable_targets),
-                    "total_distance": round(mapping.total_distance, 4),
-                }
+            self.output(render_inventory_json(report).rstrip("\n"))
+        elif self.format == "tsv":
+            self.output(render_inventory_tsv(report).rstrip("\n"))
+        elif self.format == "markdown":
+            self.output(
+                render_inventory_markdown(report, direction="a_to_b").rstrip("\n")
             )
-            return status
-
-        for c in mapping:
-            if c.target is None:
-                reason = f": {c.reason}" if c.reason else ""
-                print(f"{c.source_spelling or '-'}\t-\t(unmapped{reason})")
-                continue
-            tie = f"  ties: {' '.join(c.ties)}" if c.ties else ""
-            house = ""
-            if c.source_spelling != c.source or c.target_spelling != c.target:
-                house = f"  [{c.source} → {c.target}]"
-            print(
-                f"{c.source_spelling or '-'}\t{c.target_spelling or '-'}\t"
-                f"{c.distance:.4f}{house}{tie}"
-            )
-        collapses = mapping.collapses
-        if collapses:
-            # Printed rather than left to be noticed: a merged contrast is
-            # the whole reason to read a many-to-one mapping.
-            print()
-            for onto, sources in collapses.items():
-                target = spelled(mapping.target_style, onto) or "-"
-                spelled_sources = [
-                    spelled(mapping.source_style, source) or "-" for source in sources
-                ]
-                print(f"collapsed onto {target}: {' '.join(spelled_sources)}")
-        if mapping.unmapped:
-            values = [
-                spelled(mapping.source_style, phone) or "-"
-                for phone in mapping.unmapped
-            ]
-            print(f"\nunmapped: {' '.join(values)}")
-        if mapping.unused_targets:
-            values = [
-                spelled(mapping.target_style, phone) or "-"
-                for phone in mapping.unused_targets
-            ]
-            print(f"\nunused targets: {' '.join(values)}")
-        print(f"\ntotal distance: {mapping.total_distance:.4f}")
+        else:
+            self.output(render_inventory_text(report, direction="a_to_b").rstrip("\n"))
         return status
 
 
@@ -1045,13 +950,19 @@ class CompareCommand(Command):
             help="Report coverage within this caller-chosen raw distance",
         )
         add_applicable_only_arg(parser)
-        add_format_arg(parser, ["text", "json", "tsv"])
+        add_format_arg(parser, ["text", "json", "tsv", "markdown"])
         add_output_arg(parser)
 
     def run(self) -> int:
-        import ipakit
-
         from ..inventories import inventories
+        from ..inventory_comparison import inventory_comparison_report
+        from ..inventory_renderers import (
+            inventory_surface_view,
+            render_inventory_json,
+            render_inventory_markdown,
+            render_inventory_text,
+            render_inventory_tsv,
+        )
 
         known = set(inventories())
         if any(value < 0 for value in self.args.coverage_at):
@@ -1074,175 +985,45 @@ class CompareCommand(Command):
             return path
 
         try:
-            comparison = ipakit.phoneset_comparison(
-                resolve(self.args.a),
-                resolve(self.args.b),
-                a_style=self.args.from_style,
-                b_style=self.args.to_style,
+            left, _ = inventory_surface_view(
+                resolve(self.args.a), style=self.args.from_style, ipa=self.ipa
+            )
+            right, _ = inventory_surface_view(
+                resolve(self.args.b), style=self.args.to_style, ipa=self.ipa
+            )
+            report = inventory_comparison_report(
+                left,
+                right,
+                mapping="nearest",
+                detail=True,
+                coverage_at=tuple(self.args.coverage_at),
                 ipa=self.ipa,
                 strip=None if self.args.strip == "none" else self.args.strip,
                 applicable_only=self.args.applicable_only,
             )
         except (FileNotFoundError, OSError, ValueError) as error:
             return self.error(str(error))
-
-        def matrix() -> None:
-            self.print("\t" + "\t".join(comparison.b.phones))
-            for phone, row in zip(comparison.a, comparison.matrix, strict=True):
-                self.print(phone + "\t" + "\t".join(f"{value:.4f}" for value in row))
-
-        if self.format == "tsv":
-            matrix()
-            return 0
-
-        def mapping_json(mapping: PhonesetMapping) -> dict[str, object]:
-            coverages = [mapping.coverage(value) for value in self.args.coverage_at]
-            return {
-                "mapped": len(mapping.mapped),
-                "exact": len(mapping.exact),
-                "unmapped": list(mapping.unmapped),
-                "collapses": {
-                    key: list(value) for key, value in mapping.collapses.items()
-                },
-                "mean_distance": mapping.mean_distance,
-                "worst": (
-                    None
-                    if mapping.worst is None
-                    else {
-                        "source": mapping.worst.source,
-                        "target": mapping.worst.target,
-                        "distance": mapping.worst.distance,
-                    }
-                ),
-                "coverage": [
-                    {
-                        "max_distance": item.max_distance,
-                        "covered": item.covered,
-                        "total": item.total,
-                        "fraction": item.fraction,
-                    }
-                    for item in coverages
-                ],
-                "correspondences": [
-                    {
-                        "source": item.source,
-                        "target": item.target,
-                        "distance": item.distance,
-                        "source_spelling": item.source_spelling,
-                        "target_spelling": item.target_spelling,
-                        "relation": "nearest",
-                    }
-                    for item in mapping
-                ],
-            }
-
+        unreadable = [
+            (label, member)
+            for label, view in (("A", left), ("B", right))
+            for member in view.members
+            if member.status == "unreadable"
+        ]
+        for label, member in unreadable:
+            print(
+                f"Error: cannot read {member.source_token!r} on {label} side: "
+                f"{member.reason}",
+                file=sys.stderr,
+            )
         if self.format == "json":
-            self.output_json(
-                {
-                    "a": list(comparison.a),
-                    "b": list(comparison.b),
-                    "union": list(comparison.union),
-                    "intersection": list(comparison.intersection),
-                    "only_a": list(comparison.only_a),
-                    "only_b": list(comparison.only_b),
-                    "stripped": [list(item) for item in comparison.stripped],
-                    "terms": {
-                        "distance": "raw-feature-distance",
-                        "reference_inventory": None,
-                        "applicable_only": comparison.applicable_only,
-                        "strip": comparison.strip,
-                        "a_source": (
-                            None
-                            if comparison.forward.source_inventory is None
-                            or comparison.forward.source_inventory.source is None
-                            else comparison.forward.source_inventory.source.to_dict()
-                        ),
-                        "b_source": (
-                            None
-                            if comparison.forward.target_inventory is None
-                            or comparison.forward.target_inventory.source is None
-                            else comparison.forward.target_inventory.source.to_dict()
-                        ),
-                    },
-                    "asymmetry": comparison.asymmetry,
-                    "spellings": [
-                        {"phone": p, "a": a, "b": b}
-                        for p, (a, b) in comparison.spellings.items()
-                    ],
-                    "forward": mapping_json(comparison.forward),
-                    "backward": mapping_json(comparison.backward),
-                    "matrix": [list(row) for row in comparison.matrix],
-                }
-            )
-            return 0
-
-        spelling = comparison.spellings
-
-        def show(values, side: int | None = None):  # type: ignore[no-untyped-def]
-            shown = []
-            for phone in values:
-                forms = spelling[phone]
-                sides = range(2) if side is None else (side,)
-                external = [
-                    f"{'AB'[index]}: {forms[index]}"
-                    for index in sides
-                    if forms[index] not in {None, phone}
-                ]
-                shown.append(f"{phone} [{'; '.join(external)}]" if external else phone)
-            return " ".join(shown)
-
-        self.print(
-            "terms: raw feature distance (no reference scaling); "
-            f"denominator={'applicable features only' if comparison.applicable_only else 'all declared features'}; "
-            f"strip={comparison.strip or 'none'}"
-        )
-        for label, inventory in (
-            ("A", comparison.forward.source_inventory),
-            ("B", comparison.forward.target_inventory),
-        ):
-            if inventory is not None and inventory.source is not None:
-                source = inventory.source
-                self.print(
-                    f"{label}: {inventory.name} — {source.kind}; "
-                    f"{source.artifact}; {source.version}"
-                )
-
-        self.print(f"union: {show(comparison.union)}")
-        self.print(f"intersection: {show(comparison.intersection)}")
-        self.print(f"only A: {show(comparison.only_a, 0)}")
-        self.print(f"only B: {show(comparison.only_b, 1)}")
-        if comparison.asymmetry is not None:
-            self.print(f"asymmetry (B->A mean / A->B mean): {comparison.asymmetry:.4f}")
-        for label, mapping in (
-            ("A -> B", comparison.forward),
-            ("B -> A", comparison.backward),
-        ):
-            self.print(
-                f"\n{label}: mapped={len(mapping.mapped)} exact={len(mapping.exact)} "
-                f"unmapped={len(mapping.unmapped)}"
-            )
-            if mapping.mean_distance is not None:
-                self.print(f"mean distance: {mapping.mean_distance:.4f}")
-            if mapping.worst is not None:
-                self.print(
-                    f"worst: {mapping.worst.source} -> {mapping.worst.target} "
-                    f"({mapping.worst.distance:.4f})"
-                )
-            for value in self.args.coverage_at:
-                coverage = mapping.coverage(value)
-                self.print(
-                    f"coverage <= {value:g}: {coverage.covered}/{coverage.total} "
-                    f"({coverage.fraction:.1%})"
-                )
-            for target, sources in mapping.collapses.items():
-                self.print(f"nearest collapse onto {target}: {' '.join(sources)}")
-        self.print("\nsimilarity matrix:")
-        matrix()
-        if comparison.stripped:
-            self.print(
-                "\nstripped: " + " ".join(f"{a}->{b}" for a, b in comparison.stripped)
-            )
-        return 0
+            self.output(render_inventory_json(report).rstrip("\n"))
+        elif self.format == "tsv":
+            self.output(render_inventory_tsv(report).rstrip("\n"))
+        elif self.format == "markdown":
+            self.output(render_inventory_markdown(report).rstrip("\n"))
+        else:
+            self.output(render_inventory_text(report).rstrip("\n"))
+        return 3 if unreadable else 0
 
 
 class DistanceGroup(CommandGroup):

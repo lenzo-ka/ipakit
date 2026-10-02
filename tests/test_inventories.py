@@ -318,9 +318,11 @@ def test_distance_map_accepts_named_sides_and_reports_json(monkeypatch, capsys) 
     )
     assert rc == 0
     report = json.loads(output)
-    assert report["source_inventory"] == "cmudict"
-    assert report["target_inventory"] == "mfa"
-    assert {"source_spelling", "target_spelling"} <= report["correspondences"][0].keys()
+    assert report["inputs"]["a"]["name"] == "cmudict"
+    assert report["inputs"]["b"]["name"] == "mfa"
+    assert {"source_spelling", "target_spelling"} <= report["mapping"]["a_to_b"][
+        "correspondences"
+    ][0].keys()
 
 
 def test_distance_map_refuses_a_source_its_style_cannot_read(
@@ -344,9 +346,9 @@ def test_distance_map_refuses_a_source_its_style_cannot_read(
     )
     assert rc == 3
     assert "cannot read 'p' as cmudict on source side" in error
-    refused = json.loads(output)["correspondences"][0]
-    assert refused["source"] == "p"
-    assert refused["source_spelling"] is None
+    refused = json.loads(output)["inputs"]["a"]["members"][0]
+    assert refused["source_token"] == "p"
+    assert refused["status"] == "unreadable"
     assert refused["reason"] is not None
 
 
@@ -372,8 +374,10 @@ def test_distance_map_refuses_a_target_its_style_cannot_read(
     assert rc == 3
     assert "cannot read 'p' as cmudict on target side" in error
     report = json.loads(output)
-    assert report["unreadable_targets"][0][0] == "p"
-    assert report["unused_targets"] == []
+    refused = report["inputs"]["b"]["members"][0]
+    assert refused["source_token"] == "p"
+    assert refused["status"] == "unreadable"
+    assert report["mapping"]["a_to_b"]["unused_targets"] == []
 
 
 def test_distance_map_refuses_name_file_collision_and_accepts_escape(

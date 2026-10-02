@@ -16,6 +16,7 @@ from .base import (
     add_format_arg,
     add_output_arg,
 )
+from .distance import CompareCommand
 
 
 class InventoryListCommand(Command):
@@ -186,9 +187,10 @@ class InventoryFromDictionaryCommand(Command):
 class InventoryGroup(CommandGroup):
     name = "inventory"
     aliases: ClassVar[list[str]] = []
-    help = "Inspect named phoneset inventories and styles"
+    help = "Inspect and compare named phoneset inventories and styles"
     commands: ClassVar[list[type[Command]]] = [
         InventoryListCommand,
         InventoryShowCommand,
         InventoryFromDictionaryCommand,
+        CompareCommand,
     ]
