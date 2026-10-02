@@ -78,6 +78,76 @@ def _view_data(view: InventoryView, *, detail: bool) -> dict[str, object]:
     return result
 
 
+def _authority_and_loss_data(
+    views: tuple[InventoryView, ...], labels: tuple[str, ...], *, detail: bool
+) -> dict[str, object] | None:
+    bridges: list[dict[str, object]] = []
+    declared: list[dict[str, object]] = []
+    exercised: list[dict[str, object]] = []
+    reviewed: list[dict[str, object]] = []
+    for view, label in zip(views, labels, strict=True):
+        receipt = view.bridge
+        if receipt is not None:
+            bridge_data = receipt.to_dict()
+            bridges.append(
+                {
+                    "input": label,
+                    "name": receipt.name,
+                    "version": receipt.version,
+                    "declared": bridge_data["declared"],
+                }
+            )
+            for direction, names in (
+                ("external-to-house", receipt.external_to_house_drops),
+                ("house-to-external", receipt.house_to_external_drops),
+            ):
+                declared.extend(
+                    {"input": label, "direction": direction, "name": name}
+                    for name in names
+                )
+            exercised.extend(
+                {"input": label, **loss.to_dict()} for loss in receipt.exercised_losses
+            )
+        if view.mapping_authority is not None:
+            reviewed.append(_reviewed_mapping_data(view, label, detail=detail))
+    if not bridges and not reviewed:
+        return None
+    return {
+        "bridges": bridges,
+        "reviewed_mappings": reviewed,
+        "losses": {"declared": declared, "exercised": exercised},
+    }
+
+
+def _reviewed_mapping_data(
+    view: InventoryView, label: str, *, detail: bool
+) -> dict[str, object]:
+    mappings = [
+        member
+        for member in view.members
+        if member.mapping is not None and member.mapping.relation == "reviewed"
+    ]
+    row: dict[str, object] = {
+        "input": label,
+        "authority": view.mapping_authority,
+        "reviewed_count": len(mappings),
+        "unresolved_count": sum(
+            member.status == "unresolved" for member in view.members
+        ),
+    }
+    if detail:
+        row["mappings"] = [
+            {
+                "source": member.source_token,
+                "target": member.mapping.target,
+                "relation": member.mapping.relation,
+            }
+            for member in mappings
+            if member.mapping is not None
+        ]
+    return row
+
+
 def _present_house_forms(view: InventoryView) -> tuple[str, ...]:
     if view.availability != "available":
         raise ValueError(
@@ -438,6 +508,17 @@ def _nway_coverage_data(
         if source_index != target_index
     )
     threshold_applicable = thresholded_nearest_numerator is not None
+    authoritative = tuple(view for view in views if view.mapping_authority is not None)
+    reviewed_mapped = sum(
+        member.mapping is not None and member.mapping.relation == "reviewed"
+        for view in authoritative
+        for member in view.members
+    )
+    reviewed_population = sum(
+        member.status in {"present", "unresolved"}
+        for view in authoritative
+        for member in view.members
+    )
 
     return [
         _coverage_measure(
@@ -460,14 +541,13 @@ def _nway_coverage_data(
         ),
         _coverage_measure(
             "reviewed-mapped",
-            0,
-            0,
+            reviewed_mapped,
+            reviewed_population,
             "members with a reviewed source-native mapping divided by members "
-            "eligible for that review; current registry and dictionary views "
-            "carry no reviewed mapping authority",
-            numerator_statuses=(),
-            denominator_statuses=(),
-            applicable=False,
+            "in a view carrying that mapping authority",
+            numerator_statuses=(("present",) if authoritative else ()),
+            denominator_statuses=(("present", "unresolved") if authoritative else ()),
+            applicable=bool(authoritative),
         ),
         _coverage_measure(
             "exact representability",
@@ -647,6 +727,11 @@ class InventoryComparisonReport:
             },
             "mapping": None,
         }
+        authority = _authority_and_loss_data(
+            (self.a, self.b), ("a", "b"), detail=self.detail
+        )
+        if authority is not None:
+            result["authority_and_loss"] = authority
         if self.strategy is not None:
             assert self.forward is not None and self.backward is not None
             result["mapping"] = {
@@ -746,6 +831,13 @@ class InventoryComparisonReport:
                 }
             ),
         }
+        authority = _authority_and_loss_data(
+            views,
+            tuple(_input_key(index) for index in range(len(views))),
+            detail=self.detail,
+        )
+        if authority is not None:
+            result["authority_and_loss"] = authority
         if self.detail:
             cast("dict[str, object]", result["stripping"])["changed"] = changed
         return result

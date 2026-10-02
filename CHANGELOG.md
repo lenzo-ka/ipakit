@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Experimental inventory views retain bridge loss, PHOIBLE refusal, and reviewed CLTS mapping authority.
 - Experimental inventory comparison reports support N-way membership and named coverage measures.
 
 ## [0.5.0] - 2026-10-01
