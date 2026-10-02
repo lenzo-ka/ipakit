@@ -266,6 +266,7 @@ NOT_PLAIN_TRANSCRIPTION_INPUTS = [
     ("convert", "from-json"),
     ("distance", "map"),
     ("distance", "compare"),
+    ("inventory", "compare"),
     ("convert", "phoneset"),
     ("inventory", "from-dict"),
     ("phoible", "inventory"),
@@ -705,6 +706,7 @@ def _structured_probe(path: tuple[str, ...], tmp_path: Path) -> list[str]:
     if path in {
         ("distance", "map"),
         ("distance", "compare"),
+        ("inventory", "compare"),
     }:
         source = _write_phoneset(tmp_path / "source.phones", [_PROBE], "source")
         target = _write_phoneset(tmp_path / "target.phones", ["p"], "target")
@@ -783,7 +785,8 @@ STRUCTURED_PROBE_RESULTS = [
     (("corpus", "query"), 1),
     (("convert", "from-json"), 0),
     (("distance", "map"), 3),
-    (("distance", "compare"), 1),
+    (("distance", "compare"), 3),
+    (("inventory", "compare"), 3),
     (("convert", "phoneset"), 1),
     (("inventory", "from-dict"), 1),
     (("phoible", "inventory"), 3),

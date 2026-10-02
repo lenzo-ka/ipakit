@@ -148,7 +148,7 @@ def test_cli_formats(tmp_path, monkeypatch, capsys, format_: str) -> None:
     status, output, _ = _run(monkeypatch, capsys, str(a), str(b), "-f", format_)
     assert status == 0
     if format_ == "json":
-        assert json.loads(output)["stripped"] == [["ˈa", "a"]]
+        assert json.loads(output)["stripping"]["changed"] == [["ˈa", "a"]]
     elif format_ == "tsv":
         assert output.startswith("\ta\tb\n")
         assert "union:" not in output
@@ -175,13 +175,14 @@ def test_cli_json_names_terms_provenance_coverage_and_nearest_relation(
     assert status == 0
     report = json.loads(output)
     assert report["terms"]["distance"] == "raw-feature-distance"
-    assert report["terms"]["reference_inventory"] is None
-    assert report["terms"]["a_source"]["kind"] == "pronunciation-dictionary-phone-map"
-    assert report["terms"]["b_source"]["kind"] == "speech-corpus-phone-map"
-    assert report["forward"]["coverage"][0]["max_distance"] == 0.02
-    assert {item["relation"] for item in report["forward"]["correspondences"]} == {
-        "nearest"
-    }
+    assert report["inputs"]["a"]["source"]["kind"] == (
+        "pronunciation-dictionary-phone-map"
+    )
+    assert report["inputs"]["b"]["source"]["kind"] == "speech-corpus-phone-map"
+    assert report["mapping"]["a_to_b"]["coverage"][0]["max_distance"] == 0.02
+    assert {
+        item["relation"] for item in report["mapping"]["a_to_b"]["correspondences"]
+    } == {"nearest"}
 
 
 def test_cli_refuses_name_file_collision(tmp_path, monkeypatch, capsys) -> None:
@@ -203,4 +204,4 @@ def test_cli_strip_modes(tmp_path, monkeypatch, capsys, option, expected) -> Non
         monkeypatch, capsys, str(phones), str(phones), "--strip", option, "-f", "json"
     )
     assert status == 0
-    assert json.loads(output)["a"] == expected
+    assert json.loads(output)["matrices"]["a_to_b"]["rows"] == expected
