@@ -683,16 +683,13 @@ On the command line: `distance map SOURCE TARGET` takes a registry name or a pho
 Tie glyphs keep their distinct house senses during comparison, so an over-tied and an under-tied spelling are different members unless that side selects the `wild` style to canonicalize tie conventions; [ties.md](ties.md) states the rule.
 
 ```python
-comparison = ipakit.phoneset_comparison("pocketsphinx", "mfa:english_us")
-comparison.union  # ('i', 'ɪ', 'ɛ', 'æ', 'ɑ', 'ɔ', 'ʊ', 'u', 'ʌ', 'ə', 'ɚ', 'ɝ', 'e͜ɪ', 'o͜ʊ', 'a͜ɪ', 'a͜ʊ', 'ɔ͜ɪ', 'j', 'w', 'm', 'n', 'ŋ', 'l', 'ɹ', 'p', 'b', 't', 'd', 'k', 'ɡ', 't͡ʃ', 'd͡ʒ', 'f', 'v', 'θ', 'ð', 's', 'z', 'ʃ', 'ʒ', 'h', 'a͜j', 'a͜w', 'bʲ', 'c', 'cʰ', 'cʷ', 'dʲ', 'd̪', 'e͜j', 'fʲ', 'iː', 'kʰ', 'kʷ', 'mʲ', 'm̩', 'n̩', 'o͜w', 'pʰ', 'pʲ', 'pʷ', 'tʰ', 'tʲ', 'tʷ', 't̪', 'vʲ', 'ç', 'ɐ', 'ɑː', 'ɒ', 'ɒː', 'ɔ͜j', 'ɟ', 'ɟʷ', 'ɡʷ', 'ɫ', 'ɫ̩', 'ɱ', 'ɲ', 'ɾ', 'ɾʲ', 'ɾ̃', 'ʉ', 'ʉː', 'ʎ', 'ʔ')
-comparison.intersection  # ('i', 'ɪ', 'ɛ', 'æ', 'ɑ', 'ʊ', 'ə', 'ɚ', 'ɝ', 'j', 'w', 'm', 'n', 'ŋ', 'l', 'ɹ', 'p', 'b', 't', 'd', 'k', 'ɡ', 't͡ʃ', 'd͡ʒ', 'f', 'v', 'θ', 'ð', 's', 'z', 'ʃ', 'ʒ', 'h')
-comparison.only_a  # ('ɔ', 'u', 'ʌ', 'e͜ɪ', 'o͜ʊ', 'a͜ɪ', 'a͜ʊ', 'ɔ͜ɪ')
-comparison.only_b  # ('a͜j', 'a͜w', 'bʲ', 'c', 'cʰ', 'cʷ', 'dʲ', 'd̪', 'e͜j', 'fʲ', 'iː', 'kʰ', 'kʷ', 'mʲ', 'm̩', 'n̩', 'o͜w', 'pʰ', 'pʲ', 'pʷ', 'tʰ', 'tʲ', 'tʷ', 't̪', 'vʲ', 'ç', 'ɐ', 'ɑː', 'ɒ', 'ɒː', 'ɔ͜j', 'ɟ', 'ɟʷ', 'ɡʷ', 'ɫ', 'ɫ̩', 'ɱ', 'ɲ', 'ɾ', 'ɾʲ', 'ɾ̃', 'ʉ', 'ʉː', 'ʎ', 'ʔ')
-comparison.stripped  # ()
-comparison.backward.collapses  # {'b': ('b', 'bʲ'), 'k': ('c', 'cʰ', 'k', 'kʰ', 'kʷ'), 't': ('cʷ', 't', 'tʰ', 'tʲ', 'tʷ', 't̪'), 'd': ('d', 'dʲ', 'd̪', 'ɟʷ', 'ɾ', 'ɾʲ'), 'f': ('f', 'fʲ'), 'h': ('h', 'ʔ'), 'i': ('i', 'iː'), 'l': ('l', 'ɫ', 'ɫ̩', 'ʎ'), 'm': ('m', 'mʲ', 'm̩', 'ɱ'), 'n': ('n', 'n̩', 'ɾ̃'), 'p': ('p', 'pʰ', 'pʲ', 'pʷ'), 'v': ('v', 'vʲ'), 'θ': ('ç', 'θ'), 'ŋ': ('ŋ', 'ɲ'), 'ə': ('ɐ', 'ə'), 'ɑ': ('ɑ', 'ɑː'), 'ɔ': ('ɒ', 'ɒː'), 'ɡ': ('ɟ', 'ɡ', 'ɡʷ'), 'ʊ': ('ʉ', 'ʉː', 'ʊ')}
+comparison = ipakit.phoneset_comparison("cmudict", "timit")
 ```
 
-The MFA-to-ARPAbet report shows the aspirated and plain dorsal stops collapsing onto `K`, the plain and aspirated or articulated coronals collapsing onto `T`, MFA `ɾ` and `ɾʲ` joining `d` at `D`, and `ʔ` joining `h` at `HH`; in the other direction PocketSphinx `UW` joins `ʊ`, while `AY` maps to MFA `aj` rather than being an exact spelling match.
+The [generated inventory reports](inventories.md#generated-comparison-reports)
+show the canonical pairwise and N-way result documents. The inventory-card
+generator rebuilds those examples from the report object and checks their bytes,
+so this page does not keep a second copy of their result rows.
 
 The phone metric is symmetric but nearest mapping is directional, so both mappings are reported; `matrix` has A rows and B columns, and the B-by-A matrix is its transpose.
 
@@ -703,10 +700,10 @@ Nearest mapping always finds a least-bad target when the target is nonempty. Tha
 Every distance-produced correspondence is explicitly labeled `nearest` in JSON, and text calls its many-to-one groups “nearest collapses.” A derivational label such as `derived` or `ambiguous` requires an explicit relationship or rule set. For example, an MFA English tap may be phonetically nearest to CMU `DH`, while English flapping derives taps from /t/ or /d/ and is not uniquely invertible. The comparison does not guess the missing phonemic history.
 
 ```sh
-ipakit distance compare pocketsphinx mfa:english_us --coverage-at 0.01 --coverage-at 0.05
+ipakit distance compare cmudict timit --coverage-at 0.01 --coverage-at 0.05
 ```
 
-Use `-f tsv` for only the matrix or `-f json` for the complete structured result; `--strip stress|prosodic|none` selects the same projection and defaults to `stress`, `--from-style` and `--to-style` describe files, and the name-or-file collision rule is the same as `distance map`.
+Use `-f tsv` for the matrix followed by typed report records, or `-f json` for the complete structured result; `--strip stress|prosodic|none` selects the same projection and defaults to `stress`, `--from-style` and `--to-style` describe files, and the name-or-file collision rule is the same as `distance map`.
 
 An entry a selected style cannot read is reported on its source or target side and makes `distance map` exit 3; it is never presented as a valid spelling or used as a target.
 
