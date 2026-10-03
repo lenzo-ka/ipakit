@@ -2150,6 +2150,11 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         bag that has prosody taken out of it, and ``['-normal']`` answered
         one phone here while the same term matched every unit in a rule.
         """
+        if isinstance(query, str) and query.lstrip().startswith("on("):
+            raise ValueError(
+                "inventory queries are predicates over a set; sequence patterns "
+                "require a Form"
+            )
         segmental, prosodic = self._query_constraints(query)
         return [
             symbol

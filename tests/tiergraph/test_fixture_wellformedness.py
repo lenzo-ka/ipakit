@@ -6,10 +6,19 @@ from pathlib import Path
 from typing import Any
 
 FIXTURES = Path(__file__).with_name("fixtures")
+BASELINES = Path(__file__).with_name("baselines")
 POINTER = re.compile(
     r"^/clock/(?P<tick>0|[1-9][0-9]*)(?:/gaps/(?P<gap>0|[1-9][0-9]*))?(?:/.*)?$"
 )
 VERDICTS = {"valid", "rejected-with-reason", "canonical-form"}
+AUTHENTICATED_CAPTURES = {
+    "captures/confusion-derived.json",
+    "captures/shipped-rules.json",
+    "captures/sweep-after-perturbation.json",
+    "captures/sweep-before-perturbation.json",
+    "captures/sweep-current.json",
+    "captures/sweep-roundtrips.json",
+}
 
 
 def _load(name: str) -> dict[str, Any]:
@@ -42,6 +51,16 @@ def test_index_names_every_fixture_once() -> None:
         "hot_bridge_projection.json",
         "clts_core_bipa_profile.json",
     }
+
+
+def test_manifest_retains_every_large_capture_authentication_entry() -> None:
+    entries = {
+        line.split(maxsplit=1)[1]
+        for line in (BASELINES / "MANIFEST.sha256")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    }
+    assert AUTHENTICATED_CAPTURES <= entries
 
 
 def test_every_case_has_a_known_expected_verdict() -> None:

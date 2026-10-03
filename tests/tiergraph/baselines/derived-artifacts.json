@@ -101,14 +101,14 @@
       "sha256": "39876a1a0449647e7352a710b5cc6cb13be7b3067b39b712ae334f3641435dce"
     },
     {
-      "bytes": 42960,
+      "bytes": 89107,
       "path": "docs/figures/perhaps-i-am-a-bad-man.dot",
-      "sha256": "39e97ae78cbad9886153958487d61c08c7676543ea4e5056c5a627cc288925d2"
+      "sha256": "99cf317bc8e6e3659b5c47a4220b4dc057558eb2f81111c3e41456a296c8ba8e"
     },
     {
-      "bytes": 120777,
+      "bytes": 263227,
       "path": "docs/figures/derived-from-boundaries.dot",
-      "sha256": "335f88a17d590872bf374fabdee74fdc947251513de647e446ec03d6c1e72a66"
+      "sha256": "6e1523ffeea79356053233a55c7c00eff49eb1b3d705035a358305c983e6ebfb"
     }
   ],
   "format": 1,

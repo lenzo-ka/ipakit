@@ -194,6 +194,21 @@ def test_ingest_cmudict_reports_refusal_and_default_cited_query(tmp_path: Path):
     assert derived.stdout.endswith("\n")
 
 
+def test_corpus_query_preserves_on_selector_during_wild_normalization(tmp_path: Path):
+    location = tmp_path / "speech"
+    assert invoke("corpus", "init", location).returncode == 0
+    assert (
+        invoke(
+            "corpus", "add", "one", "kæt", "--role", "cited", "-C", location
+        ).returncode
+        == 0
+    )
+    result = invoke("corpus", "query", "on(tier:segment): k", "-C", location)
+    assert result.returncode == 0
+    assert result.stderr == "query read as: on(tier:segment): k\n"
+    assert result.stdout.startswith("one\tcited\t")
+
+
 def test_rules_derives_writes_full_report_and_prints_summary(tmp_path: Path):
     location = tmp_path / "speech"
     report = tmp_path / "report.json"

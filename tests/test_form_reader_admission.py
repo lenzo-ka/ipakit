@@ -112,7 +112,7 @@ def test_declared_value_on_a_tier_with_a_house_unit_still_restores() -> None:
     assert restored.at("/clock/0/token/0").features["fact"] == {"source": "retained"}
 
 
-def test_repository_form_baselines_fixtures_and_goldens_read_unchanged() -> None:
+def test_repository_form_baselines_upgrade_or_round_trip_deterministically() -> None:
     coordinates = ROOT / "tests/tiergraph/baselines/coordinates.json"
     captured = json.loads(coordinates.read_text(encoding="utf-8"))
     documents = [
@@ -131,4 +131,16 @@ def test_repository_form_baselines_fixtures_and_goldens_read_unchanged() -> None
         "hot_bridge_projection.json",
     ]
     for name, document in documents:
-        assert ipakit.read_json(document).to_dict() == json.loads(document), name
+        before = json.loads(document)
+        restored = ipakit.read_json(document)
+        emitted = restored.to_dict()
+        assert ipakit.Form.from_dict(emitted).to_dict() == emitted, name
+        namespaces = {row["namespace"] for row in before["graph"].get("namespaces", ())}
+        if "urn:ipakit:form:matching" in namespaces:
+            assert emitted == before, name
+        else:
+            assert emitted != before, name
+            assert any(
+                row["namespace"] == "urn:ipakit:form:matching"
+                for row in emitted["graph"]["namespaces"]
+            ), name

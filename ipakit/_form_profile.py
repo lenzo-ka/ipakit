@@ -511,7 +511,12 @@ def _attribute_fact(
 
 
 def construct(
-    source: ContainmentProjectionInput, inventory: Any, spelling: str | None
+    source: ContainmentProjectionInput,
+    inventory: Any,
+    spelling: str | None,
+    *,
+    _profile_version: int | None = 2,
+    _matching: bool = True,
 ) -> tg.Graph:
     """Extend the native core with one JSON profile and explicit native roles."""
     from .form import Unit
@@ -737,9 +742,16 @@ def construct(
             for r in source.relations
         ],
     }
+    if _profile_version is not None:
+        metadata["version"] = _profile_version
     editor = graph.edit()
     editor.set_attribute(tg.ItemRef(POINT, 0), tg.JsonAttributeValue(PROFILE, metadata))
-    return editor.freeze()
+    graph = editor.freeze()
+    if not _matching:
+        return graph
+    from ._cross_tier import augment_graph
+
+    return augment_graph(graph, source, inventory, spelling)
 
 
 def restore(
@@ -808,13 +820,17 @@ def restore(
         "codecs",
         "endpoint-kinds",
     }
+    actual_keys = set(raw_metadata) if isinstance(raw_metadata, dict) else set()
     if (
         not isinstance(raw_metadata, dict)
-        or set(raw_metadata) != expected_keys
+        or actual_keys not in (expected_keys, expected_keys | {"version"})
         or raw_metadata["profile"] != "ipakit-form"
     ):
         raise ValueError("malformed current Form profile metadata")
     metadata = cast(dict[str, Any], raw_metadata)
+    legacy_profile = "version" not in metadata
+    if not legacy_profile and metadata["version"] != 2:
+        raise ValueError("unsupported Form profile version")
     if metadata["inventory"] != provider_identity(inventory):
         raise ValueError("Form restoring inventory declaration identity mismatch")
     spelling = metadata["spelling"]
@@ -1170,7 +1186,13 @@ def restore(
     )
     if tuple(refs) != source.refs:
         raise ValueError("Form source-events targets are outside codebook order")
-    expected_graph = construct(source, inventory, spelling)
+    expected_graph = construct(
+        source,
+        inventory,
+        spelling,
+        _profile_version=None if legacy_profile else 2,
+        _matching=not legacy_profile,
+    )
     if tg.to_data(expected_graph) != tg.to_data(graph):
         raise ValueError("native graph is outside the current Form constructor profile")
     return source, spelling
