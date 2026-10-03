@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Form queries select tiers and features with `on(...)` and expose exact input/output ranges.
+- Form graphs carry one declared parse-order chain for TierGraph matching.
 - Generated inventory documentation includes canonical pairwise and N-way report examples with named coverage denominators.
 - `inventory compare` aliases the report-owned `distance compare`; comparison surfaces also support Markdown.
 - Experimental inventory views retain bridge loss, PHOIBLE refusal, and reviewed CLTS mapping authority.
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `distance compare` and `distance map` JSON now use the versioned inventory comparison report, retaining provenance and refusals across JSON, text, TSV, and Markdown. Text adds report identity and detailed input rows while retaining the established native-notation, mapping-total, worst-case, asymmetry, and stripping lines.
 - `compare_inventories.py` renders its TSV and SVG from the common report and preserves report order instead of independently reclustering phones.
+- Requires tiergraph 0.6.0 or later.
 
 ## [0.5.0] - 2026-10-01
 

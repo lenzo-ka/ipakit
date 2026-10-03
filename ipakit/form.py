@@ -2250,7 +2250,7 @@ class Form:
         from tiergraph import wire
 
         from ._containment_projection import ContainmentProjection
-        from ._form_profile import restore
+        from ._form_profile import construct, restore
 
         graph = wire.loads(data)
         inventory = _default(features)
@@ -2265,6 +2265,10 @@ class Form:
                 return source_form
         try:
             source, spelling = restore(graph, inventory)
+            from ._cross_tier import POSITION
+
+            if not any(tier.declaration.name == POSITION for tier in graph.tiers):
+                graph = construct(source, inventory, spelling)
             declared_features = {
                 declaration.name
                 for declaration in source.declarations.features

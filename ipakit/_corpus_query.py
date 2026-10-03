@@ -13,6 +13,11 @@ from dataclasses import dataclass, field
 
 from . import rules
 from ._corpus import Corpus
+from ._cross_tier import (
+    CrossTierQuery,
+    match_payloads,
+    result_ranges,
+)
 from .features import IPAFeatures
 from .form import Form, _default
 from .models import Phoneset
@@ -41,6 +46,9 @@ DerivationAnswer = Derivation | ExhaustiveRefusal | BudgetRefusal
 
 def _normalize_wild_query(spec: str, inventory: IPAFeatures) -> str:
     """Import IPA spellings without rewriting feature-group vocabulary."""
+    selected = re.match(r"(\s*on\([^)]*\)\s*:)(.*)\Z", spec, re.DOTALL)
+    if selected is not None:
+        return selected.group(1) + _normalize_wild_query(selected.group(2), inventory)
     out: list[str] = []
     buffer = ""
     depth = 0
@@ -193,9 +201,13 @@ def parse_query(
     features: IPAFeatures | None = None,
     *,
     wild: bool = False,
-) -> Query:
+) -> Query | CrossTierQuery:
     """Parse arrowless rule notation into the rewrite engine's query object."""
     try:
+        if spec.lstrip().startswith("on("):
+            if wild:
+                raise rules.RuleError("wild normalization is unavailable with on(...)")
+            return CrossTierQuery.parse(spec, _default(features))
         return _parse_query(spec, features, wild=wild)
     except QueryParseError:
         raise
@@ -215,6 +227,10 @@ def query_rule(
     compiled = (
         parse_query(spec, inventory, wild=wild) if isinstance(spec, str) else spec
     )
+    if isinstance(compiled, CrossTierQuery):
+        raise rules.RuleError(
+            "cross-tier structural positions may constrain matches but cannot be edited"
+        )
     target = compiled.target.source if compiled.target is not None else "∅"
     if compiled.left or compiled.right:
         left = " ".join(pattern.source for pattern in reversed(compiled.left))
@@ -234,10 +250,19 @@ class Match:
     text: str
     bindings: tuple[tuple[str, str], ...] = ()
     _preceding_text: tuple[str, ...] = field(default=(), repr=False, compare=False)
+    input_ranges: tuple[tuple[int, int], ...] = field(
+        default=(), repr=False, compare=False
+    )
+    output_ranges: tuple[tuple[int, int], ...] = field(
+        default=(), repr=False, compare=False
+    )
+    _legacy_offset: int | None = field(default=None, repr=False, compare=False)
 
     @property
     def offset(self) -> int:
         """Codepoint offset in the form's string representation."""
+        if self._legacy_offset is not None:
+            return self._legacy_offset
         return sum(len(text) for text in self._preceding_text)
 
 
@@ -264,6 +289,14 @@ class CorpusMatch:
     @property
     def offset(self) -> int:
         return self.match.offset
+
+    @property
+    def input_ranges(self) -> tuple[tuple[int, int], ...]:
+        return self.match.input_ranges
+
+    @property
+    def output_ranges(self) -> tuple[tuple[int, int], ...]:
+        return self.match.output_ranges
 
 
 def _check_query_variables(source: str, patterns: Sequence[rules.Pattern]) -> None:
@@ -297,9 +330,52 @@ def _unit_paths(form: Form) -> dict[int, str]:
     }
 
 
+def _legacy_unit_ranges(form: Form) -> tuple[tuple[int, int], ...]:
+    """Locate legacy unit spellings without changing unit-index offsets."""
+    exact = form.to_ipa("exact")
+    cursor = 0
+    ranges = []
+    for unit in form.units:
+        token = unit.spelling if unit.spelling is not None else unit.text
+        start = exact.find(token, cursor)
+        if start < 0:
+            start = cursor
+        end = start + len(token)
+        ranges.append((start, end))
+        cursor = end
+    return tuple(ranges)
+
+
+def _find_cross_tier(form: Form, query: CrossTierQuery) -> Iterator[Match]:
+    spelling = form.to_ipa("exact")
+    seen: set[tuple[tuple[str, ...], tuple[tuple[int, int], ...]]] = set()
+    for payloads in match_payloads(form, query):
+        input_ranges = result_ranges(payloads, "input-ranges")
+        output_ranges = result_ranges(payloads, "output-ranges")
+        paths = tuple(
+            dict.fromkeys(path for payload in payloads for path in payload["paths"])
+        )
+        indices = [index for payload in payloads for index in payload["unit-indices"]]
+        offset = sum(len(unit.text) for unit in form.units[: min(indices, default=0)])
+        text = "".join(spelling[start:end] for start, end in output_ranges)
+        key = (paths, output_ranges)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield Match(
+            paths,
+            text,
+            (),
+            (),
+            input_ranges,
+            output_ranges,
+            offset,
+        )
+
+
 def find(
     form: str | Form,
-    spec: str | Query,
+    spec: str | Query | CrossTierQuery,
     *,
     features: IPAFeatures | None = None,
     wild: bool = False,
@@ -310,7 +386,11 @@ def find(
     compiled = (
         parse_query(spec, inventory, wild=wild) if isinstance(spec, str) else spec
     )
+    if isinstance(compiled, CrossTierQuery):
+        yield from _find_cross_tier(parsed, compiled)
+        return
     paths = _unit_paths(parsed)
+    unit_ranges = _legacy_unit_ranges(parsed)
     seen: set[tuple[tuple[str, ...], str, tuple[tuple[str, str], ...]]] = set()
     for site in compiled.sites(parsed.units, inventory, parsed.intervals):
         span_paths = tuple(paths[index] for index in range(site.start, site.end))
@@ -319,6 +399,20 @@ def find(
             "".join(unit.text for unit in parsed.units[site.start : site.end]),
             site.bindings,
             tuple(unit.text for unit in parsed.units[: site.start]),
+            result_ranges(
+                (
+                    {"input-ranges": (unit_ranges[index],)}
+                    for index in range(site.start, site.end)
+                ),
+                "input-ranges",
+            ),
+            result_ranges(
+                (
+                    {"output-ranges": (unit_ranges[index],)}
+                    for index in range(site.start, site.end)
+                ),
+                "output-ranges",
+            ),
         )
         key = (match.paths, match.text, match.bindings)
         if key not in seen:

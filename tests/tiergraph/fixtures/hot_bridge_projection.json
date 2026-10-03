@@ -216,6 +216,11 @@
         "domain": "tier",
         "name": "form:tier-role",
         "value_type": "string"
+      },
+      {
+        "domain": "item",
+        "name": "form-match:payload",
+        "value_type": "json"
       }
     ],
     "namespaces": [
@@ -226,6 +231,10 @@
       {
         "namespace": "urn:ipakit:form",
         "prefix": "form"
+      },
+      {
+        "namespace": "urn:ipakit:form:matching",
+        "prefix": "form-match"
       }
     ],
     "position_values": [
@@ -803,6 +812,66 @@
           ]
         },
         "unique_sources": true
+      },
+      {
+        "acyclic": false,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "form-match:associates-with",
+        "single_parent": false,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1,
+          "tiers": [
+            "form-match:position"
+          ]
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1,
+          "tiers": [
+            "form-match:position"
+          ]
+        },
+        "unique_sources": true
+      },
+      {
+        "acyclic": true,
+        "distinct_targets": false,
+        "kind": "polyadic",
+        "name": "form-match:linear-next",
+        "single_parent": true,
+        "sources": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1,
+          "tiers": [
+            "form-match:position"
+          ]
+        },
+        "targets": {
+          "allow_empty": false,
+          "endpoint_kinds": [
+            "item"
+          ],
+          "maximum": 1,
+          "minimum": 1,
+          "tiers": [
+            "form-match:position"
+          ]
+        },
+        "unique_sources": true
       }
     ],
     "relations": [
@@ -1178,6 +1247,66 @@
           {
             "index": 6,
             "tier": "ipakit-containment:tier-2"
+          }
+        ]
+      },
+      {
+        "declaration": "form-match:linear-next",
+        "sources": [
+          {
+            "index": 0,
+            "tier": "form-match:position"
+          }
+        ],
+        "targets": [
+          {
+            "index": 1,
+            "tier": "form-match:position"
+          }
+        ]
+      },
+      {
+        "declaration": "form-match:linear-next",
+        "sources": [
+          {
+            "index": 1,
+            "tier": "form-match:position"
+          }
+        ],
+        "targets": [
+          {
+            "index": 2,
+            "tier": "form-match:position"
+          }
+        ]
+      },
+      {
+        "declaration": "form-match:linear-next",
+        "sources": [
+          {
+            "index": 2,
+            "tier": "form-match:position"
+          }
+        ],
+        "targets": [
+          {
+            "index": 3,
+            "tier": "form-match:position"
+          }
+        ]
+      },
+      {
+        "declaration": "form-match:linear-next",
+        "sources": [
+          {
+            "index": 3,
+            "tier": "form-match:position"
+          }
+        ],
+        "targets": [
+          {
+            "index": 4,
+            "tier": "form-match:position"
           }
         ]
       }
@@ -2918,11 +3047,378 @@
                       ]
                     ]
                   },
-                  "spelling": "hotːo"
+                  "spelling": "hotːo",
+                  "version": 2
                 },
                 "value_type": "json"
               }
             ]
+          }
+        ]
+      },
+      {
+        "declaration": {
+          "long_name": "Form logical match positions",
+          "name": "form-match:position"
+        },
+        "items": [
+          {
+            "attributes": [
+              {
+                "name": "form-match:payload",
+                "value": {
+                  "cells": {
+                    "level": "word"
+                  },
+                  "features": {
+                    "level": "word"
+                  },
+                  "input-ranges": [
+                    [
+                      0,
+                      0
+                    ]
+                  ],
+                  "kind": "boundary",
+                  "levels": [
+                    "syllable",
+                    "word",
+                    "phrase",
+                    "utterance"
+                  ],
+                  "marks": [],
+                  "output-ranges": [
+                    [
+                      0,
+                      0
+                    ]
+                  ],
+                  "paths": [],
+                  "routes": {},
+                  "selectors": {
+                    "internal:outer-edge": true,
+                    "unit": true
+                  },
+                  "text": "",
+                  "unit-indices": []
+                },
+                "value_type": "json"
+              }
+            ],
+            "durable_id": "/matching/position/0"
+          },
+          {
+            "attributes": [
+              {
+                "name": "form-match:payload",
+                "value": {
+                  "cells": {
+                    "airstream": "pulmonic",
+                    "centralized": "-",
+                    "channel": "flat",
+                    "class": "phone",
+                    "fortis": "-",
+                    "fronting": "0",
+                    "height-mod": "0",
+                    "href": "Voiceless_glottal_fricative",
+                    "labialized": "-",
+                    "labio-palatized": "-",
+                    "manner": "fricative",
+                    "mid-centralized": "-",
+                    "nasalized": "-",
+                    "palatalized": "-",
+                    "pharyngealized": "-",
+                    "place": "glottal",
+                    "retroflex": "-",
+                    "rhotacized": "-",
+                    "rounded": "-",
+                    "syllabic": "-",
+                    "tongue-root": "0",
+                    "velarized": "-",
+                    "voiced": "-"
+                  },
+                  "core": "h",
+                  "features": {
+                    "airstream": "pulmonic",
+                    "centralized": "-",
+                    "channel": "flat",
+                    "class": "phone",
+                    "fortis": "-",
+                    "fronting": "0",
+                    "height-mod": "0",
+                    "href": "Voiceless_glottal_fricative",
+                    "labialized": "-",
+                    "labio-palatized": "-",
+                    "manner": "fricative",
+                    "mid-centralized": "-",
+                    "nasalized": "-",
+                    "palatalized": "-",
+                    "pharyngealized": "-",
+                    "place": "glottal",
+                    "retroflex": "-",
+                    "rhotacized": "-",
+                    "rounded": "-",
+                    "syllabic": "-",
+                    "tongue-root": "0",
+                    "velarized": "-",
+                    "voiced": "-"
+                  },
+                  "input-ranges": [
+                    [
+                      0,
+                      1
+                    ]
+                  ],
+                  "kind": "segment",
+                  "output-ranges": [
+                    [
+                      0,
+                      1
+                    ]
+                  ],
+                  "paths": [
+                    "/clock/0/broad/0"
+                  ],
+                  "prosody": {},
+                  "routes": {},
+                  "selectors": {
+                    "tier:segment": true,
+                    "unit": true
+                  },
+                  "text": "h",
+                  "unit-indices": [
+                    0
+                  ]
+                },
+                "value_type": "json"
+              }
+            ],
+            "durable_id": "/matching/position/1"
+          },
+          {
+            "attributes": [
+              {
+                "name": "form-match:payload",
+                "value": {
+                  "cells": {
+                    "airstream": "pulmonic",
+                    "backness": "back",
+                    "centralized": "-",
+                    "channel": "flat",
+                    "class": "phone",
+                    "constriction-location": "pharyngeal",
+                    "fortis": "-",
+                    "fronting": "0",
+                    "height": "open",
+                    "height-mod": "0",
+                    "href": "Open_back_unrounded_vowel",
+                    "labialized": "-",
+                    "labio-palatized": "-",
+                    "manner": "vowel",
+                    "mid-centralized": "-",
+                    "nasalized": "-",
+                    "palatalized": "-",
+                    "pharyngealized": "-",
+                    "retroflex": "-",
+                    "rhotacized": "-",
+                    "rounded": "-",
+                    "syllabic": "-",
+                    "tongue-root": "0",
+                    "velarized": "-",
+                    "voiced": "+"
+                  },
+                  "core": "ɑ",
+                  "features": {
+                    "airstream": "pulmonic",
+                    "backness": "back",
+                    "centralized": "-",
+                    "channel": "flat",
+                    "class": "phone",
+                    "constriction-location": "pharyngeal",
+                    "fortis": "-",
+                    "fronting": "0",
+                    "height": "open",
+                    "height-mod": "0",
+                    "href": "Open_back_unrounded_vowel",
+                    "labialized": "-",
+                    "labio-palatized": "-",
+                    "manner": "vowel",
+                    "mid-centralized": "-",
+                    "nasalized": "-",
+                    "palatalized": "-",
+                    "pharyngealized": "-",
+                    "retroflex": "-",
+                    "rhotacized": "-",
+                    "rounded": "-",
+                    "syllabic": "-",
+                    "tongue-root": "0",
+                    "velarized": "-",
+                    "voiced": "+"
+                  },
+                  "input-ranges": [
+                    [
+                      1,
+                      2
+                    ]
+                  ],
+                  "kind": "segment",
+                  "output-ranges": [
+                    [
+                      1,
+                      2
+                    ]
+                  ],
+                  "paths": [
+                    "/clock/1/broad/0"
+                  ],
+                  "prosody": {},
+                  "routes": {},
+                  "selectors": {
+                    "tier:segment": true,
+                    "unit": true
+                  },
+                  "text": "ɑ",
+                  "unit-indices": [
+                    1
+                  ]
+                },
+                "value_type": "json"
+              }
+            ],
+            "durable_id": "/matching/position/2"
+          },
+          {
+            "attributes": [
+              {
+                "name": "form-match:payload",
+                "value": {
+                  "cells": {
+                    "airstream": "pulmonic",
+                    "centralized": "-",
+                    "channel": "flat",
+                    "class": "phone",
+                    "fortis": "-",
+                    "fronting": "0",
+                    "height-mod": "0",
+                    "href": "Voiceless_alveolar_plosive",
+                    "labialized": "-",
+                    "labio-palatized": "-",
+                    "manner": "plosive",
+                    "mid-centralized": "-",
+                    "nasalized": "-",
+                    "palatalized": "-",
+                    "pharyngealized": "-",
+                    "place": "alveolar",
+                    "retroflex": "-",
+                    "rhotacized": "-",
+                    "rounded": "-",
+                    "syllabic": "-",
+                    "tongue-root": "0",
+                    "velarized": "-",
+                    "voiced": "-"
+                  },
+                  "core": "t",
+                  "features": {
+                    "airstream": "pulmonic",
+                    "centralized": "-",
+                    "channel": "flat",
+                    "class": "phone",
+                    "fortis": "-",
+                    "fronting": "0",
+                    "height-mod": "0",
+                    "href": "Voiceless_alveolar_plosive",
+                    "labialized": "-",
+                    "labio-palatized": "-",
+                    "manner": "plosive",
+                    "mid-centralized": "-",
+                    "nasalized": "-",
+                    "palatalized": "-",
+                    "pharyngealized": "-",
+                    "place": "alveolar",
+                    "retroflex": "-",
+                    "rhotacized": "-",
+                    "rounded": "-",
+                    "syllabic": "-",
+                    "tongue-root": "0",
+                    "velarized": "-",
+                    "voiced": "-"
+                  },
+                  "input-ranges": [
+                    [
+                      2,
+                      3
+                    ]
+                  ],
+                  "kind": "segment",
+                  "output-ranges": [
+                    [
+                      2,
+                      3
+                    ]
+                  ],
+                  "paths": [
+                    "/clock/2/broad/0"
+                  ],
+                  "prosody": {},
+                  "routes": {},
+                  "selectors": {
+                    "tier:segment": true,
+                    "unit": true
+                  },
+                  "text": "t",
+                  "unit-indices": [
+                    2
+                  ]
+                },
+                "value_type": "json"
+              }
+            ],
+            "durable_id": "/matching/position/3"
+          },
+          {
+            "attributes": [
+              {
+                "name": "form-match:payload",
+                "value": {
+                  "cells": {
+                    "level": "word"
+                  },
+                  "features": {
+                    "level": "word"
+                  },
+                  "input-ranges": [
+                    [
+                      5,
+                      5
+                    ]
+                  ],
+                  "kind": "boundary",
+                  "levels": [
+                    "syllable",
+                    "word",
+                    "phrase",
+                    "utterance"
+                  ],
+                  "marks": [],
+                  "output-ranges": [
+                    [
+                      5,
+                      5
+                    ]
+                  ],
+                  "paths": [],
+                  "routes": {},
+                  "selectors": {
+                    "internal:outer-edge": true,
+                    "unit": true
+                  },
+                  "text": "",
+                  "unit-indices": []
+                },
+                "value_type": "json"
+              }
+            ],
+            "durable_id": "/matching/position/4"
           }
         ]
       }

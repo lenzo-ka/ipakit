@@ -230,6 +230,10 @@ class _NativeContainment:
         for declaration in graph.relation_declarations:
             if not isinstance(declaration, tiergraph.PolyadicRelationDeclaration):
                 continue
+            if declaration.name == tiergraph.QualifiedName(
+                "urn:ipakit:form:matching", "linear-next"
+            ):
+                continue
             try:
                 traversal = tiergraph.OrderedContainment(graph, declaration.name)
             except ValueError:

@@ -61,7 +61,7 @@
       "classification": "preserves",
       "evidence": {
         "file": "ipakit/features.py",
-        "line": 3713,
+        "line": 3717,
         "note": "returns an input Form unchanged before any string parsing"
       }
     },
@@ -69,7 +69,7 @@
       "classification": "preserves",
       "evidence": {
         "file": "ipakit/features.py",
-        "line": 3757,
+        "line": 3762,
         "note": "delegates to Form.from_json and its profile-scoped restoration"
       }
     },
@@ -125,7 +125,7 @@
       "classification": "refuses",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2559,
+        "line": 2563,
         "note": "refuses a source-profile Form before rebuilding it from projected units and intervals"
       }
     },
@@ -133,7 +133,7 @@
       "classification": "refuses",
       "evidence": {
         "file": "ipakit/form.py",
-        "line": 2661,
+        "line": 2665,
         "note": "refuses a source-profile Form before constructing from filtered house units"
       }
     },

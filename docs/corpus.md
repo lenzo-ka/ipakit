@@ -29,6 +29,34 @@ not exact-spelling equivalents: for example, `a{stress=primary}` also matches
 `ˈã`, while the literal `ˈa` does not. `n{place=α}` additionally exposes the
 captured place value in `Match.bindings`.
 
+Prefix a pattern with `on(...)` to run it over the Form's declared parse
+order restricted to selected tiers or feature positions:
+
+```text
+on(tier:segment,feature:break): [vowel] [break=minor] [consonant]
+on(feature:tone): [tone=top]
+on(tier:segment): [vowel]{@feature:tone{tone=top}} [consonant]
+```
+
+`tier:name` and `feature:name` are separate namespaces. A bare name is allowed
+only when exactly one namespace declares it; a collision is refused until it
+is qualified. Selector order never reorders positions. `on(unit)` selects the
+legacy segment, zero, and logical boundary positions.
+
+Inside an `on(...)` postfix brace, `|`, `&`, and `!` form boolean
+predicates, while `tone=top|bottom` remains one equality value list.
+Unquoted `none` means a missing cell, quoted `"none"` is a literal value,
+`""` is the empty string, and `∅` is false (`!∅` is true). A routed atom
+such as `@tier:syllable{@feature:stress{stress=primary}}` follows a declared
+cross-tier route; an undeclared route is false rather than an empty tier.
+
+Cross-tier `Match.input_ranges` and `Match.output_ranges` are ordered,
+coalesced half-open code-point ranges. Projected tiers may therefore return
+more than one range, as segments on either side of an omitted break do.
+Legacy queries retain their established `text`, `paths`, `bindings`, and
+`offset`; in particular, `offset` still counts preceding unit text rather
+than being recomputed from an exact-spelling output range.
+
 ```python
 import ipakit
 

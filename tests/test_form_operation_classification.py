@@ -220,8 +220,8 @@ def test_fault_injection_zipa_reader_omission_is_named() -> None:
 
 
 def test_evidence_location_rejects_a_docstring_line() -> None:
-    assert not _evidence_lands_on_code(ROOT / "ipakit/form.py", 2552)
-    assert _evidence_lands_on_code(ROOT / "ipakit/form.py", 2559)
+    assert not _evidence_lands_on_code(ROOT / "ipakit/form.py", 2554)
+    assert _evidence_lands_on_code(ROOT / "ipakit/form.py", 2563)
 
 
 def test_evidence_location_rejects_code_from_another_operation() -> None:
