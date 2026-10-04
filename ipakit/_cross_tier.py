@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cached_property
 from itertools import pairwise
 from typing import Any, cast
@@ -249,7 +249,9 @@ class CrossTierQuery:
         selected = compiled.focus(graph, order)
         return frozenset(selected.nodes)
 
-    def _execution(self, form: Form) -> tuple[tg.Graph, CompiledPattern, DeclaredOrder]:
+    def _execution(
+        self, form: Form
+    ) -> tuple[tg.Graph, _ScopedCompiledPattern, DeclaredOrder]:
         graph = _matching_graph(form)
         cache = form.__dict__.setdefault("_cross_tier_orders", {})
         held = cache.get(self.selectors)
@@ -275,10 +277,22 @@ class CrossTierQuery:
 
 
 class _ScopedCompiledPattern(CompiledPattern):
-    """Run a compiled pattern with one already validated declared scope."""
+    """Run a compiled pattern with one validated scope and predicate table."""
 
-    __slots__ = ("_scope",)
+    __slots__ = (
+        "_scope",
+        "_focus_count",
+        "_prepared",
+        "_prepared_graph",
+        "_prepared_operation",
+        "_prepared_ordering",
+    )
     _scope: Any
+    _focus_count: int
+    _prepared: Any
+    _prepared_graph: Any
+    _prepared_operation: Any
+    _prepared_ordering: Any
 
     def __init__(self, compiled: CompiledPattern, scope: Any) -> None:
         super().__init__(
@@ -290,9 +304,45 @@ class _ScopedCompiledPattern(CompiledPattern):
             compiled.predicates,
         )
         object.__setattr__(self, "_scope", scope)
+        object.__setattr__(
+            self, "_focus_count", tiergraph_match._focus_count(compiled.pattern)
+        )
+        object.__setattr__(self, "_prepared", None)
+        object.__setattr__(self, "_prepared_graph", None)
+        object.__setattr__(self, "_prepared_operation", None)
+        object.__setattr__(self, "_prepared_ordering", None)
+
+    @property
+    def focus_count(self) -> int:
+        return self._focus_count
 
     def _scopes(self, graph: tg.Graph, ordering: Any) -> tuple[Any, ...]:
         return (self._scope,)
+
+    def _prepare(
+        self,
+        graph: tg.Graph,
+        ordering: Any,
+        operation: Any,
+        *,
+        limit: int | None = None,
+    ) -> Any:
+        prepared = self._prepared
+        if (
+            prepared is not None
+            and self._prepared_graph is graph
+            and self._prepared_ordering is ordering
+            and self._prepared_operation is tiergraph_match._PatternOperation.SPANS
+            and operation is tiergraph_match._PatternOperation.FOCUS
+            and self._focus_count == 1
+        ):
+            return prepared
+        prepared = super()._prepare(graph, ordering, operation, limit=limit)
+        object.__setattr__(self, "_prepared", prepared)
+        object.__setattr__(self, "_prepared_graph", graph)
+        object.__setattr__(self, "_prepared_operation", operation)
+        object.__setattr__(self, "_prepared_ordering", ordering)
+        return prepared
 
 
 def payload_for(graph: tg.Graph, reference: tg.ItemRef) -> dict[str, Any]:
@@ -313,9 +363,12 @@ def payload_for(graph: tg.Graph, reference: tg.ItemRef) -> dict[str, Any]:
 def _match_payloads_uncached(
     form: Form, query: CrossTierQuery
 ) -> Iterator[tuple[dict[str, Any], ...]]:
-    graph = _matching_graph(form)
-    focused = query.focused(form)
-    for span in query.spans(form):
+    graph, compiled, order = query._execution(form)
+    if compiled.focus_count == 0:
+        compiled.focus(graph, order)
+    spans = cast(tuple[Any, ...], compiled.spans(graph, order).matches)
+    focused = frozenset(compiled.focus(graph, order).nodes)
+    for span in spans:
         yield tuple(
             payload_for(graph, cast(tg.ItemRef, node.reference))
             for node in span.items
@@ -865,63 +918,71 @@ def augment_graph(
         _unit_views(graph, source, indexed, inventory),
         spelling,
     )
-    editor = graph.edit()
-    editor.declare(tg.NamespaceDeclaration("form-match", NS))
-    editor.declare(tg.TierDeclaration(POSITION, "Form logical match positions"))
-    editor.declare(
-        tg.AttributeDeclaration(PAYLOAD, tg.AttributeDomain.ITEM, tg.JsonType.JSON)
+    namespace = tg.NamespaceDeclaration("form-match", NS)
+    position = tg.TierDeclaration(POSITION, "Form logical match positions")
+    payload_declaration = tg.AttributeDeclaration(
+        PAYLOAD, tg.AttributeDomain.ITEM, tg.JsonType.JSON
     )
     side = tg.RelationSideDeclaration(
         (tg.RelationEndpointKind.ITEM,), (POSITION,), 1, 1
     )
-    editor.declare(
-        tg.PolyadicRelationDeclaration(
-            LINEAR_NEXT,
-            side,
-            side,
-            unique_sources=True,
-            single_parent=True,
-            acyclic=True,
-        )
+    linear_next = tg.PolyadicRelationDeclaration(
+        LINEAR_NEXT,
+        side,
+        side,
+        unique_sources=True,
+        single_parent=True,
+        acyclic=True,
     )
-    editor.declare(
-        tg.PolyadicRelationDeclaration(
-            ASSOCIATES_WITH,
-            side,
-            side,
-            unique_sources=True,
-        )
+    associates_with = tg.PolyadicRelationDeclaration(
+        ASSOCIATES_WITH,
+        side,
+        side,
+        unique_sources=True,
     )
-    for index, payload in enumerate(payloads):
-        item = tg.Item(
+    items = tuple(
+        tg.Item(
             durable_id=f"/matching/position/{index}",
-            attributes=(tg.JsonAttributeValue(PAYLOAD, payload),),
+            attributes=(tg.JsonAttributeValue(PAYLOAD, item_payload),),
         )
-        editor.insert_item(POSITION, index, item)
-    for left, right in pairwise(range(len(payloads))):
-        relation = tg.PolyadicRelationInstance(
+        for index, item_payload in enumerate(payloads)
+    )
+    relations = [
+        tg.PolyadicRelationInstance(
             LINEAR_NEXT,
             (tg.ItemRef(POSITION, left),),
             (tg.ItemRef(POSITION, right),),
         )
-        editor.add_relation(relation)
+        for left, right in pairwise(range(len(payloads)))
+    ]
     segment_by_unit = {
-        payload["unit-indices"][0]: index
-        for index, payload in enumerate(payloads)
-        if payload["kind"] in {"segment", "zero"}
+        item_payload["unit-indices"][0]: index
+        for index, item_payload in enumerate(payloads)
+        if item_payload["kind"] in {"segment", "zero"}
     }
-    for index, payload in enumerate(payloads):
-        if payload["kind"] != "prosody":
+    for index, item_payload in enumerate(payloads):
+        if item_payload["kind"] != "prosody":
             continue
-        target = segment_by_unit[payload["unit-indices"][0]]
-        editor.add_relation(
+        target = segment_by_unit[item_payload["unit-indices"][0]]
+        relations.append(
             tg.PolyadicRelationInstance(
                 ASSOCIATES_WITH,
                 (tg.ItemRef(POSITION, index),),
                 (tg.ItemRef(POSITION, target),),
             )
         )
-    return editor.freeze()
+    return replace(
+        graph,
+        namespaces=(*graph.namespaces, namespace),
+        tiers=(*graph.tiers, tg.Tier(position, items)),
+        relation_declarations=(
+            *graph.relation_declarations,
+            linear_next,
+            associates_with,
+        ),
+        attribute_declarations=(*graph.attribute_declarations, payload_declaration),
+        polyadic_relations=(*graph.polyadic_relations, *relations),
+    )
 
 
 def _split_top(text: str, separators: frozenset[str]) -> list[str]:

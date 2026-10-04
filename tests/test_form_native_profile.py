@@ -465,10 +465,47 @@ def test_pretty_and_compact_are_same_native_document():
     assert compact == wire.dump_compact(original.graph)
 
 
+def test_integral_double_profile_version_keeps_head_admission():
+    document = Form.parse("kæt").to_json()
+    changed = document.replace('"version":2', '"version":2.0', 1)
+    assert changed != document
+    assert Form.from_json(changed).to_ipa("exact") == "kæt"
+
+
 def test_opaque_value_refuses_with_source_context():
     builder = FormBuilder()
     builder.add_event("analysis", {"value": object()}, duration=0)
     with pytest.raises(ValueError, match="unrepresentable Form feature 'value'"):
+        builder.build().to_json()
+
+
+def test_freeze_time_json_refusal_keeps_source_context(monkeypatch):
+    import ipakit._form_profile as profile
+
+    original = profile._json_attribute_fact
+
+    def with_predeclared_string(editor, declared, owner, name, value):
+        qualified = tg.QualifiedName(profile.NS, f"fact-{name}-json")
+        if qualified not in declared:
+            editor.declare(
+                tg.AttributeDeclaration(
+                    qualified, tg.AttributeDomain.ITEM, tg.XsdType.STRING
+                )
+            )
+            declared.add(qualified)
+        return original(editor, declared, owner, name, value)
+
+    monkeypatch.setattr(profile, "_json_attribute_fact", with_predeclared_string)
+    builder = FormBuilder()
+    builder.add_event("analysis", {"value": {"fixture": True}}, duration=0)
+    with pytest.raises(
+        ValueError,
+        match=(
+            "unrepresentable Form feature 'value' at "
+            "/clock/0/analysis/0: attribute .* has type 'string'; "
+            "value has type 'json'"
+        ),
+    ):
         builder.build().to_json()
 
 
