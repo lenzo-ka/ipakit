@@ -481,33 +481,42 @@ def _declarations(schema: Any, inventory: Any) -> Declarations:
 
 
 def _json_attribute_fact(
-    graph: tg.Graph, owner: tg.ItemRef, name: str, value: Any
-) -> tuple[tg.Graph, tg.QualifiedName]:
+    editor: tg.GraphEditor,
+    declared: set[tg.QualifiedName],
+    owner: tg.ItemRef,
+    name: str,
+    value: Any,
+) -> tg.QualifiedName:
     """Attach one owned JSON fact without inventing a value subgraph."""
     qualified = tg.QualifiedName(NS, f"fact-{name}-json")
-    editor = graph.edit()
-    if not any(a.name == qualified for a in graph.attribute_declarations):
+    if qualified not in declared:
         editor.declare(
             tg.AttributeDeclaration(
                 qualified, tg.AttributeDomain.ITEM, tg.JsonType.JSON
             )
         )
+        declared.add(qualified)
     editor.set_attribute(owner, tg.JsonAttributeValue(qualified, value))
-    return editor.freeze(), qualified
+    return qualified
 
 
 def _attribute_fact(
-    graph: tg.Graph, owner: tg.ItemRef, name: str, kind: tg.XsdType, lexical: str
-) -> tuple[tg.Graph, tg.QualifiedName]:
+    editor: tg.GraphEditor,
+    declared: set[tg.QualifiedName],
+    owner: tg.ItemRef,
+    name: str,
+    kind: tg.XsdType,
+    lexical: str,
+) -> tg.QualifiedName:
     """Use native scalar attributes for scalar/known structured domain facts."""
     qualified = tg.QualifiedName(NS, f"fact-{name}-{kind.value}")
-    editor = graph.edit()
-    if not any(a.name == qualified for a in graph.attribute_declarations):
+    if qualified not in declared:
         editor.declare(
             tg.AttributeDeclaration(qualified, tg.AttributeDomain.ITEM, kind)
         )
+        declared.add(qualified)
     editor.set_attribute(owner, tg.AttributeValue(qualified, kind, lexical))
-    return editor.freeze(), qualified
+    return qualified
 
 
 def construct(
@@ -610,18 +619,19 @@ def construct(
         )
     graph = replace(graph, polyadic_relations=tuple(ordered))
 
+    editor = graph.edit()
+    declared_attributes = {item.name for item in graph.attribute_declarations}
+    json_contexts: list[tuple[tg.QualifiedName, str, str]] = []
     codecs: dict[str, dict[str, Any]] = {}
     for path in source.refs:
         event = source.events[path]
         house_event = replace(event, features=source.house_features(event))
         owner = core.old_to_new[path]
         if event.durable_id is not None:
-            editor = graph.edit()
             editor.set_attribute(
                 owner,
                 tg.AttributeValue(CONSTRUCTION, tg.XsdType.STRING, event.durable_id),
             )
-            graph = editor.freeze()
         encoded: dict[str, Any] = {}
         unit = house_event.features.get("unit")
         attributes = {
@@ -672,8 +682,12 @@ def construct(
                 encoded[feature_name] = ["attribute", type(value).__name__]
                 continue
             if isinstance(value, Segment):
-                graph, qualified = _json_attribute_fact(
-                    graph, owner, feature_name + "-segment", value.to_dict()
+                qualified = _json_attribute_fact(
+                    editor,
+                    declared_attributes,
+                    owner,
+                    feature_name + "-segment",
+                    value.to_dict(),
                 )
                 encoded[feature_name] = ["segment", qualified.to_data()]
                 continue
@@ -702,8 +716,13 @@ def construct(
                     if type(value) is bool
                     else str(value)
                 )
-                graph, qualified = _attribute_fact(
-                    graph, owner, feature_name, kind, lexical
+                qualified = _attribute_fact(
+                    editor,
+                    declared_attributes,
+                    owner,
+                    feature_name,
+                    kind,
+                    lexical,
                 )
                 encoded[feature_name] = ["scalar", qualified.to_data()]
                 continue
@@ -711,15 +730,29 @@ def construct(
                 payload = _thaw(value)
                 codec = "json"
             try:
-                graph, qualified = _json_attribute_fact(
-                    graph, owner, f"{feature_name}-{len(encoded)}", payload
+                qualified = _json_attribute_fact(
+                    editor,
+                    declared_attributes,
+                    owner,
+                    f"{feature_name}-{len(encoded)}",
+                    payload,
                 )
             except (ValueError, TypeError) as exc:
                 raise ValueError(
                     f"unrepresentable Form feature {feature_name!r} at {path}: {exc}"
                 ) from exc
+            json_contexts.append((qualified, feature_name, path))
             encoded[feature_name] = [codec, qualified.to_data()]
         codecs[path] = encoded
+    try:
+        graph = editor.freeze()
+    except (ValueError, TypeError) as exc:
+        for qualified, feature_name, path in json_contexts:
+            if str(qualified) in str(exc):
+                raise ValueError(
+                    f"unrepresentable Form feature {feature_name!r} at {path}: {exc}"
+                ) from exc
+        raise
 
     codec_table: list[dict[str, Any]] = []
     codec_indices: list[int] = []
@@ -1193,7 +1226,7 @@ def restore(
         _profile_version=None if legacy_profile else 2,
         _matching=not legacy_profile,
     )
-    if tg.to_data(expected_graph) != tg.to_data(graph):
+    if expected_graph != graph and tg.to_data(expected_graph) != tg.to_data(graph):
         raise ValueError("native graph is outside the current Form constructor profile")
     return source, spelling
 

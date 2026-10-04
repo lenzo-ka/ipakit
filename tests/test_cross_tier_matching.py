@@ -2,8 +2,10 @@
 
 import ipakit
 import pytest
-from ipakit._cross_tier import CrossTierQuery
+from ipakit._cross_tier import CrossTierQuery, _cell, match_payloads
 from ipakit.corpus import QueryParseError, find
+from tiergraph.match import AtomPattern, RepeatPattern
+from tiergraph.predicate import Equals
 
 from tiergraph import wire
 
@@ -105,6 +107,23 @@ def test_matching_successor_is_not_auto_detected_as_containment():
 def test_slash_context_focuses_only_the_target():
     assert observed("ata", "on(tier:segment): t / a _ a") == [("t", ((1, 2),))]
     assert observed("ata", "on(tier:segment): t / a _ b") == []
+
+
+def test_focusless_nullable_query_keeps_focus_refusal_first():
+    query = CrossTierQuery(
+        "focusless-nullable",
+        ("tier:segment",),
+        RepeatPattern(
+            AtomPattern(Equals(_cell("selectors", "tier:segment"), (True,))),
+            0,
+            None,
+        ),
+    )
+    with pytest.raises(ValueError) as caught:
+        list(match_payloads(ipakit.Form.parse("kæt"), query))
+    assert str(caught.value) == (
+        "pattern has no focus; mark one with FocusPattern or write T / L _ R"
+    )
 
 
 def test_legacy_form_profile_upgrades_to_deterministic_matching_graph():
