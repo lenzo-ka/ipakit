@@ -229,8 +229,8 @@ def test_wheel_ships_no_gpl_data(built_wheel):
     assert matches == []
 
 
-def test_wheel_requires_tiergraph_0_6_or_later_without_an_upper_cap(built_wheel):
-    """Installation requires the 0.6.0 API floor, the first with projected declared orders, without a cap."""
+def test_wheel_requires_tiergraph_0_7_or_later_without_an_upper_cap(built_wheel):
+    """Installation requires tiergraph's public binding and batched insertion APIs, without a cap."""
     with zipfile.ZipFile(built_wheel) as archive:
         metadata_paths = [
             name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
@@ -244,7 +244,7 @@ def test_wheel_requires_tiergraph_0_6_or_later_without_an_upper_cap(built_wheel)
     assert len(native) == 1
     requirement = native[0]
     assert requirement.url is None and requirement.marker is None
-    assert str(requirement.specifier) == ">=0.6.0"
+    assert str(requirement.specifier) == ">=0.7.0"
 
 
 def test_the_wheel_carries_one_canonical_panphon_declaration_and_credit(built_wheel):
