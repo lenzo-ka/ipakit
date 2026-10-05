@@ -27,9 +27,9 @@ classifiers = [
 keywords = ["ipa", "phonetics", "phonology", "linguistics", "speech", "cmu", "arpabet", "timit", "x-sampa", "kirshenbaum", "phonetic-distance", "g2p"]
 dependencies = [
     # A tiergraph reader accepts only its own format version. ipakit's native
-    # documents remain at format 0.3.0, which tiergraph 0.6.0 retains; 0.6.0 is
-    # the first release with the projected declared orders cross-tier matching uses.
-    "tiergraph>=0.6.0",
+    # documents remain at format 0.3.0, which tiergraph 0.7.0 retains; 0.7.0 is
+    # the first release with public bound matching and batched item insertion.
+    "tiergraph>=0.7.0",
 ]
 
 [project.optional-dependencies]

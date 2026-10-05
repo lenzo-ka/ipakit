@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from functools import cached_property
 from itertools import pairwise
 from typing import Any, cast
 
-import tiergraph.match as tiergraph_match
 from tiergraph.match import (
     AltPattern,
     AtomPattern,
+    BoundOrdering,
+    BoundPattern,
     CompiledPattern,
     DeclaredOrder,
     EndPattern,
@@ -199,7 +200,7 @@ class CrossTierQuery:
     pattern: GraphPattern
 
     @cached_property
-    def compiled(self) -> Any:
+    def compiled(self) -> CompiledPattern:
         return compile_pattern(self.pattern)
 
     @classmethod
@@ -241,108 +242,34 @@ class CrossTierQuery:
         return cls(source, selectors, _sequence(parts))
 
     def spans(self, form: Form) -> tuple[Any, ...]:
-        graph, compiled, order = self._execution(form)
-        return cast(tuple[Any, ...], compiled.spans(graph, order).matches)
+        return cast(tuple[Any, ...], self._bound(form).spans().matches)
 
     def focused(self, form: Form) -> frozenset[tg.Node]:
-        graph, compiled, order = self._execution(form)
-        selected = compiled.focus(graph, order)
-        return frozenset(selected.nodes)
+        return frozenset(self._bound(form).focus().nodes)
 
-    def _execution(
-        self, form: Form
-    ) -> tuple[tg.Graph, _ScopedCompiledPattern, DeclaredOrder]:
+    def _bound(self, form: Form) -> BoundPattern:
         graph = _matching_graph(form)
         cache = form.__dict__.setdefault("_cross_tier_orders", {})
         held = cache.get(self.selectors)
-        if held is None or held[0] is not graph:
+        if held is None or held.graph is not graph:
             predicates = tuple(
                 Equals(_cell("selectors", selector), (True,))
                 for selector in self.selectors
             )
             selection = predicates[0] if len(predicates) == 1 else Or(predicates)
             members = tg.WhereSelector(tg.ItemsSelector(POSITION), selection)
-            order = DeclaredOrder(
-                LINEAR_NEXT,
-                members,
-                chain=tg.ItemsSelector(POSITION),
+            held = BoundOrdering(
+                graph,
+                DeclaredOrder(
+                    LINEAR_NEXT,
+                    members,
+                    chain=tg.ItemsSelector(POSITION),
+                ),
             )
-            scope = tiergraph_match._declared_scope(graph, order)
             if len(cache) >= 128:
                 cache.pop(next(iter(cache)))
-            held = (graph, order, scope)
             cache[self.selectors] = held
-        _, order, scope = held
-        return graph, _ScopedCompiledPattern(self.compiled, scope), order
-
-
-class _ScopedCompiledPattern(CompiledPattern):
-    """Run a compiled pattern with one validated scope and predicate table."""
-
-    __slots__ = (
-        "_scope",
-        "_focus_count",
-        "_prepared",
-        "_prepared_graph",
-        "_prepared_operation",
-        "_prepared_ordering",
-    )
-    _scope: Any
-    _focus_count: int
-    _prepared: Any
-    _prepared_graph: Any
-    _prepared_operation: Any
-    _prepared_ordering: Any
-
-    def __init__(self, compiled: CompiledPattern, scope: Any) -> None:
-        super().__init__(
-            compiled.pattern,
-            compiled.start,
-            compiled.accept,
-            compiled.epsilon,
-            compiled.atom_edges,
-            compiled.predicates,
-        )
-        object.__setattr__(self, "_scope", scope)
-        object.__setattr__(
-            self, "_focus_count", tiergraph_match._focus_count(compiled.pattern)
-        )
-        object.__setattr__(self, "_prepared", None)
-        object.__setattr__(self, "_prepared_graph", None)
-        object.__setattr__(self, "_prepared_operation", None)
-        object.__setattr__(self, "_prepared_ordering", None)
-
-    @property
-    def focus_count(self) -> int:
-        return self._focus_count
-
-    def _scopes(self, graph: tg.Graph, ordering: Any) -> tuple[Any, ...]:
-        return (self._scope,)
-
-    def _prepare(
-        self,
-        graph: tg.Graph,
-        ordering: Any,
-        operation: Any,
-        *,
-        limit: int | None = None,
-    ) -> Any:
-        prepared = self._prepared
-        if (
-            prepared is not None
-            and self._prepared_graph is graph
-            and self._prepared_ordering is ordering
-            and self._prepared_operation is tiergraph_match._PatternOperation.SPANS
-            and operation is tiergraph_match._PatternOperation.FOCUS
-            and self._focus_count == 1
-        ):
-            return prepared
-        prepared = super()._prepare(graph, ordering, operation, limit=limit)
-        object.__setattr__(self, "_prepared", prepared)
-        object.__setattr__(self, "_prepared_graph", graph)
-        object.__setattr__(self, "_prepared_operation", operation)
-        object.__setattr__(self, "_prepared_ordering", ordering)
-        return prepared
+        return self.compiled.bind(graph, held)
 
 
 def payload_for(graph: tg.Graph, reference: tg.ItemRef) -> dict[str, Any]:
@@ -363,14 +290,11 @@ def payload_for(graph: tg.Graph, reference: tg.ItemRef) -> dict[str, Any]:
 def _match_payloads_uncached(
     form: Form, query: CrossTierQuery
 ) -> Iterator[tuple[dict[str, Any], ...]]:
-    graph, compiled, order = query._execution(form)
-    if compiled.focus_count == 0:
-        compiled.focus(graph, order)
-    spans = cast(tuple[Any, ...], compiled.spans(graph, order).matches)
-    focused = frozenset(compiled.focus(graph, order).nodes)
-    for span in spans:
+    bound = query._bound(form)
+    focused = frozenset(bound.focus().nodes)
+    for span in bound.spans().matches:
         yield tuple(
-            payload_for(graph, cast(tg.ItemRef, node.reference))
+            payload_for(bound.graph, cast(tg.ItemRef, node.reference))
             for node in span.items
             if node in focused
         )
@@ -940,6 +864,10 @@ def augment_graph(
         side,
         unique_sources=True,
     )
+    if any(declaration.prefix == namespace.prefix for declaration in graph.namespaces):
+        raise tg.GraphValidationError(
+            "duplicate namespace prefix 'form-match'; names must be unique"
+        )
     items = tuple(
         tg.Item(
             durable_id=f"/matching/position/{index}",
@@ -971,18 +899,19 @@ def augment_graph(
                 (tg.ItemRef(POSITION, target),),
             )
         )
-    return replace(
-        graph,
-        namespaces=(*graph.namespaces, namespace),
-        tiers=(*graph.tiers, tg.Tier(position, items)),
-        relation_declarations=(
-            *graph.relation_declarations,
-            linear_next,
-            associates_with,
-        ),
-        attribute_declarations=(*graph.attribute_declarations, payload_declaration),
-        polyadic_relations=(*graph.polyadic_relations, *relations),
-    )
+    editor = graph.edit()
+    for declaration in (
+        namespace,
+        position,
+        payload_declaration,
+        linear_next,
+        associates_with,
+    ):
+        editor.declare(declaration)
+    editor.insert_items(POSITION, 0, items)
+    for relation in relations:
+        editor.add_relation(relation)
+    return editor.freeze()
 
 
 def _split_top(text: str, separators: frozenset[str]) -> list[str]:

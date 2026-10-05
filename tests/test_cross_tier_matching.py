@@ -2,7 +2,7 @@
 
 import ipakit
 import pytest
-from ipakit._cross_tier import CrossTierQuery, _cell, match_payloads
+from ipakit._cross_tier import CrossTierQuery, _cell, augment_graph, match_payloads
 from ipakit.corpus import QueryParseError, find
 from tiergraph.match import AtomPattern, RepeatPattern
 from tiergraph.predicate import Equals
@@ -193,11 +193,11 @@ def test_cross_tier_noncanonical_spelling_uses_spelling_codepoints():
 
 
 def test_declared_order_validation_is_cached_per_form_and_selector(monkeypatch):
-    import tiergraph.match as match_module
+    import ipakit._cross_tier as cross_tier
 
     form = ipakit.Form.parse("a˥|b")
     query = CrossTierQuery.parse("on(tier:segment): a b", ipakit.IPAFeatures())
-    original = match_module._declared_scope
+    original = cross_tier.BoundOrdering
     calls = 0
 
     def counted(graph, ordering):
@@ -205,7 +205,17 @@ def test_declared_order_validation_is_cached_per_form_and_selector(monkeypatch):
         calls += 1
         return original(graph, ordering)
 
-    monkeypatch.setattr(match_module, "_declared_scope", counted)
+    monkeypatch.setattr(cross_tier, "BoundOrdering", counted)
     query.spans(form)
     query.focused(form)
     assert calls == 1
+
+
+def test_augment_graph_keeps_duplicate_namespace_refusal():
+    form = ipakit.Form.parse("a")
+    source = form.__dict__["_tiergraph_index"].containment_input
+    with pytest.raises(
+        ValueError,
+        match="duplicate namespace prefix 'form-match'; names must be unique",
+    ):
+        augment_graph(form.graph, source, ipakit.IPAFeatures(), "a")
