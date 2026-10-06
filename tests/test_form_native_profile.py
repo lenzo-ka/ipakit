@@ -288,8 +288,12 @@ def test_source_events_target_order_is_the_codebook_order():
         if relation.declaration == SOURCE_EVENTS
     )
     relation = relations[index]
-    relations[index] = replace(relation, targets=tuple(reversed(relation.targets)))
-    altered = replace(form.graph, polyadic_relations=tuple(relations))
+    altered = (
+        form.graph.edit()
+        .remove_relation(tg.PolyadicInstanceRef(index))
+        .add_relation(replace(relation, targets=tuple(reversed(relation.targets))))
+        .freeze()
+    )
     with pytest.raises(
         ValueError, match="source-events targets are outside codebook order"
     ):
