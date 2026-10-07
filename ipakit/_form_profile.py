@@ -597,7 +597,8 @@ def construct(
     graph = editor.freeze()
 
     # Source order annotates the actual native instances; endpoints stay there.
-    ordered = list(graph.polyadic_relations)
+    ordered = graph.polyadic_relations
+    editor = graph.edit()
     used: set[int] = set()
     for rank, relation in enumerate(source.relations):
         native_name = core.relation_names[relation.name]
@@ -610,14 +611,11 @@ def construct(
             raise ValueError("Form relation source order cannot be represented")
         index = matches[0]
         used.add(index)
-        ordered[index] = replace(
-            ordered[index],
-            attributes=(
-                *ordered[index].attributes,
-                tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(rank)),
-            ),
+        editor.set_attribute(
+            tg.PolyadicInstanceRef(index),
+            tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(rank)),
         )
-    graph = replace(graph, polyadic_relations=tuple(ordered))
+    graph = editor.freeze()
 
     editor = graph.edit()
     declared_attributes = {item.name for item in graph.attribute_declarations}

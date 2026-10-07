@@ -630,20 +630,18 @@ def test_restore_refuses_reversed_projects_order():
         [supported("first"), supported("second")],
         schema,
     )
-    relations = []
-    for relation in graph.polyadic_relations:
+    editor = graph.edit()
+    for index, relation in enumerate(graph.polyadic_relations):
         if relation.declaration != name("projects"):
-            relations.append(relation)
             continue
-        attributes = []
-        for attribute in relation.attributes:
-            attributes.append(
-                replace(attribute, lexical=str(1 - int(attribute.lexical)))
-                if attribute.name == ORDER
-                else attribute
-            )
-        relations.append(replace(relation, attributes=tuple(attributes)))
-    changed = replace(graph, polyadic_relations=tuple(relations))
+        order = next(
+            attribute for attribute in relation.attributes if attribute.name == ORDER
+        )
+        editor.set_attribute(
+            tg.PolyadicInstanceRef(index),
+            replace(order, lexical=str(1 - int(order.lexical))),
+        )
+    changed = editor.freeze()
     with pytest.raises(ValueError, match="projects relation order"):
         restore(changed, schema)
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -505,7 +505,8 @@ def _store_relation_order(
 ) -> tg.Graph:
     """Annotate host and projection instances with caller order after lowering."""
     graph = _declare_relation_order(graph)
-    relations = list(graph.polyadic_relations)
+    relations = graph.polyadic_relations
+    editor = graph.edit()
     used: set[int] = set()
     for rank, relation in enumerate(document.get("relations", [])):
         source_index = endpoint(
@@ -528,12 +529,9 @@ def _store_relation_order(
             raise ValueError("source host relation order cannot be represented")
         index = matches[0]
         used.add(index)
-        relations[index] = replace(
-            relations[index],
-            attributes=(
-                *relations[index].attributes,
-                tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(rank)),
-            ),
+        editor.set_attribute(
+            tg.PolyadicInstanceRef(index),
+            tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(rank)),
         )
     project_rank = 0
     for token_index, projection in enumerate(projections):
@@ -558,15 +556,12 @@ def _store_relation_order(
             raise ValueError("projection relation order cannot be represented")
         index = matches[0]
         used.add(index)
-        relations[index] = replace(
-            relations[index],
-            attributes=(
-                *relations[index].attributes,
-                tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(project_rank)),
-            ),
+        editor.set_attribute(
+            tg.PolyadicInstanceRef(index),
+            tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(project_rank)),
         )
         project_rank += 1
-    return replace(graph, polyadic_relations=tuple(relations))
+    return editor.freeze()
 
 
 def _file_sha256(path: Path) -> str:

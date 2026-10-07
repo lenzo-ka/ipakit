@@ -294,16 +294,16 @@ def test_empty_binding_validates_role_domains_and_nonempty_requires_actual_ancho
             empty, graph=replace(empty.graph, relation_declarations=bad_declarations)
         )
     binding = fixture()
-    absent = replace(
-        binding.graph,
-        polyadic_relations=tuple(
-            relation
-            for relation in binding.graph.polyadic_relations
-            if not (
-                relation.declaration == binding.starts_at
-                and relation.sources == (binding.refs[1],)
-            )
-        ),
+    relation_index = next(
+        index
+        for index, relation in enumerate(binding.graph.polyadic_relations)
+        if relation.declaration == binding.starts_at
+        and relation.sources == (binding.refs[1],)
+    )
+    absent = (
+        binding.graph.edit()
+        .remove_relation(tg.PolyadicInstanceRef(relation_index))
+        .freeze()
     )
     with pytest.raises(ModelRuleError, match="exactly one clock anchor"):
         replace(binding, graph=absent)
