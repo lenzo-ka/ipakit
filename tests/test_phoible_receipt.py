@@ -17,14 +17,20 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "ipakit/data/phoible"
 MANIFEST = DATA / "manifest.json"
 SOURCE_INPUTS = {
-    "data/LICENSE": "1fd7aa5b633e044a8d9ca473a281d5e495a7186703b8c3b576344b20b910860e",
-    "data/phoible-references.bib": "29da90c2b2b71ecc30cf8fab5fc6d194ada179909a57b3c65abc8e887c4d62f1",
-    "data/phoible.csv": "395e0977c3a5402af9cd5effd4ffdf0e47396336241fac534a4706e3cd8a7ecf",
+    "LICENSE-DATA": "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94",
+    "data/phoible.csv": "0816e698563b68ec6a309bab404a06dfb221d4334aa5ffcbc0c18f2bd01844b8",
+    "mappings/InventoryID-Bibtex.csv": "5b5f57f615a7f8cbe47f1784e2928ce786088f95d833f6a6f4ea28ad7cffaf5e",
+    "mappings/InventoryID-Filenames.csv": "330b3e5af9412a9d4d228c11eece31de30c7fa953d650679d0077fe695fac250",
+    "mappings/InventoryID-LanguageCodes.csv": "69406ad7738b064ff7a9e133695aa7b66ce407d2f973c47ebd3aca371fbbdfff",
+    "mappings/phoible-references.bib": "52e175fde9973d4ed7a5283ba77bd53e9ec2384c08833c46bae076c37c9ed7a3",
 }
 ARTIFACT_HASHES = {
-    "MIT-upstream.txt": "1fd7aa5b633e044a8d9ca473a281d5e495a7186703b8c3b576344b20b910860e",
-    "data/phoible-references.bib.gz": "7bb1ca2c6c0b1f82ab400bf1d738c274b7b25e5fed0124db63953da682169f33",
-    "data/phoible.csv.gz": "30b6620e3d3ca67bd67341dda029cc7685b9e5a2e3ddb281032e1fc06fd36a16",
+    "CC-BY-4.0.txt": "9e5f1b3c610b9c2da5c313bf81d577a7d1acec686bdb0384edefa6df0f90cd94",
+    "data/phoible.csv.gz": "ac00c157904d2cc75420732878fc3fb5a9d0b23565389ac80df036b0df621c70",
+    "mappings/InventoryID-Bibtex.csv.gz": "57a9c28f420c7fb6a26fb29e4a07c01b0f8a66cc0c0d081ad016cf4f1d38c435",
+    "mappings/InventoryID-Filenames.csv.gz": "350cac5f51c6ec3cd469f969ce3bfdad9c0cbe7ea189f7e75343c2b73f84b578",
+    "mappings/InventoryID-LanguageCodes.csv.gz": "216de5852564cb2bea169f4d3e1717506ed454c35613be8a3faab9aa993ea929",
+    "mappings/phoible-references.bib.gz": "3aab8ac82307df4951c4e0cb5c7b99bd9b2d7c653032e717de2605dd58c1ebf9",
 }
 
 
@@ -56,25 +62,25 @@ def test_receipt_fields_are_literal_and_complete() -> None:
     assert receipt["kind"] == "final"
     assert receipt["domain"] == "phoible-source-aggregate"
     assert receipt["source-policy"]["source"] == {
-        "artifact": "PHOIBLE dataset and reference bibliography",
+        "artifact": "PHOIBLE dataset, mapping tables and reference bibliography",
         "kind": "inventory-catalog-source",
-        "license": "CC-BY-SA-3.0",
+        "license": "CC-BY-4.0",
         "upstream": "PHOIBLE (Moran, McCloy and contributors)",
-        "upstream-url": "https://github.com/phoible/dev/tree/b92abff4f4ca2544eece4d9eff5c707f8d508d0c",
-        "version": "b92abff4f4ca2544eece4d9eff5c707f8d508d0c",
+        "upstream-url": "https://github.com/phoible/dev/tree/5f82b9c3fbb0b5c630de20e254c5fdad645e3e56",
+        "version": "5f82b9c3fbb0b5c630de20e254c5fdad645e3e56",
     }
     assert receipt["source-policy"]["inputs"] == SOURCE_INPUTS
     assert {
         name: artifact["sha256"] for name, artifact in receipt["artifacts"].items()
     } == ARTIFACT_HASHES
     assert receipt["fingerprint"] == (
-        "sha256:3684574a5772f0eea9984c1d285556f4d23cb4c2585097767f9817e66ce06a22"
+        "sha256:02a0e38f6f9de359c597f88fe89d05626cc018ebea9ceef3e35452e73776adf2"
     )
 
 
 def test_receipt_verifies_and_old_authorities_are_gone() -> None:
     assert phoible_source.verify_manifest() == (
-        "sha256:3684574a5772f0eea9984c1d285556f4d23cb4c2585097767f9817e66ce06a22"
+        "sha256:02a0e38f6f9de359c597f88fe89d05626cc018ebea9ceef3e35452e73776adf2"
     )
     receipt = phoible_source.source_receipt()
     assert not (ROOT / "ipakit/data/phoible-policy.json").exists()
@@ -100,7 +106,7 @@ def test_resealed_transport_edit_is_stale_by_source_policy(tmp_path: Path) -> No
         phoible_source.verify_manifest(data_dir)
 
 
-@pytest.mark.parametrize("name", ["NOTICE.txt", "CC-BY-SA-3.0.txt"])
+@pytest.mark.parametrize("name", ["NOTICE.txt", "CC-BY-4.0.txt"])
 def test_notice_or_license_edit_is_refused(tmp_path: Path, name: str) -> None:
     data_dir = _copy_data(tmp_path)
     path = data_dir / name

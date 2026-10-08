@@ -18,6 +18,7 @@ only the present.
 """
 
 import csv
+import gzip
 import io
 import json
 import os
@@ -242,6 +243,12 @@ def test_wheel_and_sdist_ship_no_gpl_material(built_wheel, built_sdist):
 def _assert_no_gpl_material(
     files: dict[str, bytes], *, mention_exemptions: set[str]
 ) -> None:
+    # Compressed bytes are scanned as the text they carry; a byte run in a
+    # gzip stream is not a mention.
+    files = {
+        name: gzip.decompress(content) if name.endswith(".gz") else content
+        for name, content in files.items()
+    }
     gpl_mentions = [
         name
         for name, content in files.items()

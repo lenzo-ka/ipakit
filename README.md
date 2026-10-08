@@ -341,7 +341,7 @@ table and the phone-distance matrix) against their generators in `scripts/`.
 ## License
 
 BSD 2-Clause — see [LICENSE](https://github.com/lenzo-ka/ipakit/blob/main/LICENSE).
-Third-party data retain their separate terms; the shipped PHOIBLE dataset and
-bibliography carry [file-scoped notices and licenses](ipakit/data/phoible/NOTICE.txt).
-PHOIBLE mapping tables and eSpeak phoneme tables are read from user-supplied
-sources and are not included in the wheel.
+Third-party data retain their separate terms; the shipped PHOIBLE dataset,
+mapping tables and bibliography carry their [CC BY 4.0 notice and license](ipakit/data/phoible/NOTICE.txt).
+eSpeak phoneme tables are read from user-supplied sources and are not included
+in the wheel.

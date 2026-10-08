@@ -278,7 +278,7 @@ def test_t1_every_shipped_member_has_exactly_one_route(
     assert actual.unclassified == ()
     assert actual.two_routes == ()
     assert len(actual.members) > 90
-    assert actual.classes == {"shippable", "shippable-share-alike"}
+    assert actual.classes == {"shippable"}
 
     mutated = copy.deepcopy(register)
     removed = sorted(mutated["house"])[0]
@@ -333,21 +333,22 @@ def test_t3_an_explicit_internal_only_entry_is_refused(
     assert fault.forbidden == ((SYNTHETIC_LDC_PATH, SYNTHETIC_LDC_ID, "internal-only"),)
 
 
-def test_t4_share_alike_receipt_members_are_all_guarded(
+def test_t4_phoible_receipt_members_are_all_guarded(
     packaging_built_wheel,  # noqa: F811
 ):
-    """Mutation ``xml-only`` flips the real PHOIBLE register entry."""
+    """Mutation ``xml-only`` flips the license the PHOIBLE receipt names."""
     register = _load_register()
     expected = tuple(
         sorted(
             path
             for path, routes in _audit(packaging_built_wheel, register).routes.items()
-            if any(route.license_id == "CC-BY-SA-3.0" for route in routes)
+            if any(route.license_id == "CC-BY-4.0" for route in routes)
         )
     )
-    assert len(expected) == 6
+    phoible = {path for path in expected if path.startswith("ipakit/data/phoible/")}
+    assert len(phoible) == 8
     mutated = copy.deepcopy(register)
-    mutated["licenses"]["CC-BY-SA-3.0"]["class"] = "internal-only"
+    mutated["licenses"]["CC-BY-4.0"]["class"] = "internal-only"
     fault = _audit(packaging_built_wheel, mutated)
     assert tuple(path for path, _, _ in fault.forbidden) == expected
 

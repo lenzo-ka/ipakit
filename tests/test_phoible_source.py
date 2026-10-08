@@ -28,12 +28,11 @@ def test_shipped_source_census_and_refusals(monkeypatch):
     assert source.root is None
     assert len(source._metadata) == 3020
     assert source.audit().rows == 105484
-    with pytest.raises(PhoibleDataUnavailable, match="set IPAKIT_PHOIBLE"):
-        source.language("eng")
+    assert len(source.language("eng").inventories) == 9
     rows = csv.DictReader(
         io.StringIO(phoible_source.read_source("data/phoible.csv").decode())
     )
-    assert len(rows.fieldnames) == 49 and "lenis" in rows.fieldnames
+    assert len(rows.fieldnames) == 51 and "lenis" in rows.fieldnames
     values = list(rows)
     assert len(values) == 105484
     assert {row["InventoryID"] for row in values} == set(source._metadata)
@@ -52,7 +51,7 @@ def archive(tmp_path):
         target = root / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(phoible_source.read_source(name))
-    (root / "data/LICENSE").write_bytes((resource / "MIT-upstream.txt").read_bytes())
+    (root / "LICENSE-DATA").write_bytes((resource / "CC-BY-4.0.txt").read_bytes())
     return root
 
 
@@ -70,12 +69,21 @@ def test_same_source_reader_parity_explicit_precedence_and_no_network(
     assert PhoibleBridge(archive / "data/phoible.csv").root == archive
 
 
-def test_user_supplied_mapping_tables_restore_provenance(monkeypatch):
+def test_mapping_tables_restore_provenance(archive, monkeypatch):
+    monkeypatch.delenv(PHOIBLE_ENV, raising=False)
     supplied = os.environ.get(PHOIBLE_ENV)
-    if supplied is None:
-        pytest.skip("set IPAKIT_PHOIBLE to run PHOIBLE mapping-table integration")
-    root = Path(supplied)
-    source = PhoibleBridge(root)
+    root = Path(supplied) if supplied else archive
+    for source in (PhoibleBridge(), PhoibleBridge(root)):
+        _assert_eng_provenance(source, root)
+
+
+def test_selected_checkout_without_mapping_tables_refuses(archive):
+    (archive / "mappings/InventoryID-Bibtex.csv").unlink()
+    with pytest.raises(PhoibleDataUnavailable, match="IPAKIT_PHOIBLE"):
+        PhoibleBridge(archive).language("eng")
+
+
+def _assert_eng_provenance(source: PhoibleBridge, root: Path) -> None:
     assert len(source.language("eng").inventories) == 9
     first = source.inventory(160)
     second = source.inventory(2175)
