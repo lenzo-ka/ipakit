@@ -61,6 +61,15 @@ def test_registry_discovers_every_mfa_declaration() -> None:
     assert {f"mfa:{name}" for name in declarations()} <= set(ipakit.inventories())
 
 
+def test_empty_optional_source_is_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IPAKIT_ESPEAK_NG", "")
+
+    assert all(
+        name != "espeak" and not name.startswith("espeak:")
+        for name in ipakit.inventories()
+    )
+
+
 def test_mfa_union_and_english_keep_declared_atom_order() -> None:
     from ipakit.bridges.mfa import MFA, UNION, MFABridge
 

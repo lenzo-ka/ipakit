@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Removed machine-local eSpeak checkout defaults from package and build tooling.
+- Source distributions now receive the same no-GPL packaging checks as wheels.
 - Adopted tiergraph's public bound matching and batched item insertion APIs.
 - Cold `on(...)` queries build, restore and first-match Form graphs in roughly half the time.
 - `distance compare` and `distance map` JSON now use the versioned inventory comparison report, retaining provenance and refusals across JSON, text, TSV, and Markdown. Text adds report identity and detailed input rows while retaining the established native-notation, mapping-total, worst-case, asymmetry, and stripping lines.

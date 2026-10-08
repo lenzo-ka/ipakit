@@ -1,5 +1,6 @@
 """Pins eSpeak NG's source-level mnemonic-to-IPA rules."""
 
+import subprocess
 import sys
 from collections import OrderedDict
 from pathlib import Path
@@ -7,6 +8,14 @@ from pathlib import Path
 import pytest
 from scripts import espeak_vocabularies
 from scripts.espeak_vocabularies import Phone, default_ipa, spelling, tone_spellings
+
+
+def test_espeak_source_import_leaves_sys_path_alone() -> None:
+    code = (
+        "import sys; before = sys.path.copy(); import ipakit.espeak_source; "
+        "assert sys.path == before"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)
 
 
 def test_fetch_precedes_generation(
@@ -21,7 +30,7 @@ def test_fetch_precedes_generation(
     monkeypatch.setattr(
         espeak_vocabularies,
         "generate",
-        lambda source: (calls.append(("generate", source)) or ({}, {})),
+        lambda source: calls.append(("generate", source)) or ({}, {}),
     )
     monkeypatch.setattr(espeak_vocabularies, "OUT", tmp_path / "out")
     monkeypatch.setattr(

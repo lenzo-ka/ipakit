@@ -11,7 +11,6 @@ import functools
 import hashlib
 import re
 import subprocess
-import sys
 import warnings
 import xml.etree.ElementTree as ET
 from collections import Counter, OrderedDict
@@ -19,11 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-OUT = ROOT / "ipakit" / "data" / "bridges" / "espeak"
-SUMMARY = ROOT / "docs" / "espeak-vocabularies.md"
-DEFAULT_SOURCE = Path.home() / "dev" / "other" / "espeak-ng"
+SUMMARY = Path(__file__).resolve().parent.parent / "docs" / "espeak-vocabularies.md"
 REVISION = "4870adfa25b1a32b4361592f1be8a40337c58d6c"
 VERSION = "espeak-ng-1.52.0"
 ORIGIN = "https://github.com/espeak-ng/espeak-ng.git"

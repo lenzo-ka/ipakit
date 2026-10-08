@@ -21,6 +21,7 @@ import csv
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -214,18 +215,62 @@ def test_the_wheel_carries_every_data_file(built_wheel):
     )
 
 
-def test_wheel_ships_no_gpl_data(built_wheel):
-    """No shipped data file carries GPL material or a GPL license declaration.
+def test_wheel_and_sdist_ship_no_gpl_material(built_wheel, built_sdist):
+    """Neither distribution carries GPL data or GPL license text.
 
     Python source may name the license of a user-supplied source (eSpeak NG);
     naming a license ships none of the material it covers.
     """
     with zipfile.ZipFile(built_wheel) as archive:
-        matches = [
-            name
+        wheel_files = {
+            name: archive.read(name)
             for name in archive.namelist()
-            if not name.endswith(".py") and b"gpl" in archive.read(name).lower()
-        ]
+            if not name.endswith("/")
+        }
+    with tarfile.open(built_sdist) as archive:
+        sdist_files = {}
+        for member in archive.getmembers():
+            if not member.isfile():
+                continue
+            stream = archive.extractfile(member)
+            assert stream is not None
+            sdist_files[member.name] = stream.read()
+    _assert_no_gpl_material(wheel_files, mention_exemptions={".py"})
+    _assert_no_gpl_material(sdist_files, mention_exemptions={".py", ".md"})
+
+
+def _assert_no_gpl_material(
+    files: dict[str, bytes], *, mention_exemptions: set[str]
+) -> None:
+    gpl_mentions = [
+        name
+        for name, content in files.items()
+        if Path(name).suffix not in mention_exemptions and b"gpl" in content.lower()
+    ]
+    license_heading = b"GNU GENERAL " + b"PUBLIC LICENSE"
+    license_texts = [
+        name for name, content in files.items() if license_heading in content
+    ]
+    assert gpl_mentions == []
+    assert license_texts == []
+
+
+def test_no_tracked_file_holds_a_machine_path(built_sdist):
+    """Distributed sources do not encode a developer's home checkout."""
+    home_directory = rb"(?<![A-Za-z0-9.])/(?:" + rb"Users|home)/[^/\s]+/"
+    home_development = rb"(?:\$\(HOME\)|\$\{HOME\}|\$HOME|~)/" + rb"dev/"
+    pathlib_development = rb"Path[.]home\(\)\s*/\s*[\"']" + rb"dev[\"']"
+    patterns = (home_directory, home_development, pathlib_development)
+    matches = []
+    with tarfile.open(built_sdist) as archive:
+        for member in archive.getmembers():
+            if not member.isfile():
+                continue
+            stream = archive.extractfile(member)
+            assert stream is not None
+            content = stream.read()
+            if any(re.search(pattern, content) for pattern in patterns):
+                matches.append(member.name)
     assert matches == []
 
 
