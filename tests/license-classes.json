@@ -8,10 +8,6 @@
       "spdx": "CC-BY-4.0",
       "class": "shippable"
     },
-    "CC-BY-SA-3.0": {
-      "spdx": "CC-BY-SA-3.0",
-      "class": "shippable-share-alike"
-    },
     "MIT": {
       "spdx": "MIT",
       "class": "shippable"

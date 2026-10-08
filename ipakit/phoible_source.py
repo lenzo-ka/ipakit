@@ -25,14 +25,19 @@ from .extraction import SourceContentError, SourceMissingError
 RECEIPT_KIND = "final"
 RECEIPT_DOMAIN = "phoible-source-aggregate"
 EXTRACTOR = {"id": "ipakit.extraction.phoible.build", "version": "1"}
+SOURCE_FILES = (
+    "data/phoible.csv",
+    "mappings/InventoryID-Bibtex.csv",
+    "mappings/InventoryID-Filenames.csv",
+    "mappings/InventoryID-LanguageCodes.csv",
+    "mappings/phoible-references.bib",
+)
 ARTIFACT_INPUTS = {
-    "data/phoible-references.bib.gz": "data/phoible-references.bib",
-    "data/phoible.csv.gz": "data/phoible.csv",
-    "MIT-upstream.txt": "data/LICENSE",
+    **{name + ".gz": name for name in SOURCE_FILES},
+    "CC-BY-4.0.txt": "LICENSE-DATA",
 }
 NOTICE_FILES = (
-    "CC-BY-SA-3.0.txt",
-    "MIT-upstream.txt",
+    "CC-BY-4.0.txt",
     "NOTICE.txt",
 )
 _RECEIPT_FIELDS = (
@@ -65,28 +70,22 @@ def source_policy() -> dict[str, Any]:
     stored = source_receipt()["source-policy"]
     source = dict(stored["source"])
     source.update(
-        artifact="PHOIBLE dataset and reference bibliography",
-        license="CC-BY-SA-3.0",
+        artifact="PHOIBLE dataset, mapping tables and reference bibliography",
+        license="CC-BY-4.0",
     )
     return {
         "version": stored["version"],
         "source": source,
         "inputs": {
             name: stored["inputs"][name]
-            for name in (
-                "data/LICENSE",
-                "data/phoible-references.bib",
-                "data/phoible.csv",
-            )
+            for name in sorted(("LICENSE-DATA", *SOURCE_FILES))
         },
     }
 
 
 def source_files() -> tuple[str, ...]:
     """List original upstream data paths available as exact decompressed bytes."""
-    return tuple(
-        name for name in source_policy()["inputs"] if name.endswith((".csv", ".bib"))
-    )
+    return SOURCE_FILES
 
 
 def source_metadata() -> SourceMetadata:

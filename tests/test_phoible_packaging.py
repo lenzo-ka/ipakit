@@ -34,14 +34,14 @@ def test_phoible_wheel_sdist_bytes_and_isolated_lookup(
         for path in original.rglob("*")
         if path.is_file()
     }
-    assert len(expected) == 6
+    assert len(expected) == 8
     assert {
         "NOTICE.txt",
-        "MIT-upstream.txt",
-        "CC-BY-SA-3.0.txt",
+        "CC-BY-4.0.txt",
         "manifest.json",
+        "mappings/InventoryID-Bibtex.csv.gz",
+        "mappings/InventoryID-LanguageCodes.csv.gz",
     } <= set(expected)
-    assert not any(name.startswith("mappings/") for name in expected)
     site = tmp_path / "site"
     with zipfile.ZipFile(built_wheel) as wheel, tarfile.open(sdist) as archive:
         prefix = archive.getnames()[0].split("/")[0]
@@ -65,20 +65,16 @@ def forbidden(*args, **kwargs):
 socket.socket = forbidden
 assert importlib.util.find_spec('panphon') is None
 assert importlib.util.find_spec('pyclts') is None
-from ipakit.bridges.phoible import PhoibleBridge, PhoibleDataUnavailable
+from ipakit.bridges.phoible import PhoibleBridge
 from ipakit.phoible_source import read_source, source_files
 source = PhoibleBridge()
 assert source.root is None
 assert len(source._metadata) == 3020
 assert source.audit().rows == 105484
-try:
-    source.language('eng')
-except PhoibleDataUnavailable as error:
-    assert 'IPAKIT_PHOIBLE' in str(error)
-else:
-    raise AssertionError('mapping-backed lookup accepted no user source')
-assert len(source_files()) == 2
-assert len(read_source('data/phoible.csv')) == 24578868
+spread = source.language('eng')
+assert spread.inventories[0].bibtex_keys
+assert len(source_files()) == 5
+assert len(read_source('data/phoible.csv')) == 26455818
 """
     env = {
         key: value

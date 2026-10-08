@@ -73,7 +73,7 @@ def build(source: Path) -> BuildResult:
         ) as stream:
             stream.write(content)
         artifacts[OUT / (name + ".gz")] = output.getvalue()
-    for original, target in (("data/LICENSE", "MIT-upstream.txt"),):
+    for original, target in (("LICENSE-DATA", "CC-BY-4.0.txt"),):
         content = (source / original).read_bytes()
         if hashlib.sha256(content).hexdigest() != identity.digests[original]:
             raise SourceContentError(f"PHOIBLE notice changed during build: {original}")
@@ -104,6 +104,8 @@ def build(source: Path) -> BuildResult:
             OUT / "data/*.gz",
             OUT / "mappings/*.gz",
             OUT / ("G" + "PL-3.0.txt"),
+            OUT / "MIT-upstream.txt",
+            OUT / "CC-BY-SA-3.0.txt",
         ),
         identity,
     )

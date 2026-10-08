@@ -5,29 +5,29 @@ https://phoible.org/
 https://github.com/phoible/dev
 
 The exact revision and per-component SHA256 receipts are in manifest.json.
-This is a pinned development snapshot, not PHOIBLE 2.0 or a latest-data claim.
-All original main-CSV columns, inventory records and bibliography are retained.
-The resources are not filtered by IPAkit's house IPA parser.
+This is a pinned development snapshot, not a PHOIBLE release.
+All original main-CSV columns, inventory records, mapping tables and the
+reference bibliography are retained. The resources are not filtered by
+IPAkit's house IPA parser.
 
 File scopes:
-  data/phoible.csv.gz and data/phoible-references.bib.gz:
-    Current PHOIBLE dataset attribution and CC BY-SA 3.0 Unported terms apply.
-    See CC-BY-SA-3.0.txt and https://phoible.org/about.
-    The historical upstream data/LICENSE MIT notice is retained verbatim in
-    MIT-upstream.txt. This does not assert an OR-license grant for every file.
-No donor raw-data/ files are included. The original bibliography and mapping
-tables do not ship. Features that need a mapping table read it only from a
-user-supplied PHOIBLE checkout selected by IPAKIT_PHOIBLE or an explicit path.
-ISO 639-3, Glottocode, language name and source come directly from the shipped
-main CSV, where those values already exist.
+  data/phoible.csv.gz, mappings/InventoryID-*.csv.gz and
+  mappings/phoible-references.bib.gz:
+    PHOIBLE data and mappings are licensed under the Creative Commons
+    Attribution 4.0 International License (CC BY 4.0). The upstream
+    LICENSE-DATA text is retained verbatim in CC-BY-4.0.txt.
+    The main CSV retains each inventory's language name, ISO 639-3 code,
+    Glottocode and donor source in its Source column.
+    See https://creativecommons.org/licenses/by/4.0/ and
+    https://phoible.org/about.
+No donor raw-data/ files and no upstream code are included.
 
-IPAkit packaging change, 2026-09-12: gzip transport only, empty filename and
-zero timestamp. Decompressed source bytes are unchanged. These are editable
+IPAkit packaging change: gzip transport only, empty filename and zero
+timestamp. Decompressed source bytes are unchanged. These are editable
 CSV/BibTeX sources, not compiled replacements. To recover any source file:
   python3 -m gzip -d a-copy-of-the-file.csv.gz
 or use ipakit.phoible_source.read_source with an original upstream path.
 
-No endorsement is implied. Preserve this notice, original copyright/license
-and warranty notices, and the applicable license text when redistributing.
-IPAkit's BSD license for its original code does not relicense these resources.
-The PHOIBLE dataset attribution and CC BY-SA terms remain applicable.
+No endorsement is implied. Preserve this notice, the attribution and the
+license text when redistributing. IPAkit's BSD license for its original code
+does not relicense these resources; CC BY 4.0 continues to apply to them.

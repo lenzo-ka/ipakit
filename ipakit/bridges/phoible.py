@@ -21,7 +21,7 @@ PHOIBLE_ENV = "IPAKIT_PHOIBLE"
 
 
 class PhoibleDataUnavailable(FileNotFoundError):
-    """Required user-supplied PHOIBLE data are unavailable."""
+    """Required PHOIBLE data are unavailable."""
 
 
 @dataclass(frozen=True)
@@ -119,7 +119,7 @@ class PhoibleBridge(ProviderBridge):
     """Provider for PHOIBLE inventories without merging rival doculects."""
 
     def __init__(self, path: str | Path | None = None) -> None:
-        """Select explicit path, then environment, otherwise shipped CC data."""
+        """Select explicit path, then environment, otherwise shipped CC BY data."""
         self.root = _root(path)
         super().__init__(
             "phoible",
@@ -131,7 +131,7 @@ class PhoibleBridge(ProviderBridge):
             (
                 f"generated from {self.root}"
                 if self.root is not None
-                else "shipped PHOIBLE main CSV and reference bibliography"
+                else "shipped PHOIBLE main CSV, mapping tables and reference bibliography"
             ),
             RoundTripReport(
                 RoundTripLeg(
@@ -150,7 +150,7 @@ class PhoibleBridge(ProviderBridge):
         self._bibtex: dict[str, tuple[str, ...]] | None = None
 
     def _open(self, name: str, *, encoding: str = "utf-8") -> TextIO:
-        if name.startswith("mappings/"):
+        if self.root is not None and name.startswith("mappings/"):
             root = self._mapping_root()
             return (root / name).open(encoding=encoding, newline="")
         if self.root is not None:
@@ -176,12 +176,8 @@ class PhoibleBridge(ProviderBridge):
         return found
 
     def _mapping_root(self) -> Path:
-        """Require the user's mapping tables only for mapping-backed fields."""
-        if self.root is None:
-            raise PhoibleDataUnavailable(
-                "PHOIBLE mapping tables are user-supplied; set IPAKIT_PHOIBLE "
-                "or pass path=... to a PHOIBLE checkout"
-            )
+        """Require a selected checkout's own mapping tables for mapping fields."""
+        assert self.root is not None
         required = (
             self.root / "mappings" / "InventoryID-LanguageCodes.csv",
             self.root / "mappings" / "InventoryID-Bibtex.csv",

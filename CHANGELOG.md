@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update PHOIBLE to 5f82b9c (CC BY 4.0) and ship its mappings.
 - Removed machine-local eSpeak checkout defaults from package and build tooling.
 - Source distributions now receive the same no-GPL packaging checks as wheels.
 - Adopted tiergraph's public bound matching and batched item insertion APIs.
