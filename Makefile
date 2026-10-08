@@ -18,21 +18,21 @@ FIGURES := m:m n:n eng:ŋ t:t k:k theta:θ s:s esh:ʃ a:a i:i u:u silence:␣
 
 .PHONY: figures figures-clean tutorial tutorial-basics notebook inventory-cards inventory-cards-check house-style perceptual-validation state-of-work espeak-vocabularies espeak-vocabularies-check mfa-vocabularies mfa-vocabularies-check zipa-vocabulary zipa-vocabulary-check timit-map timit-map-check panphon-geometry-check lint check gate-subject
 
-ESPEAK_NG ?= $(HOME)/dev/other/espeak-ng
+ESPEAK_NG ?=
 MFA_MODELS ?= $(HOME)/.cache/ipakit/mfa-models
 ZIPA_VOCAB ?=
 
 ## espeak-vocabularies: validate user-sourced declarations and refresh the summary
 espeak-vocabularies:
-	@if test ! -d "$(ESPEAK_NG)/.git"; then \
-		echo "espeak-vocabularies: pinned checkout absent; nothing regenerated"; \
+	@if test -z "$(ESPEAK_NG)" || test ! -d "$(ESPEAK_NG)/.git"; then \
+		echo "espeak-vocabularies: set ESPEAK_NG to a pinned checkout; nothing regenerated"; \
 	else \
 		$(PYTHON) scripts/espeak_vocabularies.py generate --source "$(ESPEAK_NG)"; \
 	fi
 
 espeak-vocabularies-check:
-	@if test ! -d "$(ESPEAK_NG)/.git"; then \
-		echo "espeak-vocabularies: pinned checkout absent; generated-data check skipped"; \
+	@if test -z "$(ESPEAK_NG)" || test ! -d "$(ESPEAK_NG)/.git"; then \
+		echo "espeak-vocabularies: set ESPEAK_NG to a pinned checkout; generated-data check skipped"; \
 	else \
 		$(PYTHON) scripts/espeak_vocabularies.py check --source "$(ESPEAK_NG)"; \
 	fi

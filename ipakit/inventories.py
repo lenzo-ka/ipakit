@@ -470,7 +470,7 @@ def _espeak_language_inventory(code: str) -> Inventory:
 
 def _registry() -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
     """Return the registry for the currently selected optional eSpeak source."""
-    return _registry_for(os.environ.get("IPAKIT_ESPEAK_NG"))
+    return _registry_for(os.environ.get("IPAKIT_ESPEAK_NG") or None)
 
 
 @functools.lru_cache(maxsize=4)

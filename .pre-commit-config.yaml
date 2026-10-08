@@ -14,8 +14,8 @@ repos:
         exclude: ^tests/fixtures/textgrid/
       - id: end-of-file-fixer
         files: ^(ipakit|tests)/
-        # Verbatim upstream notice hashes are part of the PHOIBLE source pin.
-        exclude: ^ipakit/data/phoible/(MIT-upstream|GPL-3\.0)\.txt$
+        # The verbatim upstream notice hash is part of the PHOIBLE source pin.
+        exclude: ^ipakit/data/phoible/MIT-upstream\.txt$
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
