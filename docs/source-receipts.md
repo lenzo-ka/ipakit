@@ -28,10 +28,10 @@ CLTS, PHOIBLE and Panphon all ship this schema today.
   the default projection; the opt-in `house-convention-v1` assumption is
   recorded per affected occurrence rather than changing the source receipt.
 - PHOIBLE fills `source` and `inputs` in `data/phoible/manifest.json`, records
-  the versioned deterministic-gzip extractor, lists the transported main CSV,
-  reference bibliography and copied upstream data notice as derived artifacts,
-  and hashes every shipped notice and license. The two upstream mapping tables
-  are user-supplied and are outside the receipt. The former
+  the versioned deterministic-gzip extractor, and lists the transported main
+  CSV, three InventoryID mapping tables, reference bibliography and copied
+  upstream data license as derived artifacts. It hashes every shipped notice
+  and license. The former
   `data/phoible-policy.json` and the old
   `source-sha256`/`transport-sha256` manifest shape are gone; the receipt is the
   sole authority. PHOIBLE has no resolver or CLTS profile extensions.

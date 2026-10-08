@@ -16,6 +16,8 @@ File scopes:
     PHOIBLE data and mappings are licensed under the Creative Commons
     Attribution 4.0 International License (CC BY 4.0). The upstream
     LICENSE-DATA text is retained verbatim in CC-BY-4.0.txt.
+    The main CSV retains each inventory's language name, ISO 639-3 code,
+    Glottocode and donor source in its Source column.
     See https://creativecommons.org/licenses/by/4.0/ and
     https://phoible.org/about.
 No donor raw-data/ files and no upstream code are included.

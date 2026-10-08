@@ -70,11 +70,12 @@ def test_same_source_reader_parity_explicit_precedence_and_no_network(
 
 
 def test_mapping_tables_restore_provenance(archive, monkeypatch):
-    monkeypatch.delenv(PHOIBLE_ENV, raising=False)
     supplied = os.environ.get(PHOIBLE_ENV)
-    root = Path(supplied) if supplied else archive
-    for source in (PhoibleBridge(), PhoibleBridge(root)):
-        _assert_eng_provenance(source, root)
+    monkeypatch.delenv(PHOIBLE_ENV, raising=False)
+    external = PhoibleBridge(supplied if supplied else archive)
+    assert external.root is not None
+    for source in (PhoibleBridge(), external):
+        _assert_eng_provenance(source, external.root)
 
 
 def test_selected_checkout_without_mapping_tables_refuses(archive):

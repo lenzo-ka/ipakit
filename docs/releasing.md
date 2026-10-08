@@ -139,7 +139,8 @@ and publication require release authorization, not merely preparation approval.
   the actual wheel/sdist, not merely whether a `data/` directory exists. Include
   shipped bridge declarations, canonical Panphon XML, finite CLTS artifacts and
   PHOIBLE dataset resources with their hashes and separately scoped notices.
-  Confirm that eSpeak and PHOIBLE mapping data remain user-supplied. The code's
+  Confirm that eSpeak data remain user-supplied and that PHOIBLE's mapping
+  tables and reference bibliography ship with the pinned dataset. The code's
   BSD license does not relicense third-party data. Preserve the precise Panphon
   and PHOIBLE large-file and verbatim-notice hook exceptions. Every new
   third-party file needs an entry in `tests/license-classes.json`, and the wheel

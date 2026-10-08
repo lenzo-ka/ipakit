@@ -74,13 +74,13 @@ def test_receipt_fields_are_literal_and_complete() -> None:
         name: artifact["sha256"] for name, artifact in receipt["artifacts"].items()
     } == ARTIFACT_HASHES
     assert receipt["fingerprint"] == (
-        "sha256:02a0e38f6f9de359c597f88fe89d05626cc018ebea9ceef3e35452e73776adf2"
+        "sha256:f0c976330b949cd5b34120fd946dcd4847c8d22fca8db849487e99c2c1b7988f"
     )
 
 
 def test_receipt_verifies_and_old_authorities_are_gone() -> None:
     assert phoible_source.verify_manifest() == (
-        "sha256:02a0e38f6f9de359c597f88fe89d05626cc018ebea9ceef3e35452e73776adf2"
+        "sha256:f0c976330b949cd5b34120fd946dcd4847c8d22fca8db849487e99c2c1b7988f"
     )
     receipt = phoible_source.source_receipt()
     assert not (ROOT / "ipakit/data/phoible-policy.json").exists()

@@ -55,3 +55,4 @@ recursive-include ipakit/data/textgrid *.json
 recursive-include ipakit/data/feature-models *.xml *.txt *.md *-receipt.json
 recursive-include ipakit/data/phoible *.txt *.json
 recursive-include ipakit/data/phoible/data *.gz
+recursive-include ipakit/data/phoible/mappings *.gz

@@ -43,12 +43,14 @@ productive and full semantic import are outside its scope.
 ## Developer orchestration
 
 `ipakit.extraction.phoible.build(source)` builds the separately licensed frozen
-PHOIBLE dataset and bibliography through the same `BuildResult`/`SourceIdentity`
-contract. `ipakit.phoible_source.source_policy()` owns its single revision/hash
-policy by reading the shared-schema `data/phoible/manifest.json` receipt, the
-sole PHOIBLE authority. Checkout revisions and every shipped data/notice hash are validated;
-archives require the same exact content. The builder preserves original source
-bytes in deterministic gzip transport, without parsing or filtering inventories.
+PHOIBLE dataset, mapping tables and reference bibliography through the same
+`BuildResult`/`SourceIdentity` contract.
+`ipakit.phoible_source.source_policy()` owns its accepted revision and input
+hashes by reading the shared-schema `data/phoible/manifest.json` receipt, the
+sole PHOIBLE authority. Checkout revisions and every shipped data/notice hash are
+validated; archives require the same exact content. The builder preserves
+original source bytes in deterministic gzip transport, without parsing or
+filtering inventories.
 Its adapter supports status/fetch/build/check/discover with the same managed
 per-revision cache and read-only existing-destination behavior. See
 [PHOIBLE source scope and notices](phoible.md).
