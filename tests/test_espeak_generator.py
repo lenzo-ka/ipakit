@@ -6,21 +6,72 @@ from collections import OrderedDict
 from pathlib import Path
 
 import pytest
+from ipakit.extraction import BuildResult, espeak
+from ipakit.extraction.espeak import Phone, default_ipa, spelling, tone_spellings
 from scripts import espeak_vocabularies
-from scripts.espeak_vocabularies import Phone, default_ipa, spelling, tone_spellings
 
 
 def test_espeak_source_import_leaves_sys_path_alone() -> None:
     code = (
         "import sys; before = sys.path.copy(); import ipakit.espeak_source; "
-        "assert sys.path == before"
+        "assert sys.path == before; "
+        "assert 'ipakit.extraction.espeak' not in sys.modules"
     )
     subprocess.run([sys.executable, "-c", code], check=True)
 
 
-def test_fetch_precedes_generation(
+def test_generator_delegates_to_library_builder(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    result = BuildResult({Path("docs/espeak-vocabularies.md"): b"summary\n"})
+    calls: list[Path] = []
+
+    def build(source: Path) -> BuildResult:
+        calls.append(source)
+        return result
+
+    monkeypatch.setattr(espeak_vocabularies, "build", build)
+    assert espeak_vocabularies.generate(tmp_path) == {
+        espeak_vocabularies.ROOT / "docs/espeak-vocabularies.md": b"summary\n"
+    }
+    assert calls == [tmp_path]
+    assert espeak_vocabularies.REVISION == espeak.REVISION
+
+
+def test_library_builder_and_runtime_share_rendered_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    phsource = tmp_path / "phsource"
+    phsource.mkdir()
+    (phsource / "phonemes").write_text("""phoneme p
+  vls blb stp
+  ipa p
+endphoneme
+phonemetable consonants
+phonemetable xx consonants
+include ph_test
+""")
+    (phsource / "ph_test").write_text("""phoneme a
+  vowel
+  ipa a
+endphoneme
+""")
+    monkeypatch.setattr(espeak, "require_pin", lambda source: None)
+
+    result = espeak.build(tmp_path)
+    assert result.artifacts[espeak.SUMMARY].startswith(
+        b"# eSpeak NG vocabulary generation summary\n"
+    )
+    declared, resolved = espeak.resolve(tmp_path)
+    table = next(table for table in declared if table.name == "xx")
+    expected, _ = espeak.render(table.name, resolved[table.name])
+
+    from ipakit.espeak_source import declaration_bytes
+
+    assert declaration_bytes(str(tmp_path))["xx"] == expected
+
+
+def test_fetch_precedes_build(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, Path]] = []
     monkeypatch.setattr(
         espeak_vocabularies,
@@ -29,10 +80,9 @@ def test_fetch_precedes_generation(
     )
     monkeypatch.setattr(
         espeak_vocabularies,
-        "generate",
-        lambda source: calls.append(("generate", source)) or ({}, {}),
+        "build",
+        lambda source: calls.append(("build", source)) or BuildResult({}),
     )
-    monkeypatch.setattr(espeak_vocabularies, "OUT", tmp_path / "out")
     monkeypatch.setattr(
         sys,
         "argv",
@@ -45,7 +95,7 @@ def test_fetch_precedes_generation(
         ],
     )
     assert espeak_vocabularies.main() == 0
-    assert calls == [("fetch", tmp_path), ("generate", tmp_path)]
+    assert calls == [("fetch", tmp_path), ("build", tmp_path)]
 
 
 def test_default_ipa_matches_pinned_write_ph_mnemonic_rules() -> None:
