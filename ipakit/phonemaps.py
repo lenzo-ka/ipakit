@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 
 from ._convert import (
     convert_greedy,
-    convert_structured_ipa,
+    convert_written_ipa,
     ipa_features,
     report_unconvertible,
     resolve_aliases,
@@ -109,7 +109,7 @@ def _normalize_for_map(ipa: str, ipa_to_target: dict[str, str]) -> str:
             untied = key
             for glyph in ties:
                 untied = untied.replace(glyph, "")
-            if untied in ipa and key not in ipa:
+            if untied and untied in ipa and key not in ipa:
                 ipa = ipa.replace(untied, key)
     return ipa
 
@@ -133,9 +133,9 @@ def to_phonemap(ipa_string: str, phonemap: str, strict: bool = False) -> list[st
     # The generic phonemap contract historically repairs an omitted tie when
     # a table declares only the tied sequence (notably TIMIT ``oʊ`` -> OW).
     # That compatibility normalization is necessarily string-level because
-    # it changes where the structured segment boundary will be read.
+    # it changes which written sequence the table reads as one symbol.
     ipa_string = _normalize_for_map(ipa_string, ipa_to_target)
-    return convert_structured_ipa(
+    return convert_written_ipa(
         ipa_string,
         ipa_to_target,
         strict=strict,
