@@ -52,6 +52,12 @@ HOUSE_NAMESPACE = "https://ipakit.dev/tiergraph/house-projection/v1"
 PROFILE = "ipakit-clts-source"
 TIERS = ("source-token", "source-sound", "house-projection", "metadata")
 ORDER = tg.QualifiedName(NAMESPACE, "source-order")
+type _RelationEndpoint = tg.ItemRef | tg.DurableItemRef | tg.DurableBoundaryRef
+type _RestoredSourceProfile = tuple[
+    dict[str, Any],
+    tuple[dict[str, Any], ...],
+    tuple[dict[str, Any], ...],
+]
 FINAL_MANIFEST_KIND = "final"
 ADAPTER_SCHEMA = {"id": "ipakit-clts-core-bipa-resolution", "version": 1}
 ADAPTER_OUTCOMES: dict[str, Any] = {
@@ -490,6 +496,7 @@ def _projections(
 
 
 def _declare_relation_order(graph: tg.Graph) -> tg.Graph:
+    """Declare ORDER in the schema graph before caller relations are stored."""
     declaration = tg.AttributeDeclaration(
         ORDER, tg.AttributeDomain.RELATION_INSTANCE, tg.XsdType.INTEGER
     )
@@ -504,9 +511,31 @@ def _store_relation_order(
     projections: Sequence[Mapping[str, Any]],
 ) -> tg.Graph:
     """Annotate host and projection instances with caller order after lowering."""
-    graph = _declare_relation_order(graph)
     relations = graph.polyadic_relations
     editor = graph.edit()
+    declaration = tg.AttributeDeclaration(
+        ORDER, tg.AttributeDomain.RELATION_INSTANCE, tg.XsdType.INTEGER
+    )
+    if declaration not in graph.attribute_declarations:
+        editor.declare(declaration)
+
+    host_indices: dict[
+        tuple[tuple[_RelationEndpoint, ...], tuple[_RelationEndpoint, ...]], list[int]
+    ] = {}
+    resolves_by_source: dict[
+        tuple[_RelationEndpoint, ...], list[tg.PolyadicRelationInstance]
+    ] = {}
+    project_indices: dict[tuple[_RelationEndpoint, ...], list[int]] = {}
+    for index, relation in enumerate(relations):
+        if relation.declaration == name("source-tone-host"):
+            host_indices.setdefault((relation.sources, relation.targets), []).append(
+                index
+            )
+        elif relation.declaration == name("resolves"):
+            resolves_by_source.setdefault(relation.sources, []).append(relation)
+        elif relation.declaration == name("projects"):
+            project_indices.setdefault(relation.sources, []).append(index)
+
     used: set[int] = set()
     for rank, relation in enumerate(document.get("relations", [])):
         source_index = endpoint(
@@ -519,11 +548,8 @@ def _store_relation_order(
         target = tg.ItemRef(name("source-token"), target_index)
         matches = [
             index
-            for index, candidate in enumerate(relations)
+            for index in host_indices.get(((source,), (target,)), ())
             if index not in used
-            and candidate.declaration == name("source-tone-host")
-            and candidate.sources == (source,)
-            and candidate.targets == (target,)
         ]
         if len(matches) != 1:
             raise ValueError("source host relation order cannot be represented")
@@ -538,19 +564,13 @@ def _store_relation_order(
         if projection["status"] != "supported":
             continue
         token = tg.ItemRef(name("source-token"), token_index)
-        resolves = [
-            relation
-            for relation in relations
-            if relation.declaration == name("resolves") and relation.sources == (token,)
-        ]
+        resolves = resolves_by_source.get((token,), ())
         if len(resolves) != 1:
             raise ValueError("projection source order cannot be represented")
         matches = [
             index
-            for index, candidate in enumerate(relations)
+            for index in project_indices.get(resolves[0].targets, ())
             if index not in used
-            and candidate.declaration == name("projects")
-            and candidate.sources == resolves[0].targets
         ]
         if len(matches) != 1:
             raise ValueError("projection relation order cannot be represented")
@@ -910,11 +930,7 @@ def _items(graph: tg.Graph, tier: str) -> tuple[tg.ItemRef, ...]:
     return tuple(tg.ItemRef(name(tier), index) for index in range(len(tiers[0].items)))
 
 
-def restore(graph: tg.Graph, spec: SourceProfileSpec) -> tuple[
-    dict[str, Any],
-    tuple[dict[str, Any], ...],
-    tuple[dict[str, Any], ...],
-]:
+def restore(graph: tg.Graph, spec: SourceProfileSpec) -> _RestoredSourceProfile:
     """Validate and restore this constructor layout, without live resolution.
 
     Extra content or alternate equivalent layouts are refused, never discarded.
