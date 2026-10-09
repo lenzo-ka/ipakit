@@ -555,8 +555,8 @@ def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
         if name == "espeak" or name.startswith("espeak:"):
             raise ValueError(
                 "eSpeak NG source is required; pass source=..., set "
-                "IPAKIT_ESPEAK_NG, or run "
-                "'ipakit source build espeak --source PATH'"
+                "IPAKIT_ESPEAK_NG, or run 'ipakit source fetch espeak' then "
+                "'ipakit source build espeak'"
             ) from error
         if name.startswith("mfa:"):
             from .bridges.mfa import declarations

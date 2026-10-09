@@ -35,16 +35,30 @@ def _selected_source(
     return None, None
 
 
-def _build_source(source: str | Path | None) -> Path:
-    from .extraction import SourceMissingError
+def _build_source(source: str | Path | None, cache_dir: str | Path | None) -> Path:
+    from .extraction import SourceMissingError, espeak
+    from .source_cache import source_dir
 
-    selected, _ = _selected_source(source)
+    selected: Path | None
+    selected_by: Literal["argument", "environment", "cache"] | None
+    selected, configured_by = _selected_source(source)
+    selected_by = configured_by
     if selected is None:
-        raise SourceMissingError(
-            "espeak source is unavailable; pass --source PATH, set "
-            "IPAKIT_ESPEAK_NG, or provide a local checkout of the pinned source"
-        )
+        managed = source_dir("espeak", espeak.REVISION, cache_dir)
+        if managed.is_dir():
+            selected = managed
+            selected_by = "cache"
+        else:
+            raise SourceMissingError(
+                "espeak source is unavailable; pass --source PATH, set "
+                "IPAKIT_ESPEAK_NG, or run 'ipakit source fetch espeak'"
+            )
     if not (selected / "phsource").is_dir():
+        if selected_by == "cache":
+            raise SourceMissingError(
+                f"managed eSpeak NG source is incomplete at {selected}; move it "
+                "aside and run 'ipakit source fetch espeak'"
+            )
         raise SourceMissingError(
             f"eSpeak NG source is unavailable at {selected}; "
             "pass source=... or set IPAKIT_ESPEAK_NG"
@@ -189,11 +203,20 @@ def _status(
     source: str | Path | None,
     cache_dir: str | Path | None,
     verify_artifacts: bool,
+    source_selection: Literal["argument", "environment", "cache"] | None = None,
 ) -> SourceStatus:
     from .extraction import SourceError, espeak
     from .source_cache import SourceStatus, cache_root, source_dir, tables_dir
 
-    selected, selected_by = _selected_source(source)
+    selected: Path | None
+    selected_by: Literal["argument", "environment", "cache"] | None
+    if source_selection is None:
+        selected, configured_by = _selected_source(source)
+        selected_by = configured_by
+    else:
+        if source is None:
+            raise ValueError("an explicit source selection requires a source path")
+        selected, selected_by = Path(source), source_selection
     selected_error: str | None = None
     selected_inputs: dict[str, str] | None = None
     selected_notice: str | None = None
@@ -310,8 +333,8 @@ def _status(
             observed = candidate.name
             detail = (
                 f"eSpeak NG tables in the cache were built from {observed}; "
-                f"this ipakit expects {espeak.REVISION} (tag {espeak.TAG}). Provide "
-                "that pinned source and run 'ipakit source build espeak'. "
+                f"this ipakit expects {espeak.REVISION} (tag {espeak.TAG}). Run "
+                "'ipakit source fetch espeak' then 'ipakit source build espeak'. "
                 "Nothing was rebuilt."
             )
             return SourceStatus(
@@ -385,13 +408,27 @@ def status(
     )
 
 
+def fetch(provider: Provider, *, cache_dir: str | Path | None = None) -> SourceStatus:
+    """Explicitly acquire one pinned source without building tables."""
+    _provider(provider)
+    from .extraction import acquire
+
+    destination = acquire.fetch("espeak", cache_dir)
+    return _status(
+        source=destination,
+        cache_dir=cache_dir,
+        verify_artifacts=True,
+        source_selection="cache",
+    )
+
+
 def build(
     provider: Provider,
     *,
     source: str | Path | None = None,
     cache_dir: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Build and atomically publish tables from an argument or environment path."""
+    """Build and publish tables from an argument, environment, or managed source."""
     import hashlib
 
     from . import __version__
@@ -401,7 +438,7 @@ def build(
     from .source_cache import publish_build, tables_dir
 
     _provider(provider)
-    root = _build_source(source)
+    root = _build_source(source, cache_dir)
     revision = espeak.source_revision(root)
     identity = espeak.validate_source(root)
     notice = espeak._notice_bytes(root)
