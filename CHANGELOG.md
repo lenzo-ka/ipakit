@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added offline eSpeak table builds and source inspection through the API and CLI.
 - Added revision- and format-scoped source-cache paths with atomic build publication.
 - Source receipts support strict optional build provenance.
 - Source policies support strict optional revision provenance.
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- eSpeak builds reject mutable inputs and bind artifacts to one source snapshot.
 - Update PHOIBLE to 5f82b9c (CC BY 4.0) and ship its mappings.
 - Consolidated eSpeak parsing and vocabulary rendering in one library-owned generator.
 - Removed machine-local eSpeak checkout defaults from package and build tooling.

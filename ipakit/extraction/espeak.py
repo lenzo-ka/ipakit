@@ -13,14 +13,24 @@ import subprocess
 import warnings
 import xml.etree.ElementTree as ET
 from collections import Counter, OrderedDict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
-from . import BuildResult
+from .._provenance import SourceMetadata
+from . import (
+    BuildResult,
+    SourceContentError,
+    SourceIdentity,
+    SourceMissingError,
+    SourceVersionError,
+)
 
 SUMMARY = Path("docs/espeak-vocabularies.md")
 REVISION = "4870adfa25b1a32b4361592f1be8a40337c58d6c"
+TAG = "1.52.0"
+FORMAT = 1
 VERSION = "espeak-ng-1.52.0"
 ORIGIN = "https://github.com/espeak-ng/espeak-ng.git"
 UPSTREAM = "eSpeak NG"
@@ -29,6 +39,7 @@ PIN = f"espeak-ng@{REVISION}"
 LICENSE = "GPL-3.0-or-later"
 KIND = "synthesis-phoneme-table"
 PHSOURCE_SHA256 = "7f65326cf12433f67611237f47c0e69e06ef6df34a081af5a29533781aef9a96"
+NOTICE = "COPYING"
 INTERNAL = frozenset({"base1", "base2", "consonants", "hi_base"})
 CHAO_LETTERS = "˩˨˧˦˥"
 CHAO = str.maketrans("12345", CHAO_LETTERS)
@@ -159,25 +170,68 @@ def _run(source: Path, *args: str) -> str:
     ).stdout.strip()
 
 
-def require_pin(source: Path) -> None:
-    """Refuse any checkout/archive other than the provenance revision."""
+def source_revision(source: Path) -> dict[str, str]:
+    """Return the accepted Git or source-archive identity."""
     try:
+        worktree = Path(_run(source, "rev-parse", "--show-toplevel")).resolve()
+    except (OSError, subprocess.CalledProcessError):
+        worktree = None
+    if worktree == source.resolve():
         found = _run(source, "rev-parse", "HEAD")
-    except (OSError, subprocess.CalledProcessError) as error:
-        phsource = source / "phsource"
-        if not phsource.is_dir():
-            raise ValueError(f"eSpeak NG checkout is unreadable: {source}") from error
-        digest = hashlib.sha256()
-        for path in sorted(item for item in phsource.rglob("*") if item.is_file()):
+        if found != REVISION:
+            raise SourceVersionError(
+                f"eSpeak NG checkout is at {found}; required {REVISION} (tag {TAG})"
+            )
+        try:
+            dirty = _run(
+                source,
+                "status",
+                "--porcelain",
+                "--untracked-files=all",
+                "--",
+                "phsource",
+                NOTICE,
+            )
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise SourceMissingError(
+                f"eSpeak NG source is unavailable at {source}; "
+                "pass source=... or set IPAKIT_ESPEAK_NG"
+            ) from error
+        if dirty:
+            raise SourceContentError(
+                "eSpeak NG checkout has changes under phsource or COPYING"
+            )
+        return {"tag": TAG, "commit": REVISION}
+
+    phsource = source / "phsource"
+    if not phsource.is_dir():
+        raise SourceMissingError(
+            f"eSpeak NG source is unavailable at {source}; "
+            "pass source=... or set IPAKIT_ESPEAK_NG"
+        )
+    digest = hashlib.sha256()
+    try:
+        paths = sorted(item for item in phsource.rglob("*") if item.is_file())
+        for path in paths:
             digest.update(path.relative_to(phsource).as_posix().encode() + b"\0")
             digest.update(path.read_bytes())
-        found = f"phsource-sha256:{digest.hexdigest()}"
-        if digest.hexdigest() == PHSOURCE_SHA256:
-            return
-    if found != REVISION:
-        raise ValueError(
-            f"eSpeak NG checkout is at {found}; required {REVISION} ({VERSION})"
+    except OSError as error:
+        raise SourceMissingError(
+            f"eSpeak NG source is unavailable at {source}; "
+            "pass source=... or set IPAKIT_ESPEAK_NG"
+        ) from error
+    found = digest.hexdigest()
+    if found != PHSOURCE_SHA256:
+        raise SourceVersionError(
+            f"eSpeak NG phsource has SHA-256 {found}; required {PHSOURCE_SHA256} "
+            f"(tag {TAG})"
         )
+    return {"tag": TAG, "sha256": PHSOURCE_SHA256}
+
+
+def require_pin(source: Path) -> None:
+    """Refuse any checkout/archive other than the provenance revision."""
+    source_revision(source)
 
 
 def blocks(text: str) -> OrderedDict[str, Phone]:
@@ -509,9 +563,11 @@ def spelling(
     return candidate, None
 
 
-def resolve(source: Path) -> tuple[list[Table], dict[str, OrderedDict[str, Phone]]]:
-    """Resolve every table base first, including mnemonic replacement."""
-    master = (source / "phsource" / "phonemes").read_text(errors="replace")
+def _resolve_inputs(
+    inputs: Mapping[str, bytes],
+) -> tuple[list[Table], dict[str, OrderedDict[str, Phone]]]:
+    """Resolve a captured input snapshot without rereading the source tree."""
+    master = inputs["phsource/phonemes"].decode(errors="replace")
     declared = tables(master)
     own: dict[str, OrderedDict[str, Phone]] = {
         "base1": blocks(master.split("phonemetable consonants", 1)[0])
@@ -519,7 +575,7 @@ def resolve(source: Path) -> tuple[list[Table], dict[str, OrderedDict[str, Phone
     for table in declared:
         if table.source:
             own[table.name] = blocks(
-                (source / "phsource" / table.source).read_text(errors="replace")
+                inputs[f"phsource/{table.source}"].decode(errors="replace")
             )
         else:
             own.setdefault(table.name, OrderedDict())
@@ -571,6 +627,11 @@ def resolve(source: Path) -> tuple[list[Table], dict[str, OrderedDict[str, Phone
             body = compiled_body(table_name, mnemonic, set())
             inventory[mnemonic] = Phone(phone.mnemonic, body)
     return declared, done
+
+
+def resolve(source: Path) -> tuple[list[Table], dict[str, OrderedDict[str, Phone]]]:
+    """Resolve every table base first, including mnemonic replacement."""
+    return _resolve_inputs(_cache_inputs(source))
 
 
 def render(name: str, inventory: OrderedDict[str, Phone]) -> tuple[bytes, Counter[str]]:
@@ -672,7 +733,124 @@ def runtime_render(name: str, inventory: OrderedDict[str, Phone]) -> bytes:
     return rendered
 
 
+def _source_bytes(source: Path, relative: Path) -> bytes:
+    """Read one contained, nonsymlinked source file."""
+    path = source / relative
+    candidate = source
+    try:
+        for part in relative.parts:
+            candidate /= part
+            if candidate.is_symlink():
+                raise SourceContentError(
+                    f"symbolic link is not allowed in eSpeak NG source input: "
+                    f"{relative.as_posix()}"
+                )
+        resolved = path.resolve(strict=True)
+        if not resolved.is_relative_to(source.resolve()):
+            raise SourceContentError(
+                f"eSpeak NG source input escapes the source tree: {relative.as_posix()}"
+            )
+        return path.read_bytes()
+    except SourceContentError:
+        raise
+    except OSError as error:
+        raise SourceMissingError(
+            f"missing eSpeak NG source input: {relative.as_posix()}"
+        ) from error
+
+
+def _cache_inputs(source: Path) -> dict[str, bytes]:
+    """Read exactly the phoneme-table files consumed by a managed build."""
+    master_name = "phsource/phonemes"
+    master = _source_bytes(source, Path(master_name))
+    names = [
+        f"phsource/{table.source}"
+        for table in tables(master.decode(errors="replace"))
+        if table.source is not None
+    ]
+    inputs = {master_name: master}
+    for name in dict.fromkeys(names):
+        relative = Path(name)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise SourceContentError(f"invalid eSpeak NG source input path: {name}")
+        inputs[name] = _source_bytes(source, relative)
+    return inputs
+
+
+def _notice_bytes(source: Path) -> bytes:
+    """Read the license notice that a managed receipt must identify."""
+    try:
+        return _source_bytes(source, Path(NOTICE))
+    except SourceMissingError as error:
+        raise SourceMissingError(
+            f"missing eSpeak NG source notice: {NOTICE}"
+        ) from error
+
+
+def validate_source(source: Path) -> SourceIdentity:
+    """Validate the pin and snapshot every input consumed by table generation."""
+    source_revision(source)
+    inputs = _cache_inputs(source)
+    _notice_bytes(source)
+    metadata = SourceMetadata(
+        UPSTREAM,
+        ORIGIN,
+        f"eSpeak NG {TAG} phsource phoneme tables",
+        PIN,
+        LICENSE,
+        KIND,
+    )
+    return SourceIdentity(
+        metadata,
+        {name: hashlib.sha256(content).hexdigest() for name, content in inputs.items()},
+    )
+
+
 def build(source: Path) -> BuildResult:
+    """Build reproducible language tables for atomic cache publication."""
+    revision = source_revision(source)
+    inputs = _cache_inputs(source)
+    notice = _notice_bytes(source)
+    declared, inventories = _resolve_inputs(inputs)
+    artifacts = {
+        Path(f"{table.name}.xml"): runtime_render(table.name, inventories[table.name])
+        for table in declared
+        if table.name not in INTERNAL
+    }
+    for content in artifacts.values():
+        ET.fromstring(content)
+
+    after_revision = source_revision(source)
+    if after_revision != revision:
+        raise SourceContentError(
+            "eSpeak NG source changed during build: Git revision; nothing was published"
+        )
+    after_inputs = _cache_inputs(source)
+    for name in inputs.keys() | after_inputs.keys():
+        if inputs.get(name) != after_inputs.get(name):
+            raise SourceContentError(
+                f"eSpeak NG source changed during build: {name}; nothing was published"
+            )
+    if _notice_bytes(source) != notice:
+        raise SourceContentError(
+            f"eSpeak NG source changed during build: {NOTICE}; nothing was published"
+        )
+    metadata = SourceMetadata(
+        UPSTREAM,
+        ORIGIN,
+        f"eSpeak NG {TAG} phsource phoneme tables",
+        PIN,
+        LICENSE,
+        KIND,
+    )
+    identity = SourceIdentity(
+        metadata,
+        {name: hashlib.sha256(content).hexdigest() for name, content in inputs.items()},
+    )
+    return BuildResult(artifacts, source=identity)
+
+
+def build_summary(source: Path) -> BuildResult:
     """Validate all in-memory declarations and produce the summary exhibit."""
     require_pin(source)
     declared, inventories = resolve(source)

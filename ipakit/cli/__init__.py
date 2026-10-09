@@ -16,6 +16,7 @@ Organized into subcommands:
     ipakit analyze ...          Inspect/validate the feature data files (alias: data)
     ipakit info ...             Package and data info
     ipakit inventory ...        Inspect named inventories and notation styles
+    ipakit source ...           Build and inspect user-supplied source tables
     ipakit phoible ...          Read shipped or mounted PHOIBLE inventories
     ipakit textgrid ...         Read and write Praat TextGrid documents
     ipakit tract ...            Draw the mid-sagittal tract figure
@@ -65,6 +66,7 @@ from .phoible import PhoibleGroup
 from .policy import report
 from .query import QueryGroup
 from .rules import RulesGroup
+from .source import SourceGroup
 from .syllabify import SyllabifyCommand
 from .textgrid import TextGridGroup
 from .tiergraph import TiergraphCommand
@@ -84,6 +86,7 @@ GROUPS = [
     InfoGroup,
     InventoryGroup,
     ModelGroup,
+    SourceGroup,
     PhoibleGroup,
     TextGridGroup,
     TractGroup,
@@ -116,6 +119,7 @@ Examples:
   ipakit corpus init speech-corpus     # Create an empty form corpus
   ipakit clts read --tokens-json tokens.json  # Import explicit CLTS tokens
   ipakit inventory list               # List named inventories and styles
+  ipakit source status                # Inspect the managed eSpeak table build
   ipakit textgrid write "kæt" -o kæt.TextGrid  # Write a segment-tier TextGrid
   ipakit convert to-cmu "kˈæt"         # IPA to CMU: K AE1 T (stress on the vowel)
   ipakit convert from-cmu K AE1 T        # CMU to IPA: kˈæt

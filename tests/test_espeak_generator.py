@@ -58,7 +58,7 @@ endphoneme
 """)
     monkeypatch.setattr(espeak, "require_pin", lambda source: None)
 
-    result = espeak.build(tmp_path)
+    result = espeak.build_summary(tmp_path)
     assert result.artifacts[espeak.SUMMARY].startswith(
         b"# eSpeak NG vocabulary generation summary\n"
     )
