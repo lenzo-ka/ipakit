@@ -20,7 +20,7 @@ from ipakit.extraction.espeak import (  # noqa: E402
     REVISION as REVISION,
 )
 from ipakit.extraction.espeak import (  # noqa: E402
-    build as build,
+    build_summary as build,
 )
 from ipakit.extraction.espeak import (  # noqa: E402
     require_pin as require_pin,
