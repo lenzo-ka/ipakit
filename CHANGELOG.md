@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Documented the managed eSpeak source workflow and shipped PHOIBLE boundary.
 - Added pinned eSpeak source fetching through the API and CLI.
 - Added offline eSpeak table builds and source inspection through the API and CLI.
 - Added revision- and format-scoped source-cache paths with atomic build publication.

@@ -6,15 +6,21 @@ receipt names its schema and kind, finite domain, source policy, extractor,
 derived artifacts, license and hashed notices, then fingerprints that complete
 material. Unknown top-level fields and duplicate JSON keys are errors.
 
-The common `source-policy` holds the source identity and revision in `source`,
-all consumed input hashes in `inputs`, and optional credit and resolver records.
+The common `source-policy` holds the source identity in `source`, all consumed
+input hashes in `inputs`, and optional credit, resolver and revision records. A
+revision is either a commit or source hash and may also name a tag. An optional
+`build` record names the tool and tool version, positive table format and RFC
+3339 UTC build time. Existing receipts without `revision` and `build` remain
+valid.
 Each derived artifact has a path and SHA256, with an artifact identity and
 schema where the format supplies them. A resolver record carries its name,
 version, and complete implementation-input hash map. The extractor always has
 an id and version. `license` carries the source license id and every shipped
 notice hash.
 
-CLTS, PHOIBLE and Panphon all ship this schema today.
+CLTS, PHOIBLE and Panphon all ship this schema today. Managed eSpeak builds use
+the same schema in the user's cache, but their receipts and source-derived
+tables do not ship in IPAkit.
 
 - CLTS fills the common fields from `source.json`, including the pyclts resolver
   version and hashes. Its derived artifact is `core.json`, with both byte hash
@@ -41,6 +47,16 @@ CLTS, PHOIBLE and Panphon all ship this schema today.
   and hashes the shipped MIT license and notice. The XML root carries only a
   `source-receipt` pointer, not a second provenance record. Panphon has no
   resolver or CLTS profile extensions.
+
+An eSpeak managed-build receipt records the accepted tag and commit or source
+hash, every consumed `phsource` input, the extractor and table format, the
+build time, one hash per generated language declaration and the hash of the
+source notice. It records no local source or cache path. The receipt fingerprint
+covers the build time and therefore changes across rebuilds; each artifact hash
+is the reproducible identity for byte-identical output. Runtime reads validate
+the receipt and the one declaration being used. See
+[user-supplied sources](user-sources.md) for the installed workflow and cache
+layout.
 
 ## License classes and the wheel guard
 

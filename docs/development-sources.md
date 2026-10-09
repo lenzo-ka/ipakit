@@ -5,6 +5,11 @@ runtime. Rebuilding them requires the accepted external dataset. Package
 installation and data acquisition are explicit development steps; ordinary
 imports and commands use the resources already present.
 
+This page covers maintainer regeneration of artifacts that ship with IPAkit.
+The installed eSpeak workflow is separate: eSpeak tables do not ship, and
+users acquire or provide the accepted source and build managed tables through
+`ipakit source`. See [user-supplied sources](user-sources.md).
+
 ## Library ownership
 
 `ipakit.extraction.mfa.build(source: Path)` validates local MFA metadata and
@@ -112,10 +117,13 @@ expected/observed identity where verified, diagnostics and an aggregate
 make build/check/fetch/discover exit nonzero. `check` also exits nonzero for
 artifact differences; a successful `build` may report `changed`.
 
-Lifecycle adapters currently support **MFA, the frozen CLTS core and PHOIBLE's
-accepted dataset snapshot**. `all` includes explicit unsupported
-entries for the census's eSpeak, Panphon, ICU, inventory-card, CMU-dictionary,
-ipa-dict, XRMB and internal-generator paths. Those entries record
+Lifecycle adapters currently support **eSpeak NG, MFA, the frozen CLTS core and
+PHOIBLE's accepted dataset snapshot**. The developer runner's eSpeak adapter
+supports pinned acquisition and regenerates the shipped eSpeak vocabulary
+summary. The installed `ipakit source` workflow separately builds and publishes
+runtime tables in the user's cache. `all` includes explicit unsupported entries
+for the census's Panphon, ICU, inventory-card, CMU-dictionary, ipa-dict, XRMB
+and internal-generator paths. Those entries record
 operation support; inventories and dependencies retain their existing registries.
 Existing tools for these sources still work independently. A CLTS `status`
 result of `available` validates source inputs; use `check` to verify resolver

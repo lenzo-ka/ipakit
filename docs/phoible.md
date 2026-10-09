@@ -7,6 +7,12 @@ explicit checkout path (including its `data/phoible.csv`) takes precedence over
 `IPAKIT_PHOIBLE`, which takes precedence over the shipped snapshot. An invalid
 explicit path or environment setting raises an error.
 
+PHOIBLE is not managed by `ipakit source`: the wheel already contains the main
+CSV, reference bibliography and all three mapping tables. The installed
+user-source workflow applies to eSpeak NG only. See
+[user-supplied sources](user-sources.md) for that boundary and for the common
+no-fallback rule on invalid explicit selections.
+
 The main CSV already supplies InventoryID, ISO 639-3, Glottocode, language name
 and source, so catalog ingestion and whole-source audit do not need a mapping
 table. Bibliographic provenance uses `mappings/InventoryID-Bibtex.csv`, which
@@ -66,4 +72,5 @@ python scripts/dev_sources.py build phoible --source /path/to/accepted/phoible
 
 The offline library producer is `ipakit.extraction.phoible`; acquisition and
 publication remain the existing [developer runner](development-sources.md).
-Fetching is explicit, pinned and separately cached; discovery never repins.
+Fetching is an explicit maintainer operation, pinned and separately cached;
+discovery never repins.
