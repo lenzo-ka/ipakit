@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import ipakit
 import pytest
 from ipakit import phonemaps
+from ipakit._convert import InputLossWarning
 from ipakit.constants import PHONEMAPS_DIR
 from ipakit.phonemaps import (
     _load_phonemap,
     from_kirshenbaum,
     from_timit,
     to_kirshenbaum,
+    to_phonemap,
     to_timit,
 )
 
@@ -168,6 +170,83 @@ def test_a_well_declared_phonemap_still_loads(phonemap_dir: Path) -> None:
         encoding="utf-8",
     )
     assert _load_phonemap("widget") == ({"a": "A"}, {"A": "a"})
+
+
+@pytest.mark.parametrize(
+    ("converter", "expected", "lost", "frame"),
+    [
+        pytest.param(to_timit, ["t"], ["a", "ꜜ", "ʰ"], "timit", id="timit"),
+        pytest.param(
+            to_kirshenbaum,
+            "at",
+            ["ꜜ", "ʰ"],
+            "kirshenbaum",
+            id="kirshenbaum",
+        ),
+    ],
+)
+def test_loss_reports_preserve_written_unit_and_mark_order(
+    converter: Callable[..., object],
+    expected: object,
+    lost: list[str],
+    frame: str,
+) -> None:
+    with pytest.warns(InputLossWarning) as caught:
+        assert converter("aꜜʰt") == expected
+    assert str(caught[0].message) == (
+        f"dropped {len(lost)} unconvertible symbol(s) {lost} "
+        f"converting IPA -> {frame}: "
+        "the result is shorter than the input. Pass strict=True to raise instead."
+    )
+
+    with pytest.raises(ValueError) as refused:
+        converter("aꜜʰt", strict=True)
+    assert str(refused.value).endswith(f"unknown symbols {lost}")
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param("aˈː", "a':", id="prominence-before-length"),
+        pytest.param("aːˈ", "a:'", id="length-before-prominence"),
+    ],
+)
+def test_kirshenbaum_writes_convertible_marks_in_source_order(
+    source: str, expected: str
+) -> None:
+    assert to_kirshenbaum(source, strict=True) == expected
+
+
+@pytest.mark.parametrize(
+    ("converter", "source", "expected"),
+    [
+        pytest.param(to_timit, "t͡ʃ", ["ch"], id="timit-affricate"),
+        pytest.param(to_timit, "oʊ", ["ow"], id="timit-repaired-diphthong"),
+        pytest.param(to_kirshenbaum, "t͡ʃ", "tS", id="kirshenbaum-affricate"),
+    ],
+)
+def test_written_conversion_retains_tied_sequence_compatibility(
+    converter: Callable[..., object], source: str, expected: object
+) -> None:
+    assert converter(source, strict=True) == expected
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param("kæt", ["k", "{", "t"], id="word"),
+        pytest.param(" ", ["#"], id="word-boundary"),
+        pytest.param(
+            "kæt kæt",
+            ["k", "{", "t", "#", "k", "{", "t"],
+            id="two-words",
+        ),
+    ],
+)
+def test_generic_phonemap_keeps_xsampa_symbols_and_boundaries(
+    source: str, expected: list[str]
+) -> None:
+    assert to_phonemap(source, "xsampa", strict=True) == expected
 
 
 class TestTIMIT:

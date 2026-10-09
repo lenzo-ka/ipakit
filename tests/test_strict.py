@@ -7,6 +7,7 @@ Every converter skips unconvertible input by default and raises
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 
 import ipakit
 import pytest
@@ -121,15 +122,26 @@ _WHOLE_CONVERSION_CASES = (
 )
 
 
+def _reported_offenders(source: str, offenders: set[str], frame: str) -> list[str]:
+    """The exact order each converter promises for its loss report."""
+
+    if frame in {"IPA -> timit", "IPA -> kirshenbaum"}:
+        return list(dict.fromkeys(symbol for symbol in source if symbol in offenders))
+    return sorted(offenders)
+
+
 @pytest.mark.parametrize("converter,frame,cases", _WHOLE_CONVERSION_CASES)
 def test_strict_diagnostics_name_the_complete_offender_set(
-    converter, frame: str, cases: dict[str, set[str]]
-) -> None:  # type: ignore[no-untyped-def]
+    converter: Callable[..., object], frame: str, cases: dict[str, set[str]]
+) -> None:
     for source, offenders in cases.items():
         if not offenders:
             converter(source, strict=True)
             continue
-        expected = f"Cannot convert {frame}: unknown symbols {sorted(offenders)!r}"
+        expected = (
+            f"Cannot convert {frame}: unknown symbols "
+            f"{_reported_offenders(source, offenders, frame)!r}"
+        )
         with pytest.raises(ValueError) as caught:
             converter(source, strict=True)
         assert str(caught.value) == expected
@@ -137,8 +149,8 @@ def test_strict_diagnostics_name_the_complete_offender_set(
 
 @pytest.mark.parametrize("converter,frame,cases", _WHOLE_CONVERSION_CASES)
 def test_lossy_diagnostics_warn_once_in_the_converter_callers_frame(
-    converter, frame: str, cases: dict[str, set[str]]
-) -> None:  # type: ignore[no-untyped-def]
+    converter: Callable[..., object], frame: str, cases: dict[str, set[str]]
+) -> None:
     for source, offenders in cases.items():
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -147,6 +159,8 @@ def test_lossy_diagnostics_warn_once_in_the_converter_callers_frame(
         if offenders:
             warning = caught[0]
             assert warning.filename == __file__
-            assert sorted(offenders).__repr__() in str(warning.message)
+            assert repr(_reported_offenders(source, offenders, frame)) in str(
+                warning.message
+            )
             assert f"converting {frame}:" in str(warning.message)
             assert "while parsing IPA" not in str(warning.message)

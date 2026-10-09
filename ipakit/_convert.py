@@ -59,19 +59,28 @@ def resolve_aliases(ipa: str) -> str:
     return ipa_features().expand_ligatures(ipa)
 
 
-def require_convertible(skipped: list[str], what: str) -> None:
+def require_convertible(
+    skipped: list[str], what: str, *, preserve_order: bool = False
+) -> None:
     """Raise ``ValueError`` if any input symbols could not be converted.
 
     Used by converters called with ``strict=True``. ``what`` names the
     conversion, e.g. ``"to CMU ARPABET"`` or ``"IPA -> X-SAMPA"``.
     """
     if skipped:
-        unknown = sorted(set(skipped))
+        unknown = (
+            list(dict.fromkeys(skipped)) if preserve_order else sorted(set(skipped))
+        )
         raise ValueError(f"Cannot convert {what}: unknown symbols {unknown}")
 
 
 def report_unconvertible(
-    skipped: list[str], what: str, *, strict: bool, stacklevel: int = 3
+    skipped: list[str],
+    what: str,
+    *,
+    strict: bool,
+    stacklevel: int = 3,
+    preserve_order: bool = False,
 ) -> None:
     """Say what the conversion could not carry: raise, or warn.
 
@@ -98,11 +107,12 @@ def report_unconvertible(
     if not skipped:
         return
     if strict:
-        require_convertible(skipped, what)
+        require_convertible(skipped, what, preserve_order=preserve_order)
         return
+    unknown = list(dict.fromkeys(skipped)) if preserve_order else sorted(set(skipped))
     warnings.warn(
         f"dropped {len(skipped)} unconvertible symbol(s) "
-        f"{sorted(set(skipped))} converting {what}: the result is shorter "
+        f"{unknown} converting {what}: the result is shorter "
         "than the input. Pass strict=True to raise instead.",
         InputLossWarning,
         stacklevel=stacklevel,
@@ -220,18 +230,7 @@ def structured_ipa_read(text: str) -> tuple[Form, list[str]]:
     return form, lost
 
 
-def structured_ipa_spellings(text: str) -> tuple[tuple[str, ...], list[str]]:
-    """Return structured spellings and every loss found while reading them."""
-
-    form, lost = structured_ipa_read(text)
-    # ``Unit.text`` is the structured occurrence's retained spelling.  This
-    # deliberately preserves accepted-but-noncanonical atomic spellings: the
-    # historical phoneset contracts drop those unless their own table has a
-    # row, while registered ligature aliases were resolved before this call.
-    return tuple(unit.text for unit in form.units) or (text,), lost
-
-
-def convert_structured_ipa(
+def convert_written_ipa(
     text: str,
     lookup: Mapping[str, str],
     *,
@@ -239,14 +238,22 @@ def convert_structured_ipa(
     strict: bool,
     stacklevel: int = 4,
 ) -> list[str]:
-    """Convert all structured IPA units under one diagnostic boundary."""
+    """Convert IPA in written order under one diagnostic boundary.
 
-    spellings, lost = structured_ipa_spellings(text)
-    result = [
-        symbol
-        for spelling in spellings
-        for symbol in convert_greedy(spelling, lookup, skipped=lost, report=False)
-    ]
+    Parsing may attach a mark to a neighboring unit and respell that unit in
+    semantic order. A lossy notation still has to name omissions where the
+    caller wrote them, so string conversion walks the resolved source directly.
+    """
+
+    source = "".join("#" if character.isspace() else character for character in text)
+    lost: list[str] = []
+    result = convert_greedy(source, lookup, skipped=lost, report=False)
     # stacklevel 4: reporter -> this route -> public converter -> caller.
-    report_unconvertible(lost, what, strict=strict, stacklevel=stacklevel)
+    report_unconvertible(
+        lost,
+        what,
+        strict=strict,
+        stacklevel=stacklevel,
+        preserve_order=True,
+    )
     return result
