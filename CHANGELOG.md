@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `compare_inventories.py` renders its TSV and SVG from the common report and preserves report order instead of independently reclustering phones.
 - Requires tiergraph 0.8.0 or later for relation-instance edit targets.
 
+### Fixed
+
+- X-SAMPA writing preserves source order and word boundaries across multi-unit joins.
+- X-SAMPA writing reports only symbols it cannot encode.
+
 ## [0.5.0] - 2026-10-01
 
 ### Added

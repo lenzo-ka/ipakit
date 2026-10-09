@@ -29,6 +29,7 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
+import warnings
 from collections import defaultdict
 from collections.abc import Mapping
 from itertools import product
@@ -413,6 +414,21 @@ class TestBasicConversion:
         assert ipakit.from_xsampa("k{t") == "kæt"
         assert ipakit.from_xsampa("TINk") == "θɪŋk"
 
+    def test_whitespace_writes_word_boundaries(self) -> None:
+        assert ipakit.to_xsampa(" ") == "#"
+        assert ipakit.to_xsampa("kæt dɒɡ") == "k{t#dQg"
+        assert ipakit.to_xsampa("a b", strict=True) == "a#b"
+
+    @pytest.mark.parametrize("source", ["ꜜa", "aˈ", "ˈʰt"])
+    def test_convertible_written_marks_are_not_reported_as_lost(
+        self, source: str
+    ) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            expected = ipakit.to_xsampa(source)
+        assert caught == []
+        assert ipakit.to_xsampa(source, strict=True) == expected
+
     def test_affricate_tie_bar(self) -> None:
         # tie bar maps to `_`; t͡ʃ <-> t_S round-trips cleanly
         assert ipakit.to_xsampa("t͡ʃ") == "t_S"
@@ -598,11 +614,12 @@ class TestComposedRoundTrip:
 
         This is what makes the pins above a statement about the *table*
         rather than a list of strings that happen to fail. Writing loses
-        nothing at a boundary over either extent, so every failure pinned
-        here is the reader re-segmenting -- and a future failure that is
-        *not* that shape breaks this test instead of quietly joining the
-        list, which is the distinction between one more X-SAMPA ambiguity
-        and a defect in the encoder.
+        nothing at a boundary over either extent or over bounded sequences
+        of three through eight complete units. Every failure pinned here is
+        therefore the reader re-segmenting -- and a future failure that is
+        *not* that shape breaks this test instead of quietly joining the list,
+        which is the distinction between one more X-SAMPA ambiguity and a
+        defect in the encoder.
         """
         bases = self._bases()
         joins = [*self._marked_joins(), *((a, b) for a in bases for b in bases)]
@@ -612,6 +629,30 @@ class TestComposedRoundTrip:
                 left + right
             )
         assert len(joins) > 20000, f"sweep covered only {len(joins)} joins"
+
+        units = sorted({*bases, *self._marked_units()})
+        encoded.update((unit, ipakit.to_xsampa(unit)) for unit in units)
+        widths: set[int] = set()
+        splits: set[int] = set()
+        for start in range(len(units)):
+            width = 3 + start % 6
+            parts = tuple(
+                units[(start + offset) % len(units)] for offset in range(width)
+            )
+            split = 1 + start % (width - 1)
+            expected = "".join(encoded[part] for part in parts)
+            assert ipakit.to_xsampa("".join(parts)) == expected, parts
+            assert (
+                ipakit.to_xsampa("".join(parts[:split]))
+                + ipakit.to_xsampa("".join(parts[split:]))
+                == expected
+            ), (parts, split)
+            widths.add(width)
+            splits.add(split)
+
+        assert len(units) > 7000, f"multi-part sweep covered only {len(units)} units"
+        assert widths == set(range(3, 9))
+        assert splits == set(range(1, 8))
 
 
 class TestBoundarySpanningRoundTrip:

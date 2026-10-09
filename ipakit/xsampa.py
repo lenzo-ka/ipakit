@@ -15,7 +15,6 @@ import xml.etree.ElementTree as ET
 
 from ._convert import (
     convert_greedy,
-    convert_structured_ipa,
     ipa_features,
     report_unconvertible,
     resolve_aliases,
@@ -79,6 +78,16 @@ def to_xsampa(ipa_string: str, strict: bool = False) -> str:
         )
     if ipa_string in ipa2xs:
         return ipa2xs[ipa_string]
+    # Convert the written order directly: parsing can reattach a prefix mark to
+    # a neighboring unit. Whitespace is the accepted spelling of a word boundary.
+    source = "".join(
+        "#" if character.isspace() else character for character in ipa_string
+    )
     return "".join(
-        convert_structured_ipa(ipa_string, ipa2xs, strict=strict, what="IPA -> X-SAMPA")
+        convert_greedy(
+            source,
+            ipa2xs,
+            strict=strict,
+            what="IPA -> X-SAMPA",
+        )
     )
