@@ -235,11 +235,12 @@ class GraphBinding:
         final = _walk_projection(
             initial, tuple(step for step in trace.steps if step.fired), writer
         )
+        graph = writer.freeze()
         return GraphDerivation(
             checked,
             rules,
             trace,
-            writer.graph,
+            graph,
             tuple(item.handle for item in final),
             identity,
         )
@@ -326,11 +327,14 @@ class GraphDerivation:
 class _GraphWriter:
     def __init__(self, binding: GraphBinding, identity: str):
         self.binding = binding
-        self.graph = binding.graph
+        self.editor: tg.GraphEditor | None = None
         self.namespace = "urn:ipakit:finite-rewrite:" + identity.removeprefix("sha256:")
         self.prefix = "rewrite-" + identity.removeprefix("sha256:")
         self.count = 0
         self.tiers: dict[int, tg.QualifiedName] = {}
+        self.tier_counts: dict[tg.QualifiedName, int] = {}
+        self.tier_items: dict[tg.QualifiedName, list[tg.Item]] = {}
+        self.relations: list[tg.PolyadicRelationInstance] = []
 
     def q(self, name: str) -> tg.QualifiedName:
         return tg.QualifiedName(self.namespace, name)
@@ -344,23 +348,24 @@ class _GraphWriter:
     def _tier(self, step: int) -> tg.QualifiedName:
         if step in self.tiers:
             return self.tiers[step]
-        editor = self.graph.edit()
+        if self.editor is None:
+            self.editor = self.binding.graph.edit()
         if not self.tiers:
             if any(
                 ns.namespace == self.namespace or ns.prefix == self.prefix
-                for ns in self.graph.namespaces
+                for ns in self.binding.graph.namespaces
             ):
                 raise ModelRuleError(
                     "invalid-binding", "derived operation namespace already exists"
                 )
-            editor.declare(tg.NamespaceDeclaration(self.prefix, self.namespace))
+            self.editor.declare(tg.NamespaceDeclaration(self.prefix, self.namespace))
             item = tg.RelationSideDeclaration(
                 (tg.RelationEndpointKind.ITEM,), minimum=1, maximum=1
             )
             targets = tg.RelationSideDeclaration(
                 (tg.RelationEndpointKind.ITEM,), minimum=0, allow_empty=True
             )
-            editor.declare(
+            self.editor.declare(
                 tg.PolyadicRelationDeclaration(
                     self.q("rewrites-to"),
                     tg.RelationSideDeclaration(
@@ -369,12 +374,12 @@ class _GraphWriter:
                     targets,
                 )
             )
-            editor.declare(
+            self.editor.declare(
                 tg.AttributeDeclaration(
                     self.q("value"), tg.AttributeDomain.ITEM, tg.JsonType.JSON
                 )
             )
-            editor.declare(
+            self.editor.declare(
                 tg.PolyadicRelationDeclaration(
                     self.q("starts-at"),
                     item,
@@ -388,9 +393,10 @@ class _GraphWriter:
                 )
             )
         tier = self.q(f"step-{step}")
-        editor.declare(tg.TierDeclaration(tier, f"Finite rewrite step {step}"))
-        self.graph = editor.freeze()
+        self.editor.declare(tg.TierDeclaration(tier, f"Finite rewrite step {step}"))
         self.tiers[step] = tier
+        self.tier_counts[tier] = 0
+        self.tier_items[tier] = []
         return tier
 
     def _write(
@@ -421,34 +427,37 @@ class _GraphWriter:
                 "trace": trace,
                 "order": [step, site, site, target_index],
             }
-            index = next(
-                len(t.items) for t in self.graph.tiers if t.declaration.name == tier
-            )
+            index = self.tier_counts[tier]
             ref = tg.ItemRef(tier, index)
-            editor = self.graph.edit().insert_item(
-                tier,
-                index,
+            self.tier_items[tier].append(
                 tg.Item(
                     f"{self.prefix}-{self.count}",
                     attributes=(tg.JsonAttributeValue(self.q("value"), payload),),
-                ),
+                )
             )
-            editor.add_relation(
+            self.relations.append(
                 tg.PolyadicRelationInstance(self.q("starts-at"), (ref,), (anchor,))
             )
-            self.graph = editor.freeze()
+            self.tier_counts[tier] += 1
             self.count += 1
             targets.append(ref)
-        editor = self.graph.edit()
-        editor.add_relation(
+        self.relations.append(
             tg.PolyadicRelationInstance(
                 self.q("rewrites-to"),
                 tuple(token.handle for token in sources),
                 tuple(targets),
             )
         )
-        self.graph = editor.freeze()
         return tuple(targets)
+
+    def freeze(self) -> tg.Graph:
+        if self.editor is None:
+            return self.binding.graph
+        for tier, items in self.tier_items.items():
+            self.editor.insert_items(tier, 0, items)
+        for relation in self.relations:
+            self.editor.add_relation(relation)
+        return self.editor.freeze()
 
     def emit(
         self,
