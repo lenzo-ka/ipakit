@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import functools
-import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from collections.abc import Callable
@@ -468,14 +467,32 @@ def _espeak_language_inventory(code: str) -> Inventory:
     return _bridge_inventory(name, EspeakBridge(code))
 
 
-def _registry() -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
+def _registry(
+    *, strict_espeak: bool = False
+) -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
     """Return the registry for the currently selected optional eSpeak source."""
-    return _registry_for(os.environ.get("IPAKIT_ESPEAK_NG") or None)
+    import os
+
+    from .espeak_source import _languages, _selection
+    from .extraction import SourceError
+
+    try:
+        selection = _selection()
+    except FileNotFoundError:
+        if os.environ.get("IPAKIT_ESPEAK_NG"):
+            raise
+        return _registry_for(None, ())
+    except SourceError:
+        if strict_espeak:
+            raise
+        return _registry_for(None, ())
+    return _registry_for(str(selection.path), _languages(selection))
 
 
 @functools.lru_cache(maxsize=4)
 def _registry_for(
     espeak_path: str | None,
+    espeak_languages: tuple[str, ...],
 ) -> dict[str, tuple[Callable[[], Inventory], SourceMetadata]]:
     """Return the one registry table used for listing and loading."""
     from .bridges.mfa import UNION, declarations
@@ -516,9 +533,7 @@ def _registry_for(
     if (_PHONEMAPS / "timit.xml").is_file():
         registry["timit"] = (_timit_inventory, _source(_PHONEMAPS / "timit.xml"))
     if espeak_source is not None:
-        from .espeak_source import languages
-
-        for code in languages():
+        for code in espeak_languages:
             name = f"espeak:{code}"
             registry[name] = (
                 functools.partial(_espeak_language_inventory, code),
@@ -529,16 +544,19 @@ def _registry_for(
 
 def inventory(name: str, *, ipa: IPAFeatures | None = None) -> Inventory:
     """Load a named inventory, refusing an absent declaration."""
-    registry = _registry()
+    registry = _registry_for(None, ())
+    if name == "espeak" or name.startswith("espeak:"):
+        registry = _registry(strict_espeak=True)
+    elif name not in registry:
+        registry = _registry()
     try:
         builder, source = registry[name]
     except KeyError as error:
         if name == "espeak" or name.startswith("espeak:"):
-            from .bridges.espeak import ESPEAK_ENV
-
             raise ValueError(
-                f"eSpeak NG source is required for {name!r}; set {ESPEAK_ENV} "
-                "to the pinned eSpeak NG checkout"
+                "eSpeak NG source is required; pass source=..., set "
+                "IPAKIT_ESPEAK_NG, or run "
+                "'ipakit source build espeak --source PATH'"
             ) from error
         if name.startswith("mfa:"):
             from .bridges.mfa import declarations

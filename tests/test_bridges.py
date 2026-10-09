@@ -22,8 +22,9 @@ ESPEAK_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_en_1_52_0.txt"
 ESPEAK_CMN_FIXTURE = Path(__file__).parent / "fixtures" / "espeak_cmn_1_52_0.txt"
 
 
-def test_espeak_requires_user_source(monkeypatch) -> None:
+def test_espeak_requires_user_source(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv(ESPEAK_ENV, raising=False)
+    monkeypatch.setenv("IPAKIT_SOURCE_CACHE", str(tmp_path / "empty-cache"))
     with pytest.raises(FileNotFoundError, match=ESPEAK_ENV):
         EspeakBridge("en")
 

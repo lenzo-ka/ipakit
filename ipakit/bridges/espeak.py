@@ -20,19 +20,19 @@ def _features() -> IPAFeatures:
 class EspeakBridge(VocabularyBridge):
     """One language-scoped eSpeak NG native-mnemonic vocabulary."""
 
-    def __init__(self, language: str, source: str | Path | None = None) -> None:
-        """Build ``language`` from an explicit source, then ``IPAKIT_ESPEAK_NG``."""
-        from ..espeak_source import declaration_bytes, supplied_source
+    def __init__(
+        self,
+        language: str,
+        source: str | Path | None = None,
+        *,
+        cache_dir: str | Path | None = None,
+    ) -> None:
+        """Load ``language`` from an argument, environment, or managed build."""
+        from ..espeak_source import declaration
 
-        root = supplied_source(source)
-        declarations = declaration_bytes(str(root))
-        try:
-            declaration = declarations[language]
-        except KeyError as error:
-            raise ValueError(
-                f"no declared eSpeak NG vocabulary for {language!r}"
-            ) from error
-        super().__init__(declaration, ipa=_features())
+        super().__init__(
+            declaration(language, source, cache_dir=cache_dir), ipa=_features()
+        )
         self.language = language
 
 
