@@ -212,6 +212,7 @@ def test_graph_decoration_split_deletion_preservation_and_reconstructed_restore(
 def test_empty_and_no_match_validate_and_return_exact_original_graph(tokens):
     binding = fixture(tokens)
     result = binding.derive(RuleSet((parse("a -> b", model=binding.model),)))
+    assert result.graph is binding.graph
     assert tg.dump_bytes(result.graph) == tg.dump_bytes(binding.graph)
     assert result.final_refs == binding.refs
     assert (
@@ -331,3 +332,34 @@ def test_both_writers_call_the_same_trace_traversal(monkeypatch):
     native = RuleSet.parse("t -> s", inventory).derive("ta", inventory)
     _rewrite_graph.project_derivation(native, inventory)
     assert calls == ["_GraphWriter", "_NativeWriter"]
+
+
+def test_graph_derivation_uses_one_editor_and_one_freeze(monkeypatch):
+    binding = fixture(claims=(False, 1, 0))
+    no_match = fixture(("sil",))
+    edits = 0
+    freezes = 0
+    edit = tg.Graph.edit
+    freeze = tg.GraphEditor.freeze
+
+    def record_edit(graph):
+        nonlocal edits
+        edits += 1
+        return edit(graph)
+
+    def record_freeze(editor):
+        nonlocal freezes
+        freezes += 1
+        return freeze(editor)
+
+    monkeypatch.setattr(tg.Graph, "edit", record_edit)
+    monkeypatch.setattr(tg.GraphEditor, "freeze", record_freeze)
+
+    result = no_match.derive(RuleSet((parse("a -> b", model=no_match.model),)))
+
+    assert result.graph is no_match.graph
+    assert edits == freezes == 0
+
+    binding.derive(rules(binding.model))
+
+    assert edits == freezes == 1
