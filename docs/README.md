@@ -11,6 +11,7 @@ reasoning; the reference pages describe current behavior.
 | --- | --- |
 | [Basic use](tutorial-basics.md) | Read a form, inspect features, query classes and apply a rule. |
 | [Task-based tutorial](tutorial.md) | Side-by-side Python and CLI workflows, with executed examples. |
+| [User-supplied sources](user-sources.md) | Fetch or provide eSpeak NG, build offline managed tables and inspect cache status and receipts. |
 | [Capabilities](capabilities.md) | What IPAkit implements, what remains planned, and how computation connects its representations. |
 | [Glossary](glossary.md) | Phonetics and phonology vocabulary used in the guides. |
 

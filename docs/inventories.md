@@ -8,7 +8,7 @@ A `Style` is a strict boundary: `read()` turns one spelling from that notation i
 
 Card-bearing declaration roots state `upstream`, `upstream-url`, `artifact`, `version`, `license`, and `kind`; `Inventory.source.to_dict()` exposes those fields in a JSON-serializable form. `version` is the upstream source pin, with `unpinned` written explicitly when there is no pin. A declaration format that needs its own schema revision uses `declaration-version` instead. The human `Inventory.provenance` sentence is derived from these fields and is not stored beside them, so one fact has one spelling to keep current.
 
-Use `inventories()` to list the available names and `inventory(name)` to load one; an unknown name is refused with the available names. eSpeak names become available when `IPAKIT_ESPEAK_NG` selects the pinned user checkout.
+Use `inventories()` to list the available names and `inventory(name)` to load one; an unknown name is refused with the available names. eSpeak names become available when `IPAKIT_ESPEAK_NG` or the managed cache selects accepted eSpeak data.
 
 Independent finite feature models have their own declaration boundary:
 `ipakit.feature_models.available()` lists the shipped tables, and
@@ -27,7 +27,7 @@ Declared refusals are excluded from the phone count and available through `Inven
 
 The `zipa` inventory contains the 108 base phones in ZIPA's pinned 127-token vocabulary. `ZIPABridge.read_tokens()` also reads its 15 trailing-mark tokens and `▁` word boundary, while `<blk>`, `<sos/eos>`, and `<unk>` are declared non-phone refusals. `ZIPABridge.read_original()` reads the IPAPack++ `custom.original` field, retaining spaces and tie bars; its ASCII `g` maps to house `ɡ` only at that ZIPA boundary, and the ordinary strict reader continues to refuse `g`. The reverse projection declares the recognizer vocabulary's missing ties, stress, tone, second diacritics, and the absent `̯ ̤ ̆ ̈ ˑ` marks.
 
-Bare `espeak` is the union of the phone names generated in memory from the user's pinned eSpeak NG source, the vocabulary used by wav2vec2 eSpeak phoneme recognizers, while each `espeak:<code>` inventory retains its language's table. `EspeakBridge(code, source=...)` gives an explicit path first priority; otherwise `IPAKIT_ESPEAK_NG` selects the checkout. Both entry points refuse clearly when the source is absent or not at the accepted 1.52.0 tag.
+Bare `espeak` is the union of the phone names generated in memory from the user's pinned eSpeak NG source, the vocabulary used by wav2vec2 eSpeak phoneme recognizers, while each `espeak:<code>` inventory retains its language's table. `EspeakBridge(code, source=...)` gives an explicit path first priority, then `IPAKIT_ESPEAK_NG`, then a valid managed build selected by the cache root. Invalid explicit or environment selections are refused without falling through, and a missing source and managed build are refused clearly. See [user-supplied sources](user-sources.md) for acquisition, build, and cache selection.
 
 The union style reads a name to its house-IPA spelling only where every declaration carrying that name agrees, while a name found in only one declaration reads through that declaration.
 

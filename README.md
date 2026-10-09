@@ -37,7 +37,7 @@ derived forms, expose structural queries at the shell, and test rule systems
 against paired forms. That is also the substrate on which rule induction can
 run; the inducer itself remains a separate concern.
 
-Praat TextGrids enter and leave through named tier profiles, including an MFA alignment profile. The [inventory registry](https://github.com/lenzo-ka/ipakit/blob/main/docs/inventories.md) includes pinned MFA and ZIPA phone declarations and adds eSpeak NG vocabularies from a user-supplied checkout, while [TextGrid interchange](https://github.com/lenzo-ka/ipakit/blob/main/docs/textgrid.md) applies those inventory styles to tier labels without guessing.
+Praat TextGrids enter and leave through named tier profiles, including an MFA alignment profile. The [inventory registry](https://github.com/lenzo-ka/ipakit/blob/main/docs/inventories.md) includes pinned MFA and ZIPA phone declarations and adds eSpeak NG vocabularies from a user-supplied source or managed build, while [TextGrid interchange](https://github.com/lenzo-ka/ipakit/blob/main/docs/textgrid.md) applies those inventory styles to tier labels without guessing.
 
 The package uses tiergraph for graph navigation; its phonetic data and geometry
 ship as declarations. It is typed, and the Python API and `ipakit` command expose the
@@ -61,6 +61,10 @@ same model. See [the canonical representation](https://github.com/lenzo-ka/ipaki
 ```bash
 pip install ipakit
 ```
+
+PHOIBLE data and mappings ship in the wheel. eSpeak NG phoneme tables do not;
+the [user-source guide](docs/user-sources.md) shows the explicit fetch or local
+source workflows, offline table builds, cache precedence and receipts.
 
 For development (tests, linters, and the X-SAMPA table tooling):
 
