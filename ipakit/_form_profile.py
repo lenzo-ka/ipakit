@@ -393,8 +393,9 @@ def _schema(source: ContainmentProjectionInput, inventory: Any) -> Any:
             default = baseline.get(item.name, type(item)(item.name))
             changes = {}
             for field in fields(item):
-                value, previous = getattr(item, field.name), getattr(
-                    default, field.name
+                value, previous = (
+                    getattr(item, field.name),
+                    getattr(default, field.name),
                 )
                 if value != previous:
                     if isinstance(value, frozenset) and isinstance(previous, frozenset):
@@ -532,19 +533,19 @@ def construct(
     from .segment import Segment
 
     core = ContainmentProjection.from_input(source)
-    graph = core.graph
     if any(
         binding.namespace == NS or binding.namespace.startswith(NS + ":")
-        for binding in graph.namespaces
+        for binding in core.graph.namespaces
     ):
         raise ValueError("Form profile namespace is reserved")
     if any(
         declaration.name.local_name in {TIER_ROLE.local_name, RELATION_ROLE.local_name}
-        for declaration in graph.attribute_declarations
+        for declaration in core.graph.attribute_declarations
     ):
         raise ValueError("foreign-qualified Form role declaration shadows house role")
 
-    editor = graph.edit().declare(tg.NamespaceDeclaration("form", NS))
+    editor = core.graph.edit().declare(tg.NamespaceDeclaration("form", NS))
+    declared_attributes = {item.name for item in core.graph.attribute_declarations}
     editor.declare(tg.TierDeclaration(POINT, "Form profile metadata"))
     editor.insert_item(POINT, 0, tg.Item())
     for profile_declaration in (
@@ -563,6 +564,7 @@ def construct(
         ),
     ):
         editor.declare(profile_declaration)
+        declared_attributes.add(profile_declaration.name)
     editor.declare(
         tg.PolyadicRelationDeclaration(
             SOURCE_EVENTS,
@@ -594,11 +596,9 @@ def construct(
             tuple(core.old_to_new[path] for path in source.refs),
         )
     )
-    graph = editor.freeze()
 
     # Source order annotates the actual native instances; endpoints stay there.
-    ordered = graph.polyadic_relations
-    editor = graph.edit()
+    ordered = core.graph.polyadic_relations
     used: set[int] = set()
     for rank, relation in enumerate(source.relations):
         native_name = core.relation_names[relation.name]
@@ -615,10 +615,7 @@ def construct(
             tg.PolyadicInstanceRef(index),
             tg.AttributeValue(ORDER, tg.XsdType.INTEGER, str(rank)),
         )
-    graph = editor.freeze()
 
-    editor = graph.edit()
-    declared_attributes = {item.name for item in graph.attribute_declarations}
     json_contexts: list[tuple[tg.QualifiedName, str, str]] = []
     codecs: dict[str, dict[str, Any]] = {}
     for path in source.refs:
@@ -742,16 +739,6 @@ def construct(
             json_contexts.append((qualified, feature_name, path))
             encoded[feature_name] = [codec, qualified.to_data()]
         codecs[path] = encoded
-    try:
-        graph = editor.freeze()
-    except (ValueError, TypeError) as exc:
-        for qualified, feature_name, path in json_contexts:
-            if str(qualified) in str(exc):
-                raise ValueError(
-                    f"unrepresentable Form feature {feature_name!r} at {path}: {exc}"
-                ) from exc
-        raise
-
     codec_table: list[dict[str, Any]] = []
     codec_indices: list[int] = []
     codec_keys: dict[str, int] = {}
@@ -775,14 +762,20 @@ def construct(
     }
     if _profile_version is not None:
         metadata["version"] = _profile_version
-    editor = graph.edit()
     editor.set_attribute(tg.ItemRef(POINT, 0), tg.JsonAttributeValue(PROFILE, metadata))
-    graph = editor.freeze()
-    if not _matching:
-        return graph
-    from ._cross_tier import augment_graph
+    if _matching:
+        from ._cross_tier import augment_graph
 
-    return augment_graph(graph, source, inventory, spelling)
+        augment_graph(editor, core.graph, source, inventory, spelling)
+    try:
+        return editor.freeze()
+    except (ValueError, TypeError) as exc:
+        for qualified, feature_name, path in json_contexts:
+            if str(qualified) in str(exc):
+                raise ValueError(
+                    f"unrepresentable Form feature {feature_name!r} at {path}: {exc}"
+                ) from exc
+        raise
 
 
 def restore(
@@ -1034,11 +1027,10 @@ def restore(
             if kind in ("unit", "unit-value"):
                 if unit is None:
                     unit = _unit_from_attributes(attrs, inventory)
-                value = (
-                    unit
-                    if kind == "unit"
-                    else unit.segment if unit.segment is not None else unit.text
-                )
+                if kind == "unit":
+                    value = unit
+                else:
+                    value = unit.segment if unit.segment is not None else unit.text
             elif kind == "attribute":
                 raw = attrs[feature_name]
                 value = (

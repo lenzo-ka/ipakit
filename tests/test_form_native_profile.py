@@ -513,6 +513,20 @@ def test_freeze_time_json_refusal_keeps_source_context(monkeypatch):
         builder.build().to_json()
 
 
+def test_form_profile_construction_freezes_one_editor(monkeypatch):
+    original = tg.GraphEditor.freeze
+    freezes = 0
+
+    def counted(editor):
+        nonlocal freezes
+        freezes += 1
+        return original(editor)
+
+    monkeypatch.setattr(tg.GraphEditor, "freeze", counted)
+    _ = Form.parse("ˈa˥t").graph
+    assert freezes == 1
+
+
 def test_conflicting_derived_scalar_payload_refuses():
     declarations = Declarations(
         (TierDeclaration("target", frozenset({"arc"})),),
