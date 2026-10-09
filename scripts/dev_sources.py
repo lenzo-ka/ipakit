@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -18,6 +17,8 @@ from ipakit import clts  # noqa: E402
 from ipakit.extraction import (  # noqa: E402
     BuildResult,
     SourceError,
+    acquire,
+    espeak,
     mfa,  # noqa: E402
     phoible,
 )
@@ -25,7 +26,6 @@ from ipakit.extraction import (  # noqa: E402
 # This is an operation-support census, not a second inventory/pin registry.
 # Producer pins and semantics remain with their library implementation.
 PENDING = {
-    "espeak": "promote existing eSpeak extractor before registering an adapter",
     "panphon": "promote existing Panphon extractor before registering an adapter",
     "icu": "promote X-SAMPA extraction and identify consumed ICU data",
     "inventory-cards": "existing script; downstream adapter pending",
@@ -64,6 +64,17 @@ def _mfa_producer() -> _Producer:
         ("/dictionary/*/*/*/meta.json", "/" + mfa.DICTIONARY.as_posix()),
         _validate_mfa,
         mfa.build,
+    )
+
+
+def _espeak_producer() -> _Producer:
+    return _Producer(
+        espeak.REVISION,
+        espeak.PIN,
+        espeak.ORIGIN,
+        espeak.SPARSE_PATHS,
+        lambda path: espeak.validate_source(path).digests,
+        espeak.build_summary,
     )
 
 
@@ -112,19 +123,17 @@ def _phoible_producer() -> _Producer:
     )
 
 
-PRODUCERS = {"mfa": _mfa_producer, "clts": _clts_producer, "phoible": _phoible_producer}
+PRODUCERS = {
+    "mfa": _mfa_producer,
+    "clts": _clts_producer,
+    "phoible": _phoible_producer,
+    "espeak": _espeak_producer,
+}
 
 
 def git(source: Path | None, *arguments: str) -> str:
-    """Run an explicit Git operation, converting process failures to errors."""
-    command = ["git", *(["-C", str(source)] if source else []), *arguments]
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    except subprocess.TimeoutExpired as error:
-        raise ValueError("source Git operation timed out") from error
-    if result.returncode:
-        raise ValueError(result.stderr.strip() or "source Git operation failed")
-    return result.stdout.strip()
+    """Delegate an explicit Git operation to the installed acquisition code."""
+    return acquire.git(source, *arguments)
 
 
 def acquire_mfa(source: Path) -> None:
@@ -133,23 +142,8 @@ def acquire_mfa(source: Path) -> None:
 
 
 def acquire_espeak(source: Path) -> None:
-    """Acquire the pinned eSpeak source owned by its generator script."""
-    # Keep the source facts with the existing generator rather than copying a
-    # second revision registry into this acquisition-only module.  The import
-    # is intentionally local: espeak_vocabularies imports this helper.
-    from scripts import espeak_vocabularies
-
-    def validate(path: Path) -> Mapping[str, str]:
-        espeak_vocabularies.require_pin(path)
-        return {}
-
-    _acquire_git(
-        source,
-        revision=espeak_vocabularies.REVISION,
-        origin=espeak_vocabularies.ORIGIN,
-        sparse_paths=("/phsource/",),
-        validate=validate,
-    )
+    """Acquire the pinned eSpeak source through its registered producer."""
+    _acquire(source, _espeak_producer())
 
 
 def _acquire(source: Path, producer: _Producer) -> None:
@@ -171,38 +165,15 @@ def _acquire_git(
     sparse_paths: tuple[str, ...],
     validate: Callable[[Path], Mapping[str, str]],
 ) -> None:
-    """Populate only a newly created directory; existing sources are read-only."""
-    source = source.absolute()
-    if source.resolve() != source:
-        raise ValueError(f"refusing acquisition through a symbolic link: {source}")
-    if source.exists():
-        validate(source)
-        return
-    # mkdir without exist_ok claims this exact new destination; a concurrent
-    # creator wins rather than having its work reset by the updater.
-    source.parent.mkdir(parents=True, exist_ok=True)
-    source.mkdir()
-    git(None, "init", "-q", str(source))
-    git(source, "remote", "add", "origin", origin)
-    git(
+    """Delegate acquisition while retaining the script's injectable runner."""
+    acquire.acquire_git(
         source,
-        "fetch",
-        "-q",
-        "--depth",
-        "1",
-        "--filter=blob:none",
-        "origin",
-        revision,
+        revision=revision,
+        origin=origin,
+        sparse_paths=sparse_paths,
+        validate=validate,
+        git_runner=git,
     )
-    git(
-        source,
-        "sparse-checkout",
-        "set",
-        "--no-cone",
-        *sparse_paths,
-    )
-    git(source, "checkout", "-q", "FETCH_HEAD")
-    validate(source)
 
 
 def publish(result: BuildResult, root: Path) -> None:

@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from ipakit import clts
@@ -12,9 +13,10 @@ from ipakit.extraction import (
     SourceContentError,
     SourceMissingError,
     SourceVersionError,
+    espeak,
     mfa,
 )
-from scripts import dev_sources, espeak_vocabularies, mfa_vocabularies
+from scripts import dev_sources, mfa_vocabularies
 
 
 @pytest.fixture
@@ -110,37 +112,50 @@ def test_fresh_acquisition_uses_one_pin_and_validates_after(
     )
     dev_sources.acquire_mfa(source)
     assert source.is_dir()
-    assert calls[0] == (None, "init", "-q", str(source))
+    staging = Path(calls[0][-1])
+    assert calls[0][:3] == (None, "init", "-q")
+    assert staging.parent == source.parent
+    assert staging.name.startswith(f".{source.name}.tmp-")
     assert any(call[-1] == mfa.REVISION for call in calls)
-    assert calls[-1] == ("validate", source, {"dictionary": True})
+    assert calls[-1] == ("validate", staging, {"dictionary": True})
 
 
-def test_espeak_acquisition_uses_generator_pin_and_phsource_only(
+def test_espeak_acquisition_uses_library_pin_and_notice(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     source = tmp_path / "espeak-ng"
     calls: list[tuple[object, ...]] = []
     monkeypatch.setattr(dev_sources, "git", lambda *args: calls.append(args) or "")
     monkeypatch.setattr(
-        espeak_vocabularies,
-        "require_pin",
-        lambda path: calls.append(("validate", path)),
+        espeak,
+        "validate_source",
+        lambda path: calls.append(("validate", path)) or SimpleNamespace(digests={}),
     )
     dev_sources.acquire_espeak(source)
     assert source.is_dir()
-    assert calls[0] == (None, "init", "-q", str(source))
+    staging = Path(calls[0][-1])
+    assert calls[0][:3] == (None, "init", "-q")
+    assert staging.parent == source.parent
+    assert staging.name.startswith(f".{source.name}.tmp-")
     assert (
-        source,
+        staging,
         "fetch",
         "-q",
         "--depth",
         "1",
         "--filter=blob:none",
         "origin",
-        espeak_vocabularies.REVISION,
+        espeak.REVISION,
     ) in calls
-    assert (source, "sparse-checkout", "set", "--no-cone", "/phsource/") in calls
-    assert calls[-1] == ("validate", source)
+    assert (
+        staging,
+        "sparse-checkout",
+        "set",
+        "--no-cone",
+        "/phsource/",
+        "/COPYING",
+    ) in calls
+    assert calls[-1] == ("validate", staging)
 
 
 def test_candidate_is_discovery_not_repin(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -189,7 +204,7 @@ def test_status_missing_succeeds_without_claiming_readiness(
 def test_requested_unsupported_cannot_succeed(
     operation: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert dev_sources.main([operation, "espeak"]) == 1
+    assert dev_sources.main([operation, "panphon"]) == 1
     assert json.loads(capsys.readouterr().out)["complete"] is False
 
 
@@ -323,16 +338,19 @@ def test_clts_acquisition_and_discovery_derive_policy(
     report = json.loads(capsys.readouterr().out)["results"][0]
     destination = tmp_path / "clts" / revision
     assert report["expected"] == revision and report["consumed"] == policy["inputs"]
-    assert calls[0] == (None, "init", "-q", str(destination))
-    assert (destination, "remote", "add", "origin", origin) in calls
+    staging = Path(calls[0][-1])
+    assert calls[0][:3] == (None, "init", "-q")
+    assert staging.parent == destination.parent
+    assert staging.name.startswith(f".{destination.name}.tmp-")
+    assert (staging, "remote", "add", "origin", origin) in calls
     assert (
-        destination,
+        staging,
         "sparse-checkout",
         "set",
         "--no-cone",
         *("/" + name for name in sorted(policy["inputs"])),
     ) in calls
-    assert calls[-1] == (destination, "checkout", "-q", "FETCH_HEAD")
+    assert calls[-1] == (staging, "checkout", "-q", "FETCH_HEAD")
     assert all(count == len(calls) for _, count in validations)
     before = list(calls)
     assert dev_sources.main(["fetch", "clts", "--cache", str(tmp_path)]) == 0

@@ -39,6 +39,7 @@ LICENSE = "GPL-3.0-or-later"
 KIND = "synthesis-phoneme-table"
 PHSOURCE_SHA256 = "7f65326cf12433f67611237f47c0e69e06ef6df34a081af5a29533781aef9a96"
 NOTICE = "COPYING"
+SPARSE_PATHS = ("/phsource/", "/COPYING")
 INTERNAL = frozenset({"base1", "base2", "consonants", "hi_base"})
 CHAO_LETTERS = "˩˨˧˦˥"
 CHAO = str.maketrans("12345", CHAO_LETTERS)

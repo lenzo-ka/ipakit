@@ -16,7 +16,7 @@ Organized into subcommands:
     ipakit analyze ...          Inspect/validate the feature data files (alias: data)
     ipakit info ...             Package and data info
     ipakit inventory ...        Inspect named inventories and notation styles
-    ipakit source ...           Build and inspect user-supplied source tables
+    ipakit source ...           Fetch, build, and inspect user-supplied sources
     ipakit phoible ...          Read shipped or mounted PHOIBLE inventories
     ipakit textgrid ...         Read and write Praat TextGrid documents
     ipakit tract ...            Draw the mid-sagittal tract figure

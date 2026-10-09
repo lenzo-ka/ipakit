@@ -84,8 +84,8 @@ def _cache_selection(cache_dir: str | Path | None) -> _Selection:
         raise SourceVersionError(
             "eSpeak NG tables in the cache were built from "
             f"{state.observed_revision}; this ipakit expects {espeak.REVISION} "
-            f"(tag {espeak.TAG}). Provide the pinned source and run "
-            "'ipakit source build espeak --source PATH'. Nothing was rebuilt."
+            f"(tag {espeak.TAG}). Run 'ipakit source fetch espeak' then "
+            "'ipakit source build espeak'. Nothing was rebuilt."
         )
     if state.state == "stale-format":
         raise SourceVersionError(
@@ -97,7 +97,7 @@ def _cache_selection(cache_dir: str | Path | None) -> _Selection:
         raise SourceContentError(state.detail or "invalid eSpeak NG managed build")
     raise FileNotFoundError(
         "eSpeak NG source is required; pass source=..., set IPAKIT_ESPEAK_NG, "
-        "or run 'ipakit source build espeak --source PATH'"
+        "or run 'ipakit source fetch espeak' then 'ipakit source build espeak'"
     )
 
 

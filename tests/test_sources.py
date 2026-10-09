@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from ipakit import cli, sources
@@ -94,9 +95,236 @@ import ipakit.cli
 ipakit.cli.create_parser()
 assert 'ipakit.sources' not in sys.modules
 assert 'ipakit.source_cache' not in sys.modules
+assert 'ipakit.extraction.acquire' not in sys.modules
 assert 'ipakit.extraction.espeak' not in sys.modules
 """
     subprocess.run([sys.executable, "-c", program], check=True)
+
+
+def test_fetch_uses_the_installed_pin_and_never_builds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ipakit.extraction import acquire
+
+    monkeypatch.delenv("IPAKIT_ESPEAK_NG", raising=False)
+    cache = tmp_path / "cache"
+    calls: list[tuple[Path, dict[str, object]]] = []
+    validations: list[Path] = []
+
+    def validate(path: Path) -> SimpleNamespace:
+        validations.append(path)
+        return SimpleNamespace(digests={})
+
+    def acquire_git(path: Path, **kwargs: object) -> None:
+        calls.append((path, kwargs))
+        path.mkdir(parents=True)
+        (path / "phsource").mkdir()
+        (path / "COPYING").write_text("fixture notice\n")
+        validator = kwargs["validate"]
+        assert callable(validator)
+        validator(path)
+
+    monkeypatch.setattr(espeak, "validate_source", validate)
+    monkeypatch.setattr(acquire, "acquire_git", acquire_git)
+    monkeypatch.setattr(espeak, "build", lambda path: pytest.fail("fetch built tables"))
+
+    result = sources.fetch("espeak", cache_dir=cache)
+
+    expected = cache / "sources" / "espeak" / espeak.REVISION
+    assert result.state == "source-only"
+    assert result.selected_by == "cache"
+    assert calls[0][0] == expected
+    assert calls[0][1]["revision"] == espeak.REVISION
+    assert calls[0][1]["origin"] == espeak.ORIGIN
+    assert calls[0][1]["sparse_paths"] == ("/phsource/", "/COPYING")
+    assert validations == [expected, expected]
+    assert not (cache / "tables").exists()
+
+
+def test_failed_fetch_leaves_no_destination_and_can_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ipakit.extraction import acquire
+
+    destination = tmp_path / "cache" / "source"
+    attempts = 0
+
+    def run(source: Path | None, *arguments: str) -> str:
+        nonlocal attempts
+        if "fetch" in arguments:
+            attempts += 1
+            if attempts == 1:
+                raise ValueError("controlled fetch failure")
+        return ""
+
+    monkeypatch.setattr(acquire, "git", run)
+    with pytest.raises(ValueError, match="controlled fetch failure"):
+        acquire.acquire_git(
+            destination,
+            revision="revision",
+            origin="https://example.invalid/source.git",
+            sparse_paths=("/data/",),
+            validate=lambda path: {},
+        )
+    assert not destination.exists()
+    assert not list(destination.parent.glob(f".{destination.name}.tmp-*"))
+
+    acquire.acquire_git(
+        destination,
+        revision="revision",
+        origin="https://example.invalid/source.git",
+        sparse_paths=("/data/",),
+        validate=lambda path: {},
+    )
+    assert destination.is_dir()
+
+
+def test_fetch_allows_a_linked_cache_parent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ipakit.extraction import acquire
+
+    real_cache = tmp_path / "real-cache"
+    real_cache.mkdir()
+    linked_cache = tmp_path / "linked-cache"
+    linked_cache.symlink_to(real_cache, target_is_directory=True)
+    destination = linked_cache / "source"
+    monkeypatch.setattr(acquire, "git", lambda *args: "")
+
+    acquire.acquire_git(
+        destination,
+        revision="revision",
+        origin="https://example.invalid/source.git",
+        sparse_paths=("/data/",),
+        validate=lambda path: {},
+    )
+
+    assert destination.is_dir()
+
+
+def test_fetch_refuses_symlinks_and_never_repairs_existing_sources(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ipakit.extraction import acquire
+    from ipakit.source_cache import source_dir
+
+    cache = tmp_path / "cache"
+    destination = source_dir("espeak", espeak.REVISION, cache)
+    destination.parent.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    marker = outside / "user-work.txt"
+    marker.write_text("preserve me")
+    destination.symlink_to(outside, target_is_directory=True)
+    monkeypatch.setattr(
+        acquire, "git", lambda *args: pytest.fail("fetch mutated a symlink")
+    )
+
+    with pytest.raises(SourceContentError, match="refusing acquisition into"):
+        sources.fetch("espeak", cache_dir=cache)
+    assert marker.read_text() == "preserve me"
+
+    destination.unlink()
+    destination.mkdir()
+    marker = destination / "user-work.txt"
+    marker.write_text("preserve me")
+    monkeypatch.setattr(
+        espeak,
+        "validate_source",
+        lambda path: (_ for _ in ()).throw(SourceContentError("changed input")),
+    )
+    with pytest.raises(
+        SourceContentError,
+        match=r"cached espeak source .* is invalid: changed input; it was not modified",
+    ):
+        sources.fetch("espeak", cache_dir=cache)
+    assert marker.read_text() == "preserve me"
+
+
+def test_fetch_reports_missing_git_and_git_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def missing_git(*args: object, **kwargs: object) -> None:
+        raise FileNotFoundError("controlled missing executable")
+
+    monkeypatch.setattr(subprocess, "run", missing_git)
+    with pytest.raises(SourceMissingError) as missing:
+        sources.fetch("espeak", cache_dir=tmp_path / "missing-git")
+    assert str(missing.value) == (
+        "'ipakit source fetch' needs git on PATH; or clone "
+        f"{espeak.ORIGIN} at {espeak.TAG} yourself and pass --source"
+    )
+
+    failed = subprocess.CompletedProcess(
+        ["git"], returncode=1, stdout="", stderr="controlled git failure"
+    )
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: failed)
+    with pytest.raises(
+        ValueError,
+        match=(
+            rf"could not fetch espeak {espeak.REVISION} from "
+            rf"{espeak.ORIGIN}: controlled git failure"
+        ),
+    ):
+        sources.fetch("espeak", cache_dir=tmp_path / "failed-git")
+
+
+def test_fetch_reports_the_managed_source_when_environment_is_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ipakit.extraction import acquire
+
+    cache = tmp_path / "cache"
+    monkeypatch.setenv("IPAKIT_ESPEAK_NG", str(tmp_path / "invalid-environment"))
+
+    def acquire_git(path: Path, **kwargs: object) -> None:
+        path.mkdir(parents=True)
+        (path / "phsource").mkdir()
+        (path / "COPYING").write_text("fixture notice\n")
+
+    monkeypatch.setattr(acquire, "acquire_git", acquire_git)
+    monkeypatch.setattr(
+        espeak,
+        "validate_source",
+        lambda path: SimpleNamespace(digests={}),
+    )
+
+    result = sources.fetch("espeak", cache_dir=cache)
+
+    assert result.state == "source-only"
+    assert result.selected_by == "cache"
+
+
+def test_non_fetch_source_operations_never_acquire(
+    pinned_source: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ipakit.extraction import acquire
+
+    source, cache = pinned_source
+    monkeypatch.setattr(
+        acquire,
+        "fetch",
+        lambda *args, **kwargs: pytest.fail("non-fetch operation acquired a source"),
+    )
+
+    assert sources.status("espeak", cache_dir=cache).state == "missing"
+    built = sources.build("espeak", source=source, cache_dir=cache)
+    assert sources.receipt("espeak", cache_dir=cache) == built
+
+
+def test_build_uses_a_fetched_source_after_argument_and_environment(
+    pinned_source: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source, cache = pinned_source
+    managed = cache / "sources" / "espeak" / espeak.REVISION
+    managed.parent.mkdir(parents=True)
+    source.rename(managed)
+    monkeypatch.delenv("IPAKIT_ESPEAK_NG", raising=False)
+
+    result = sources.build("espeak", cache_dir=cache)
+
+    assert set(result["artifacts"]) == {"xx.xml", "yy.xml"}
+    assert sources.status("espeak", cache_dir=cache).state == "ready"
 
 
 def test_build_records_provenance_without_local_paths_and_publishes_tables(
@@ -607,6 +835,44 @@ def test_cli_status_reports_missing_and_stale_with_zero(
     assert stale["results"][0]["state"] == "stale-format"
 
 
+def test_cli_fetch_reports_status_and_failures_with_one(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from ipakit.source_cache import SourceStatus
+
+    item = SourceStatus(
+        "espeak",
+        "source-only",
+        "cache",
+        espeak.TAG,
+        espeak.REVISION,
+        espeak.REVISION,
+        espeak.FORMAT,
+        None,
+        None,
+        None,
+    )
+    monkeypatch.setattr(sources, "fetch", lambda provider, **kwargs: item)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["ipakit", "source", "fetch", "espeak", "--cache", str(tmp_path)],
+    )
+    assert cli.main() == 0
+    output = capsys.readouterr()
+    assert "espeak" in output.out and "source-only" in output.out
+    assert output.err == ""
+
+    def fail(provider: str, **kwargs: object) -> SourceStatus:
+        raise SourceMissingError("controlled fetch failure")
+
+    monkeypatch.setattr(sources, "fetch", fail)
+    assert cli.main() == 1
+    assert capsys.readouterr().err == "Error: controlled fetch failure\n"
+
+
 def test_cli_build_and_receipt_failures_exit_one(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -621,8 +887,7 @@ def test_cli_build_and_receipt_failures_exit_one(
     assert cli.main() == 1
     error = capsys.readouterr().err
     assert "Error: espeak source is unavailable" in error
-    assert "local checkout of the pinned source" in error
-    assert "source fetch" not in error
+    assert "'ipakit source fetch espeak'" in error
     monkeypatch.setattr(
         sys,
         "argv",

@@ -1,4 +1,4 @@
-"""Build and inspect managed tables from user-supplied source trees."""
+"""Fetch, build, and inspect managed tables from user-supplied source trees."""
 
 from __future__ import annotations
 
@@ -123,6 +123,27 @@ class SourceBuildCommand(Command):
         return 0
 
 
+class SourceFetchCommand(Command):
+    """Fetch a pinned source without building or loading its tables."""
+
+    name = "fetch"
+    aliases: ClassVar[list[str]] = []
+    help = "Fetch a pinned source without building tables"
+    reads_notation = NO_NOTATION
+
+    @classmethod
+    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("provider", choices=("espeak",), help="Source provider")
+        _cache_argument(parser)
+
+    def run(self) -> int:
+        from ..sources import fetch
+
+        item = fetch(self.args.provider, cache_dir=self.args.cache)
+        self.print(_status_text(item))
+        return 0
+
+
 class SourceReceiptCommand(Command):
     """Print the validated receipt for a managed source build."""
 
@@ -157,13 +178,14 @@ class SourceReceiptCommand(Command):
 
 
 class SourceGroup(CommandGroup):
-    """Build and inspect user-supplied source tables."""
+    """Fetch, build, and inspect user-supplied source tables."""
 
     name = "source"
     aliases: ClassVar[list[str]] = []
-    help = "Build and inspect user-supplied source tables"
+    help = "Fetch, build, and inspect user-supplied source tables"
     commands: ClassVar[list[type[Command]]] = [
         SourceStatusCommand,
+        SourceFetchCommand,
         SourceBuildCommand,
         SourceReceiptCommand,
     ]
