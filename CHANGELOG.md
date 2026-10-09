@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Form graph construction now applies its complete profile in one editor transaction.
 - Native containment and CLTS profile construction now avoid redundant graph freezes.
 - eSpeak source rendering loads XML quoting support only when rendering.
 - eSpeak runtime reads use verified managed builds without blocking unrelated inventories.

@@ -184,9 +184,15 @@ def _matching_graph(form: Form) -> tg.Graph:
     if cached is not None:
         return cast(tg.Graph, cached)
     index = form.__dict__["_tiergraph_index"]
-    cached = augment_graph(
-        graph, index.containment_input, index.inventory, form.to_ipa("exact")
+    editor = graph.edit()
+    augment_graph(
+        editor,
+        graph,
+        index.containment_input,
+        index.inventory,
+        form.to_ipa("exact"),
     )
+    cached = editor.freeze()
     form.__dict__["_matching_graph"] = cached
     return cached
 
@@ -828,9 +834,17 @@ def _unit_views(
 
 
 def augment_graph(
-    graph: tg.Graph, source: Any, inventory: Any, spelling: str | None = None
-) -> tg.Graph:
-    """Materialize logical positions and their declared successor chain."""
+    editor: tg.GraphEditor,
+    base_graph: tg.Graph,
+    source: Any,
+    inventory: Any,
+    spelling: str | None = None,
+) -> None:
+    """Add logical positions and their successor chain to ``editor``.
+
+    The caller owns the editor and freezes it after all graph additions are
+    complete. ``base_graph`` supplies the source tiers used to derive views.
+    """
     indexed = source.unit_occurrences()
     units = tuple(unit for _, unit, _ in indexed)
     paths = {index: path for index, _, path in indexed}
@@ -839,7 +853,7 @@ def augment_graph(
         _source_intervals(source, inventory),
         inventory,
         paths,
-        _unit_views(graph, source, indexed, inventory),
+        _unit_views(base_graph, source, indexed, inventory),
         spelling,
     )
     namespace = tg.NamespaceDeclaration("form-match", NS)
@@ -864,7 +878,9 @@ def augment_graph(
         side,
         unique_sources=True,
     )
-    if any(declaration.prefix == namespace.prefix for declaration in graph.namespaces):
+    if any(
+        declaration.prefix == namespace.prefix for declaration in base_graph.namespaces
+    ):
         raise tg.GraphValidationError(
             "duplicate namespace prefix 'form-match'; names must be unique"
         )
@@ -899,7 +915,6 @@ def augment_graph(
                 (tg.ItemRef(POSITION, target),),
             )
         )
-    editor = graph.edit()
     for declaration in (
         namespace,
         position,
@@ -911,7 +926,6 @@ def augment_graph(
     editor.insert_items(POSITION, 0, items)
     for relation in relations:
         editor.add_relation(relation)
-    return editor.freeze()
 
 
 def _split_top(text: str, separators: frozenset[str]) -> list[str]:

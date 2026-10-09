@@ -26,7 +26,7 @@ def test_required_cross_tier_witness_and_mutation():
 
 
 def test_break_selection_crosses_the_prosodic_break():
-    query = "on(tier:segment,feature:break): " "[vowel] [break=minor] [consonant]"
+    query = "on(tier:segment,feature:break): [vowel] [break=minor] [consonant]"
     assert observed("a|b", query) == [("a|b", ((0, 3),))]
     assert observed("a#b", query) == []
 
@@ -218,4 +218,4 @@ def test_augment_graph_keeps_duplicate_namespace_refusal():
         ValueError,
         match="duplicate namespace prefix 'form-match'; names must be unique",
     ):
-        augment_graph(form.graph, source, ipakit.IPAFeatures(), "a")
+        augment_graph(form.graph.edit(), form.graph, source, ipakit.IPAFeatures(), "a")
