@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Source receipts support strict optional build provenance.
+- Source policies support strict optional revision provenance.
 - Form queries select tiers and features with `on(...)` and expose exact input/output ranges.
 - Form graphs carry one declared parse-order chain for TierGraph matching.
 - Generated inventory documentation includes canonical pairwise and N-way report examples with named coverage denominators.
