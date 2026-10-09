@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added revision- and format-scoped source-cache paths with atomic build publication.
 - Source receipts support strict optional build provenance.
 - Source policies support strict optional revision provenance.
 - Form queries select tiers and features with `on(...)` and expose exact input/output ranges.
