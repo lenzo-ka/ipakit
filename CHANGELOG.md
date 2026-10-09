@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated the Ruff and mypy lint tool revisions and floors.
 - Form graph construction now applies its complete profile in one editor transaction.
 - Finite graph derivations now batch writes into one editor transaction.
 - Native containment and CLTS profile construction now avoid redundant graph freezes.
