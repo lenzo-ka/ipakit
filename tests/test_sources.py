@@ -11,7 +11,13 @@ from pathlib import Path
 import pytest
 from ipakit import cli, sources
 from ipakit._identity import identity_fingerprint
-from ipakit.extraction import SourceContentError, SourceMissingError, espeak
+from ipakit.bridges import EspeakBridge
+from ipakit.extraction import (
+    SourceContentError,
+    SourceMissingError,
+    SourceVersionError,
+    espeak,
+)
 
 
 def _source(tmp_path: Path) -> Path:
@@ -410,6 +416,155 @@ def test_tampered_table_is_invalid_and_build_does_not_repair_it(
     with pytest.raises(SourceContentError, match="does not match its receipt"):
         sources.build("espeak", source=source, cache_dir=cache)
     assert table.read_bytes() == b"tampered\n"
+
+
+def test_runtime_selection_uses_argument_then_environment_then_cache(
+    pinned_source: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ipakit
+    from ipakit.espeak_source import supplied_source
+    from ipakit.source_cache import tables_dir
+
+    source, cache = pinned_source
+    sources.build("espeak", source=source, cache_dir=cache)
+    expected_cache = tables_dir("espeak", espeak.REVISION, espeak.FORMAT, cache)
+    monkeypatch.setenv("IPAKIT_SOURCE_CACHE", str(cache))
+    monkeypatch.delenv("IPAKIT_ESPEAK_NG", raising=False)
+    assert supplied_source() == expected_cache
+
+    missing_environment = source.parent / "missing-environment"
+    monkeypatch.setenv("IPAKIT_ESPEAK_NG", str(missing_environment))
+    with pytest.raises(FileNotFoundError, match=str(missing_environment)):
+        supplied_source()
+    with pytest.raises(FileNotFoundError, match=str(missing_environment)):
+        ipakit.inventories()
+
+    missing_argument = source.parent / "missing-argument"
+    with pytest.raises(FileNotFoundError, match=str(missing_argument)):
+        supplied_source(missing_argument)
+
+    monkeypatch.setenv("IPAKIT_ESPEAK_NG", str(missing_environment))
+    assert supplied_source(source) == source
+
+
+def test_cached_languages_read_the_receipt_without_reading_tables(
+    pinned_source: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ipakit.espeak_source import languages
+
+    source, cache = pinned_source
+    phonemes = source / "phsource" / "phonemes"
+    content = phonemes.read_text()
+    phonemes.write_text(
+        content.replace(
+            "phonemetable xx consonants\ninclude ph_xx\n"
+            "phonemetable yy consonants\ninclude ph_yy\n",
+            "phonemetable yy consonants\ninclude ph_yy\n"
+            "phonemetable xx consonants\ninclude ph_xx\n",
+        )
+    )
+    assert languages(source) == ("xx", "yy")
+    sources.build("espeak", source=source, cache_dir=cache)
+    original = Path.read_bytes
+    read: list[str] = []
+
+    def recording(path: Path) -> bytes:
+        read.append(path.name)
+        return original(path)
+
+    monkeypatch.setattr(Path, "read_bytes", recording)
+    assert languages(cache_dir=cache) == ("xx", "yy")
+    assert read == ["receipt.json"]
+
+
+def test_cached_bridge_reads_and_verifies_only_the_requested_table(
+    pinned_source: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source, cache = pinned_source
+    sources.build("espeak", source=source, cache_dir=cache)
+    original = Path.read_bytes
+    read: list[str] = []
+
+    def recording(path: Path) -> bytes:
+        read.append(path.name)
+        return original(path)
+
+    monkeypatch.setattr(Path, "read_bytes", recording)
+    assert EspeakBridge("xx", cache_dir=cache).language == "xx"
+    assert "xx.xml" in read
+    assert "yy.xml" not in read
+
+
+def test_cached_bridge_refuses_a_tampered_requested_table(
+    pinned_source: tuple[Path, Path],
+) -> None:
+    source, cache = pinned_source
+    sources.build("espeak", source=source, cache_dir=cache)
+    table = cache / "tables" / "espeak" / espeak.REVISION / "format-1" / "xx.xml"
+    table.write_bytes(b"tampered\n")
+
+    with pytest.raises(SourceContentError, match="xx.xml does not match its receipt"):
+        EspeakBridge("xx", cache_dir=cache)
+
+
+def test_cached_runtime_refuses_stale_builds_without_writing(
+    pinned_source: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ipakit
+    from ipakit.espeak_source import languages
+
+    source, cache = pinned_source
+    sources.build("espeak", source=source, cache_dir=cache)
+    monkeypatch.setenv("IPAKIT_SOURCE_CACHE", str(cache))
+    monkeypatch.delenv("IPAKIT_ESPEAK_NG", raising=False)
+    build_root = cache / "tables" / "espeak"
+    before = _tree_state(build_root)
+
+    monkeypatch.setattr(espeak, "FORMAT", 2)
+    with pytest.raises(SourceVersionError, match="format 1.*Nothing was rebuilt"):
+        languages(cache_dir=cache)
+    assert "espeak" not in ipakit.inventories()
+    assert ipakit.inventory("ipa").name == "ipa"
+    with pytest.raises(SourceVersionError, match="format 1.*Nothing was rebuilt"):
+        ipakit.inventory("espeak:xx")
+    assert _tree_state(build_root) == before
+
+    monkeypatch.setattr(espeak, "FORMAT", 1)
+    monkeypatch.setattr(espeak, "REVISION", "9" * 40)
+    with pytest.raises(SourceVersionError, match="built from 4870adfa"):
+        languages(cache_dir=cache)
+    assert _tree_state(build_root) == before
+
+
+def test_ordinary_inventory_does_not_select_optional_espeak(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from ipakit import espeak_source, inventory
+
+    def unexpected_selection(*args: object, **kwargs: object) -> None:
+        raise AssertionError("ordinary inventory selected optional eSpeak data")
+
+    monkeypatch.setattr(espeak_source, "_selection", unexpected_selection)
+    assert inventory("ipa").name == "ipa"
+
+
+def test_inventory_registry_uses_cached_receipt_languages(
+    pinned_source: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ipakit
+    from ipakit.inventories import _registry_for
+
+    source, cache = pinned_source
+    sources.build("espeak", source=source, cache_dir=cache)
+    monkeypatch.delenv("IPAKIT_ESPEAK_NG", raising=False)
+    monkeypatch.setenv("IPAKIT_SOURCE_CACHE", str(cache))
+    _registry_for.cache_clear()
+
+    names = ipakit.inventories()
+    assert "espeak" in names
+    assert "espeak:xx" in names
+    assert "espeak:yy" in names
+    assert ipakit.inventory("espeak:xx").name == "espeak:xx"
 
 
 def test_cli_receipt_json_equals_api_receipt(

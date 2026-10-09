@@ -16,7 +16,6 @@ from collections import Counter, OrderedDict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from xml.sax.saxutils import quoteattr
 
 from .._provenance import SourceMetadata
 from . import (
@@ -151,6 +150,8 @@ class Table:
 
 def _opening(name: str, artifact: str) -> str:
     """Render the structured source fields shared by every declaration."""
+    from xml.sax.saxutils import quoteattr
+
     return (
         f"<vocabulary name={quoteattr('espeak-' + name)} version={quoteattr(PIN)} "
         f"upstream={quoteattr(UPSTREAM)} upstream-url={quoteattr(UPSTREAM_URL)} "
@@ -636,6 +637,8 @@ def resolve(source: Path) -> tuple[list[Table], dict[str, OrderedDict[str, Phone
 
 def render(name: str, inventory: OrderedDict[str, Phone]) -> tuple[bytes, Counter[str]]:
     """Render one declaration and return its refusal reason counts."""
+    from xml.sax.saxutils import quoteattr
+
     atoms: list[tuple[str, str, str]] = [
         ("ˈ", "'", "prefix"),
         ("ˌ", ",", "prefix"),

@@ -1,8 +1,10 @@
-"""Read eSpeak NG vocabularies from a user-supplied source tree."""
+"""Read eSpeak NG vocabularies from a user source or managed build."""
 
 from __future__ import annotations
 
 import functools
+import hashlib
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +30,14 @@ if TYPE_CHECKING:
 _PROVENANCE_NAMES = frozenset({"KIND", "LICENSE", "PIN", "UPSTREAM", "UPSTREAM_URL"})
 
 
+@dataclass(frozen=True)
+class _Selection:
+    """One validated raw source or receipt-backed managed build."""
+
+    path: Path
+    receipt: dict[str, Any] | None = None
+
+
 def __getattr__(name: str) -> Any:
     """Load producer-owned provenance constants only when requested."""
     if name not in _PROVENANCE_NAMES:
@@ -39,7 +49,7 @@ def __getattr__(name: str) -> Any:
 
 @functools.lru_cache(maxsize=4)
 def declaration_bytes(source: str) -> dict[str, bytes]:
-    """Build every pinned declaration in memory from ``source``."""
+    """Build every pinned declaration in memory from raw ``source``."""
     from .extraction import espeak
 
     root = Path(source)
@@ -52,16 +62,66 @@ def declaration_bytes(source: str) -> dict[str, bytes]:
     }
 
 
-def supplied_source(path: str | Path | None = None) -> Path:
-    """Resolve explicit path, then ``IPAKIT_ESPEAK_NG``, and validate it."""
+def _cache_selection(cache_dir: str | Path | None) -> _Selection:
+    from . import sources
+    from .extraction import SourceContentError, SourceError, SourceVersionError, espeak
+    from .source_cache import tables_dir
+
+    directory = tables_dir("espeak", espeak.REVISION, espeak.FORMAT, cache_dir)
+    if directory.exists() or directory.is_symlink():
+        try:
+            receipt = sources._current_receipt(cache_dir, verify_artifacts=False)
+        except (SourceError, OSError, ValueError) as error:
+            if isinstance(error, SourceContentError):
+                raise
+            raise SourceContentError(
+                f"invalid eSpeak NG source receipt: {error}"
+            ) from error
+        return _Selection(directory, receipt)
+
+    state = sources.status("espeak", cache_dir=cache_dir, verify_artifacts=False)
+    if state.state == "stale-pin":
+        raise SourceVersionError(
+            "eSpeak NG tables in the cache were built from "
+            f"{state.observed_revision}; this ipakit expects {espeak.REVISION} "
+            f"(tag {espeak.TAG}). Provide the pinned source and run "
+            "'ipakit source build espeak --source PATH'. Nothing was rebuilt."
+        )
+    if state.state == "stale-format":
+        raise SourceVersionError(
+            "eSpeak NG tables in the cache are format "
+            f"{state.observed_format}; this ipakit reads format {espeak.FORMAT}. "
+            "Run 'ipakit source build espeak'. Nothing was rebuilt."
+        )
+    if state.state == "invalid":
+        raise SourceContentError(state.detail or "invalid eSpeak NG managed build")
+    raise FileNotFoundError(
+        "eSpeak NG source is required; pass source=..., set IPAKIT_ESPEAK_NG, "
+        "or run 'ipakit source build espeak --source PATH'"
+    )
+
+
+def _selection(
+    path: str | Path | None = None,
+    *,
+    cache_dir: str | Path | None = None,
+) -> _Selection:
+    """Resolve argument, environment, then managed cache without falling through."""
     import os
 
     supplied = path if path is not None else os.environ.get(ESPEAK_ENV)
-    if supplied is None:
-        raise FileNotFoundError(
-            "eSpeak NG source is required; pass source=... or set IPAKIT_ESPEAK_NG"
-        )
-    return _validated_source(str(Path(supplied).expanduser()))
+    if supplied is not None:
+        return _Selection(_validated_source(str(Path(supplied).expanduser())))
+    return _cache_selection(cache_dir)
+
+
+def supplied_source(
+    path: str | Path | None = None,
+    *,
+    cache_dir: str | Path | None = None,
+) -> Path:
+    """Resolve argument, environment, then a valid managed build."""
+    return _selection(path, cache_dir=cache_dir).path
 
 
 @functools.lru_cache(maxsize=4)
@@ -79,7 +139,59 @@ def _validated_source(supplied: str) -> Path:
     return source
 
 
-def languages(path: str | Path | None = None) -> tuple[str, ...]:
-    """Return language codes generated from the selected user source."""
-    source = supplied_source(path)
-    return tuple(declaration_bytes(str(source)))
+def _receipt_languages(receipt: dict[str, Any]) -> tuple[str, ...]:
+    """Read language names from validated receipt artifact keys."""
+    return tuple(sorted(name.removesuffix(".xml") for name in receipt["artifacts"]))
+
+
+def _languages(selection: _Selection) -> tuple[str, ...]:
+    if selection.receipt is not None:
+        return _receipt_languages(selection.receipt)
+    return tuple(sorted(declaration_bytes(str(selection.path))))
+
+
+def languages(
+    path: str | Path | None = None,
+    *,
+    cache_dir: str | Path | None = None,
+) -> tuple[str, ...]:
+    """Return language codes from a raw source or managed-build receipt."""
+    return _languages(_selection(path, cache_dir=cache_dir))
+
+
+def declaration(
+    language: str,
+    path: str | Path | None = None,
+    *,
+    cache_dir: str | Path | None = None,
+) -> bytes:
+    """Return one declaration, verifying only the managed artifact used."""
+    from .extraction import SourceContentError
+
+    selection = _selection(path, cache_dir=cache_dir)
+    if selection.receipt is None:
+        try:
+            return declaration_bytes(str(selection.path))[language]
+        except KeyError as error:
+            raise ValueError(
+                f"no declared eSpeak NG vocabulary for {language!r}"
+            ) from error
+
+    name = f"{language}.xml"
+    record = selection.receipt["artifacts"].get(name)
+    if record is None:
+        raise ValueError(f"no declared eSpeak NG vocabulary for {language!r}")
+    table = selection.path / name
+    try:
+        content = table.read_bytes()
+    except OSError as error:
+        raise SourceContentError(
+            f"eSpeak NG table {name} does not match its receipt; "
+            "run 'ipakit source build espeak'"
+        ) from error
+    if table.is_symlink() or hashlib.sha256(content).hexdigest() != record["sha256"]:
+        raise SourceContentError(
+            f"eSpeak NG table {name} does not match its receipt; "
+            "run 'ipakit source build espeak'"
+        )
+    return content

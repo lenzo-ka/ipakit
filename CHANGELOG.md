@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- eSpeak source rendering loads XML quoting support only when rendering.
+- eSpeak runtime reads use verified managed builds without blocking unrelated inventories.
 - eSpeak builds reject mutable inputs and bind artifacts to one source snapshot.
 - Update PHOIBLE to 5f82b9c (CC BY 4.0) and ship its mappings.
 - Consolidated eSpeak parsing and vocabulary rendering in one library-owned generator.
