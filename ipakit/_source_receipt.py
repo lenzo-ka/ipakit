@@ -30,6 +30,7 @@ RECEIPT_SCHEMA: dict[str, Any] = {
         "fingerprint",
     ),
     "optional": (
+        "build",
         "house-declarations",
         "adapter",
         "projection-policy",
@@ -47,7 +48,11 @@ _SOURCE_FIELDS = {
     "kind",
 }
 _HEX_SHA256 = re.compile(r"[0-9a-f]{64}").fullmatch
+_HEX_COMMIT = re.compile(r"[0-9a-f]{40}").fullmatch
 _IDENTITY_SHA256 = re.compile(r"sha256:[0-9a-f]{64}").fullmatch
+_RFC3339_UTC = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z"
+).fullmatch
 
 
 def unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -85,6 +90,21 @@ def _hash_map(value: Any, label: str, *, empty: bool = False) -> None:
             raise ValueError(f"{label} contains an invalid path or sha256")
 
 
+def _rfc3339_utc(value: Any, label: str) -> str:
+    from datetime import datetime
+
+    text = _nonempty(value, label)
+    if _RFC3339_UTC(text) is None:
+        raise ValueError(f"{label} must be an RFC 3339 UTC string ending in Z")
+    try:
+        datetime.fromisoformat(f"{text[:-1]}+00:00")
+    except ValueError as error:
+        raise ValueError(
+            f"{label} must be an RFC 3339 UTC string ending in Z"
+        ) from error
+    return text
+
+
 def validate_receipt(data: Any) -> None:
     """Validate the shared source-receipt schema and its own fingerprint."""
     if not isinstance(data, Mapping):
@@ -120,6 +140,7 @@ def validate_receipt(data: Any) -> None:
             "inputs",
             "resolver",
             "credit",
+            "revision",
         }
     ):
         raise ValueError("invalid source-policy fields")
@@ -131,6 +152,33 @@ def validate_receipt(data: Any) -> None:
     _hash_map(policy["inputs"], "source-policy inputs")
     if "credit" in policy and not isinstance(policy["credit"], Mapping):
         raise ValueError("source-policy credit must be an object")
+    if "revision" in policy:
+        revision = policy["revision"]
+        if not isinstance(revision, Mapping):
+            raise ValueError("source-policy revision must be an object")
+        keys = set(revision)
+        identities = keys & {"commit", "sha256"}
+        if len(identities) != 1 or keys - {"commit", "sha256", "tag"}:
+            raise ValueError(
+                "source-policy revision must contain exactly one of commit or sha256"
+                " and optional tag"
+            )
+        if "commit" in revision and (
+            not isinstance(revision["commit"], str)
+            or _HEX_COMMIT(revision["commit"]) is None
+        ):
+            raise ValueError(
+                "source-policy revision commit must be 40 hexadecimal digits"
+            )
+        if "sha256" in revision and (
+            not isinstance(revision["sha256"], str)
+            or _HEX_SHA256(revision["sha256"]) is None
+        ):
+            raise ValueError(
+                "source-policy revision sha256 must be 64 hexadecimal digits"
+            )
+        if "tag" in revision:
+            _nonempty(revision["tag"], "source-policy revision tag")
     if "resolver" in policy:
         resolver = _exact_object(
             policy["resolver"], {"name", "version", "inputs"}, "resolver"
@@ -175,6 +223,18 @@ def validate_receipt(data: Any) -> None:
     license_receipt = _exact_object(data["license"], {"id", "notices"}, "license")
     _nonempty(license_receipt["id"], "license id")
     _hash_map(license_receipt["notices"], "license notices")
+
+    if "build" in data:
+        build = _exact_object(
+            data["build"],
+            {"tool", "tool-version", "format", "built-at"},
+            "build",
+        )
+        _nonempty(build["tool"], "build tool")
+        _nonempty(build["tool-version"], "build tool version")
+        if type(build["format"]) is not int or build["format"] < 1:
+            raise ValueError("build format must be a positive integer")
+        _rfc3339_utc(build["built-at"], "build time")
 
     if "house-declarations" in data:
         house = _exact_object(
