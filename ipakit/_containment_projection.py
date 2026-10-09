@@ -123,47 +123,6 @@ def _declared_values(
     return tuple(values)
 
 
-def _attach_declared_values(
-    graph: tg.Graph,
-    source: ContainmentProjectionInput,
-    event_refs: Mapping[str, tg.ItemRef],
-) -> tg.Graph:
-    """Attach qualified declared values directly to their event items."""
-    values = _declared_values(source)
-    features = tuple(
-        f for f in source.declarations.features if f.value_name is not None
-    )
-    if not features:
-        return graph
-    namespaces = list(graph.namespaces)
-    attributes = list(graph.attribute_declarations)
-    for feature in features:
-        assert feature.value_name is not None
-        name = tg.QualifiedName(*feature.value_name)
-        if name.namespace == _NAMESPACE or name.namespace.startswith(_NAMESPACE + "/"):
-            raise GraphValidationError(
-                "native feature identity uses reserved namespace"
-            )
-        if not any(ns.namespace == name.namespace for ns in namespaces):
-            namespaces.append(
-                tg.NamespaceDeclaration(
-                    f"ipakit-feature-{len(namespaces)}", name.namespace
-                )
-            )
-        attributes.append(
-            tg.AttributeDeclaration(name, tg.AttributeDomain.ITEM, tg.JsonType.JSON)
-        )
-    graph = replace(
-        graph,
-        namespaces=tuple(namespaces),
-        attribute_declarations=tuple(attributes),
-    )
-    editor = graph.edit()
-    for ref, name, value in values:
-        editor.set_attribute(event_refs[ref], tg.JsonAttributeValue(name, value))
-    return editor.freeze()
-
-
 def declared_value(graph: tg.Graph, event: tg.ItemRef, name: tg.QualifiedName) -> Any:
     """Read one opted-in value after native restoration; absence is not null."""
     resolved = graph.resolve_item(event)
@@ -702,6 +661,12 @@ class ContainmentProjection:
         )
 
         refs = source.refs
+        declared_values = _declared_values(source)
+        declared_features = tuple(
+            feature
+            for feature in source.declarations.features
+            if feature.value_name is not None
+        )
         payloads = _profile_payloads(source)
         tier_names = {
             declaration.name: (
@@ -991,20 +956,36 @@ class ContainmentProjection:
             }
         )
 
+        declared_namespaces = tuple(
+            dict.fromkeys(
+                name.namespace
+                for name in (*tier_names.values(), *relation_names.values())
+                if name.namespace != _NAMESPACE
+            )
+        )
+        namespace_count = 1 + len(declared_namespaces)
+        known_namespaces = {_NAMESPACE, *declared_namespaces}
+        feature_namespaces = []
+        for feature in declared_features:
+            assert feature.value_name is not None
+            namespace = feature.value_name[0]
+            if namespace in known_namespaces:
+                continue
+            feature_namespaces.append(
+                tg.NamespaceDeclaration(f"ipakit-feature-{namespace_count}", namespace)
+            )
+            known_namespaces.add(namespace)
+            namespace_count += 1
+
         opcodes: tuple[Opcode, ...] = (
             DeclareNamespace(tg.NamespaceDeclaration(_PREFIX, _NAMESPACE)),
             *(
                 DeclareNamespace(
                     tg.NamespaceDeclaration(f"ipakit-declared-{index}", ns)
                 )
-                for index, ns in enumerate(
-                    dict.fromkeys(
-                        name.namespace
-                        for name in (*tier_names.values(), *relation_names.values())
-                        if name.namespace != _NAMESPACE
-                    )
-                )
+                for index, ns in enumerate(declared_namespaces)
             ),
+            *(DeclareNamespace(declaration) for declaration in feature_namespaces),
             *(DeclareTier(tier.declaration) for tier in tiers),
             DeclareTier(tg.TierDeclaration(clock_name, "clock")),
             *(DeclareRelation(declaration) for declaration in declarations),
@@ -1027,9 +1008,28 @@ class ContainmentProjection:
                 for name, value_type in _PAYLOAD_DECLARATIONS
             ),
             *(
+                DeclareAttribute(
+                    tg.AttributeDeclaration(
+                        tg.QualifiedName(*feature.value_name),
+                        tg.AttributeDomain.ITEM,
+                        tg.JsonType.JSON,
+                    )
+                )
+                for feature in declared_features
+                if feature.value_name is not None
+            ),
+            *(
                 AddItem(tier.declaration.name, item)
                 for tier in tiers
                 for item in tier.items
+            ),
+            *(
+                AttachValue(
+                    tg.AttributeDomain.ITEM,
+                    old_to_new[ref],
+                    tg.JsonAttributeValue(name, value),
+                )
+                for ref, name, value in declared_values
             ),
             *(
                 AddItem(clock_name, tg.Item(durable_id=f"ipakit-clockcell-{index}"))
@@ -1061,7 +1061,6 @@ class ContainmentProjection:
             ),
         )
         projected = Program(opcodes).unroll().graph
-        projected = _attach_declared_values(projected, source, old_to_new)
         event_tiers = dict(source.event_tiers)
         admitted_sources = {
             declaration.name: (
