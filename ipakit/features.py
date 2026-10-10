@@ -86,6 +86,17 @@ class FeatureNarrowingWarning(InputLossWarning):
     """A flat feature read omitted information carried by its input unit."""
 
 
+@dataclasses.dataclass(frozen=True)
+class _EmptyConstituent:
+    """One same-level boundary pair with no segment between it."""
+
+    level: str
+    opener: str
+    opener_offset: int
+    closer: str
+    offset: int
+
+
 def available_supplements() -> list[str]:
     """The shipped supplements, by the name ``supplements=`` accepts."""
     return sorted(p.stem for p in SUPPLEMENTS_DIR.glob("*.xml"))
@@ -3328,6 +3339,75 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
     # Tokenization & parsing
     # -------------------------------------------------------------------------
 
+    def _empty_constituents(
+        self, text: str, phoneset: Phoneset | None = None
+    ) -> list[_EmptyConstituent]:
+        """Locate asserted constituents that a segment read cannot retain.
+
+        A phone or declared zero supplies content. Other marks, including
+        stress and unknown characters, are transparent, matching the form
+        tree and :meth:`validate_ipa`. Boundary vocabulary and tiers come
+        from the inventory; surface order is never normalized.
+        """
+        if sum(text.count(symbol) for symbol in self.separators) < 2:
+            return []
+
+        levels = {
+            symbol: declared.features["level"]
+            for symbol, declared in self.separators.items()
+            if "level" in (declared.features or {})
+        }
+        boundary_levels = Counter(levels[symbol] for symbol in text if symbol in levels)
+        if all(count < 2 for count in boundary_levels.values()):
+            return []
+
+        known_phones = set(self.phones)
+        if phoneset is not None:
+            known_phones.update(phoneset.phones)
+        # Scan the caller's spelling so reported offsets refer to that input,
+        # not to the longer canonical spelling of a ligature alias.
+        known_phones.update(
+            alias
+            for alias, expanded in self.ligature_map.items()
+            if expanded in known_phones
+        )
+        found: list[_EmptyConstituent] = []
+        pending: tuple[str, str, int] | None = None
+        i = 0
+        while i < len(text):
+            phone, width = longest_match(
+                text,
+                i,
+                known_phones,
+                MAX_MATCH_LEN,
+                known_phones,
+                self.tie_bars,
+            )
+            if phone is not None:
+                pending = None
+                i += width
+                continue
+
+            mark, mark_width = self._modifier_at(text, i)
+            symbol = mark or text[i]
+            width = mark_width or 1
+            if symbol in self.zeros:
+                pending = None
+            if (level := levels.get(symbol)) is not None:
+                if pending is not None and pending[1] == level:
+                    found.append(
+                        _EmptyConstituent(
+                            level=level,
+                            opener=pending[0],
+                            opener_offset=pending[2],
+                            closer=symbol,
+                            offset=i,
+                        )
+                    )
+                pending = (symbol, level, i)
+            i += width
+        return found
+
     def tokenize(
         self,
         ipa: str,
@@ -3364,6 +3444,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
                 for base, diacs in self.parse(ipa, phoneset=phoneset, strict=strict)
             ]
         parsed = self.read(ipa, strict=strict)
+        self._report_empty_constituents(ipa, strict=strict)
         opaque = boundary_marks(self)
         return [
             unicodedata.normalize("NFC", unit.text)
@@ -3559,6 +3640,32 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
 
         return result
 
+    def _report_empty_constituents(
+        self,
+        text: str,
+        *,
+        strict: bool,
+        phoneset: Phoneset | None = None,
+    ) -> None:
+        """Report an asserted constituent this reader will not retain."""
+        empty = self._empty_constituents(text, phoneset)
+        if strict and empty:
+            first = empty[0]
+            raise ValueError(
+                f"Cannot parse IPA segment: asserted empty {first.level} at "
+                f"offset {first.offset} cannot be represented by this reader."
+            )
+        for constituent in empty:
+            warnings.warn(
+                f"dropped asserted empty {constituent.level} at offset "
+                f"{constituent.offset} while parsing IPA: "
+                f"{constituent.opener!r} at offset "
+                f"{constituent.opener_offset} and {constituent.closer!r} "
+                "delimit no segment. Pass strict=True to raise instead.",
+                InputLossWarning,
+                stacklevel=3,
+            )
+
     def parse(
         self,
         segment: str,
@@ -3572,6 +3679,7 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         API drops. :meth:`read` is the lossless ingestion boundary.
         """
         scanned = self._parse_all(segment, phoneset=phoneset, strict=strict)
+        self._report_empty_constituents(segment, strict=strict, phoneset=phoneset)
         dropped = set(self.separators) | set(self.zeros)
         return [
             item for item in scanned if not (item[0].isspace() or item[0] in dropped)
@@ -3801,7 +3909,9 @@ class IPAFeatures(AnalysisMixin, DistanceMixin, HierarchyMixin, ValidationMixin)
         than the syllable edge. ``read`` returns the :class:`Form` that
         keeps them.
         """
-        return list(self.read(text, strict=strict).segments)
+        parsed = self.read(text, strict=strict)
+        self._report_empty_constituents(text, strict=strict)
+        return list(parsed.segments)
 
     def _units_from_parsed(
         self, parsed: Sequence[tuple[str, list[str]]], strict: bool

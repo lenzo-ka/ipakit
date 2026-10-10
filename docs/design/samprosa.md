@@ -186,7 +186,7 @@ The IPA readers are a different story. Two silent corruptions, both under a clea
 'a$b'    SAMPROSA syll '$'        pure_ipa=True  errors=1 tokens=['a', 'b']
 ```
 
-SAMPROSA's silence `...` is read as **three empty ipakit syllable breaks**, round-trips to `'ab'`, and raises no error — only two `empty_constituent` warnings that say nothing about a lost pause. `$` at least errors. `|` and `...` do not.
+SAMPROSA's silence `...` is read as **three empty ipakit syllable breaks**. A segment projection round-trips to `'ab'` and reports two `empty_constituent` losses that say nothing about a lost pause; its strict form refuses them. `$` also errors. `|` remains accepted.
 
 Everything else is loud, and `:` is already handled by the documented soft read: `validate_ipa("a:")` reports `Unknown symbol ':' (U+003A); from_wild() reads it as 'ː'`.
 

@@ -14,9 +14,11 @@ not a claim that the input is malformed. The reasoning is argued in
 argument rests on, and the exact set of inputs it reaches.
 """
 
+import warnings
+
 import ipakit
 import pytest
-from ipakit import IPAFeatures
+from ipakit import InputLossWarning, IPAFeatures
 from ipakit.form import Form, units
 from ipakit.models import Phone
 
@@ -66,7 +68,7 @@ EMPTY = frozenset(
 )
 
 
-class TestEveryLayerDiscardsItAndNoneOfThemSays:
+class TestSegmentProjectionsDiscardItAndSoftReadersSay:
     """The argument for warning is a measurement, not a preference, so it
     is worth a test of its own: if any layer changes its reading the
     docstring's reasoning has moved and must be rewritten.
@@ -89,8 +91,10 @@ class TestEveryLayerDiscardsItAndNoneOfThemSays:
         assert ipakit.rewrite("#kæt", "∅ -> ə / # _") == "#əkæt"
         assert ipakit.rewrite("##kæt", "∅ -> ə / # _") == "##əkæt"
 
-    def test_the_tree_discards_it_without_a_word(self) -> None:
-        doubled = Form.parse("kæt..dɒɡ").tree()
+    def test_the_tree_discards_it_after_the_lossless_read(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", InputLossWarning)
+            doubled = Form.parse("kæt..dɒɡ").tree()
         single = Form.parse("kæt.dɒɡ").tree()
         assert [n.to_ipa() for n in doubled.at("syllable")] == ["kæt", "dɒɡ"]
         assert [n.to_ipa() for n in doubled.at("syllable")] == [
@@ -98,7 +102,42 @@ class TestEveryLayerDiscardsItAndNoneOfThemSays:
         ]
 
     def test_the_word_mark_run_loses_a_word_the_same_way(self) -> None:
-        assert [n.to_ipa() for n in Form.parse("##kæt").tree().at("word")] == ["kæt"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", InputLossWarning)
+            words = Form.parse("##kæt").tree().at("word")
+        assert [n.to_ipa() for n in words] == ["kæt"]
+
+
+class TestSoftReadersReportTheLoss:
+    def test_api_warning_names_the_constituent_and_offset(self) -> None:
+        with pytest.warns(InputLossWarning) as caught:
+            tokens = ipakit.tokenize("kæt..dɒɡ")
+        assert tokens == ["k", "æ", "t", "d", "ɒ", "ɡ"]
+        assert len(caught) == 1
+        message = str(caught[0].message)
+        assert "empty syllable" in message
+        assert "offset 4" in message
+
+    def test_strict_reader_refuses_the_empty_constituent(self) -> None:
+        with pytest.raises(ValueError, match=r"empty syllable at offset 4"):
+            ipakit.tokenize("kæt..dɒɡ", strict=True)
+
+    def test_clean_input_emits_no_warning(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", InputLossWarning)
+            tokens = ipakit.tokenize("kæt.dɒɡ")
+        assert tokens == ["k", "æ", "t", "d", "ɒ", "ɡ"]
+
+    def test_lossless_reader_retains_the_constituent_without_warning(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", InputLossWarning)
+            form = ipakit.read("kæt..dɒɡ")
+        assert form.to_ipa() == "kæt..dɒɡ"
+
+    def test_warning_offset_uses_the_callers_ligature_spelling(self) -> None:
+        with pytest.warns(InputLossWarning, match=r"empty syllable at offset 4"):
+            tokens = ipakit.tokenize("kæʧ..dɒɡ")
+        assert tokens == ["k", "æ", "t͡ʃ", "d", "ɒ", "ɡ"]
 
 
 class TestTheWarningNamesTheDiscardedConstituent:
@@ -148,7 +187,8 @@ class TestStressAttachmentHasOneReadAcrossBoundaries:
     """The canonical reader preserves spelling and attaches semantics once."""
 
     def test_the_segmental_layer_binds_it(self, ipa: IPAFeatures) -> None:
-        stressed = [s for s in ipa.segments("kæt.ˈ.dɒɡ") if s.prosody]
+        with pytest.warns(InputLossWarning):
+            stressed = [s for s in ipa.segments("kæt.ˈ.dɒɡ") if s.prosody]
         assert [(s.constituents[0].base, s.prosody) for s in stressed] == [
             ("ɒ", ("ˈ",))
         ]
@@ -230,13 +270,12 @@ class TestTheBoundaryVocabularyComesFromTheData:
             checked += 1
         assert checked == len(ipa.separators) >= 2, "the sweep did not run"
 
-    def test_whitespace_is_the_declared_word_edge_form_units_says_it_is(
+    def test_whitespace_is_not_a_declared_boundary_for_this_check(
         self, ipa: IPAFeatures
     ) -> None:
-        # The space is the one boundary ipa.xml does not declare, so
-        # validate_ipa asks form.units for its tier instead of restating
-        # it. This is what says the two layers cannot drift apart: if
-        # form.units stops calling a space a word edge, this fails.
+        # Form reads a space as a word edge, but the validator derives its
+        # boundary tiers only from inventory declarations. Space is therefore
+        # transparent here rather than a boundary in its own right.
         (space,) = units(" ", ipa)
         assert space.is_boundary and space.level == "word"
         assert not [

@@ -1373,6 +1373,19 @@ class TestInputThatWasNotReadInFullReachesTheExitStatus:
         )
         assert len(lines) == 2
 
+    def test_an_empty_constituent_reaches_the_input_report(self, monkeypatch, capsys):
+        rc, out, err = run(monkeypatch, capsys, "convert", "tokenize", "kæt..dɒɡ")
+        assert out == "k æ t d ɒ ɡ\n", "the token output must not change"
+        assert rc == LOSSY
+        assert "ipakit: warning: dropped asserted empty syllable at offset 4" in err
+        assert "ipakit: input was not read in full" in err
+
+    def test_lossless_json_read_does_not_report_input_loss(self, monkeypatch, capsys):
+        rc, out, err = run(monkeypatch, capsys, "convert", "to-json", "kæt..dɒɡ")
+        assert rc == 0
+        assert err == ""
+        assert ipakit.read_json(out).to_ipa() == "kæt..dɒɡ"
+
     def test_an_unusable_reference_has_its_own_status(
         self, monkeypatch, capsys, tmp_path
     ):

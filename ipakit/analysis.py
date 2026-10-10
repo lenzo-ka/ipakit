@@ -8,7 +8,6 @@ from typing import Any, cast
 from ._base import IPAFeaturesBase
 from ._convert import longest_match
 from .constants import MAX_MATCH_LEN, METADATA_ATTRS
-from .form import units
 from .models import Feature
 from .segment import (
     ModifierHostError,
@@ -536,8 +535,11 @@ class AnalysisMixin(IPAFeaturesBase):
 
         The license is the *other* convention in that document:
         **unknown characters are dropped audibly, never silently.**
-        Every layer discards the empty constituent, and none of them
-        mentions it. ``Form.parse("kæt..dɒɡ")`` has the same tree as
+        Every lossy projection discards the empty constituent. Soft
+        readers name that loss with ``InputLossWarning`` and keep
+        reading; strict projections refuse it. A lossless ``Form`` read
+        retains the written boundaries.
+        ``Form.parse("kæt..dɒɡ")`` has the same tree as
         ``"kæt.dɒɡ"``, two syllables, with no mention of the third the
         string asserted; the rule engine agrees, offering the same
         insertion sites either way -- ``rewrite("kæt..dɒɡ", "∅ -> ə / .
@@ -546,11 +548,10 @@ class AnalysisMixin(IPAFeaturesBase):
         way, ``"##kæt"`` against ``"#kæt"``.
 
         That agreement is what licenses the warning rather than
-        weakening it. Nothing here is inconsistent, so nothing will
-        surface on its own: the string asserts a constituent, every
-        reader drops it, and the drop is silent at every layer. The
-        claim is therefore not "your input is malformed" but "you
-        asserted a constituent and it was discarded".
+        weakening it. Nothing here is inconsistent: the string asserts
+        a constituent and segment projections cannot retain it. The claim
+        is therefore not "your input is malformed" but "you asserted a
+        constituent and it was discarded".
 
         Hence ``warning``, never ``error``, and no repair. An error
         would reject input the rule engine rewrites correctly today, and
@@ -561,11 +562,8 @@ class AnalysisMixin(IPAFeaturesBase):
         Which marks delimit a constituent, and at which tier, is read off
         each separator's declared ``level`` in ``ipa.xml``; two boundaries
         are "same-level" when those declared values are equal, so a
-        further declared tier needs no change here. Whitespace is the one
-        exception, and it is a **code-side convention rather than a
-        declaration**: ``ipa.xml`` does not declare the space, and that it
-        closes a word is stated in ``form.units``, which this check asks
-        rather than restates.
+        further declared tier needs no change here. Whitespace carries no
+        declared tier in this check and is transparent to a boundary run.
 
         What is *not* degenerate, and so is not flagged: a weaker mark
         beside a stronger one (``kæt.#`` -- a syllable break subsumed by
@@ -624,41 +622,15 @@ class AnalysisMixin(IPAFeaturesBase):
         standalone = (
             suprasegmentals | set(self.carries_no_segment) | {" "}
         ) - self.tie_bars
-        # Which standalone marks delimit a constituent, and at which tier.
-        # Both come from the separator's own declaration, so declaring a
-        # further tier in ipa.xml (a phrase, an utterance) extends this
-        # check without a change here -- and the comparison below is
-        # *equality* of the declared level, never a ranking, so nothing
-        # here counts the tiers or assumes how many there are.
-        levels = {
-            symbol: declared.features["level"]
-            for symbol, declared in self.separators.items()
-            if "level" in (declared.features or {})
+        features = cast(Any, self)
+        empty_by_offset = {
+            empty.offset: empty for empty in features._empty_constituents(ipa)
         }
-        # Whitespace is the one boundary ipa.xml does not declare: that it
-        # closes a word is a code-side convention, and its home is
-        # ``form.units``. So ask that, rather than restating it, and the
-        # validator cannot come to disagree with the tree about which tier
-        # a space ends. A mark carrying no declared level -- a stress
-        # mark, a length mark, the prosodic break -- is absent from this
-        # map and so transparent here, which is the same reading
-        # ``form.units`` gives it ("it belongs to no tier and splits no
-        # node").
-        for unit in units(" ", self):  # type: ignore[arg-type]
-            if unit.is_boundary and unit.level is not None:
-                levels[unit.text] = unit.level
 
         i = 0
         last_was_phone = False
         last_phone_features: Mapping[str, str] | None = None
         current_segment_diacritics: set[str] = set()
-        # The last boundary with no segment seen since: (symbol, level,
-        # position). Marks that carry no unit and delimit nothing -- a
-        # stress mark, a length mark, the prosodic break -- are
-        # transparent to this, exactly as they are to the tree, so
-        # "kæt.ˈ.dɒɡ" still asserts the empty syllable that "kæt..dɒɡ"
-        # does. Only a matched phone clears it.
-        pending: tuple[str, str, int] | None = None
         saw_phone = False
         saw_standalone = False
 
@@ -719,7 +691,6 @@ class AnalysisMixin(IPAFeaturesBase):
                         last_phone_features = self.phones[last.base].features
                 current_segment_diacritics = set()
                 saw_phone = True
-                pending = None
                 i += matched_len
                 continue
 
@@ -727,35 +698,20 @@ class AnalysisMixin(IPAFeaturesBase):
             # a declared zero)
             if symbol in standalone:
                 saw_standalone = True
-                # A zero is the constituent's content, so it closes an
-                # open boundary run the way a phone does. It names no
-                # sound, so it does not set ``saw_phone`` -- ``∅`` alone
-                # still reports ``no_segments`` -- but the run it stands
-                # in is not degenerate: measured, ``Form.tree`` *keeps*
-                # the syllable in ".∅." and the word in "#∅#" where it
-                # discards both in ".." and "##". The license for
-                # ``empty_constituent`` is that a constituent was
-                # asserted and then discarded, and here it is asserted
-                # and kept, so warning would be a false positive against
-                # the check's own reason for existing.
-                if symbol in self.zeros:
-                    pending = None
-                if (level := levels.get(symbol)) is not None:
-                    if pending is not None and pending[1] == level:
-                        issues.append(
-                            {
-                                "type": "warning",
-                                "code": "empty_constituent",
-                                "message": (
-                                    f"Empty {level}: '{pending[0]}' at "
-                                    f"{pending[2]} and '{symbol}' delimit no "
-                                    "segment"
-                                ),
-                                "position": str(i),
-                                "symbol": symbol,
-                            }
-                        )
-                    pending = (symbol, level, i)
+                if (empty := empty_by_offset.get(i)) is not None:
+                    issues.append(
+                        {
+                            "type": "warning",
+                            "code": "empty_constituent",
+                            "message": (
+                                f"Empty {empty.level}: {empty.opener!r} at "
+                                f"{empty.opener_offset} and {empty.closer!r} "
+                                "delimit no segment"
+                            ),
+                            "position": str(empty.offset),
+                            "symbol": empty.closer,
+                        }
+                    )
                 if (
                     symbol in self.stress_markers
                     and (why := self._stress_reaches_no_unit(ipa, i)) is not None
