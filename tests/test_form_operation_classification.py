@@ -225,7 +225,7 @@ def test_evidence_location_rejects_a_docstring_line() -> None:
 
 
 def test_evidence_location_rejects_code_from_another_operation() -> None:
-    assert _evidence_lands_on_code(ROOT / "ipakit/features.py", 3689)
+    assert _evidence_lands_on_code(ROOT / "ipakit/features.py", 3696)
     assert not _evidence_lands_in_operation(
-        "ipakit.features.IPAFeatures.read", ROOT / "ipakit/features.py", 3689
+        "ipakit.features.IPAFeatures.read", ROOT / "ipakit/features.py", 3696
     )
