@@ -54,6 +54,21 @@ def test_apostrophe_is_a_literal_fileid(ingested):
     assert corpus.read("tom's").meta["word"] == "tom's"
 
 
+def test_source_spelling_is_exact_and_lowercase_lookup_is_separate(tmp_path: Path):
+    source = tmp_path / "cmudict.dict"
+    source.write_text("MixedCase(2)  M IH1 K S T K EY2 S\n", encoding="utf-8")
+    corpus = ipakit.corpus.create(tmp_path / "cmudict")
+
+    report = ipakit.corpus.ingest_cmudict(corpus, source)
+
+    assert report.accepted
+    assert corpus.read("mixedcase.2").meta == {
+        "text": "MixedCase",
+        "word": "mixedcase",
+        "variant": 2,
+    }
+
+
 def test_missing_source_is_loud(tmp_path: Path):
     corpus = ipakit.corpus.create(tmp_path / "cmudict")
     with pytest.raises(ipakit.corpus.CorpusError, match="is not a file"):

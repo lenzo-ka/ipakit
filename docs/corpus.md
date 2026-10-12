@@ -181,12 +181,13 @@ stderr once; `--exact` keeps literal codepoints.
 
 `ipakit.corpus.ingest_cmudict(corpus, path)` streams an external
 `cmudict.dict` or `cmudict-0.7b` file into an existing corpus. The dictionary
-is not bundled. Each pronunciation is stored under the `cited` role, with the
-lowercased headword in `meta["text"]` and `meta["word"]`. The integer
-`meta["variant"]` groups pronunciations: `word` has fileid `word` and variant
-1, while `word(2)` has fileid `word.2` and variant 2. Apostrophes in CMUdict
-headwords remain literal in fileids; the dot before a variant ordinal cannot
-be confused with CMUdict's parenthesized spelling and is filesystem-safe.
+is not bundled. Each pronunciation is stored under the `cited` role. The exact
+source headword is `meta["text"]`; its separate lowercase lookup form is
+`meta["word"]`, which is also the base of the fileid. The integer
+`meta["variant"]` groups pronunciations: `word` has fileid `word` and variant 1,
+while `word(2)` has fileid `word.2` and variant 2. Apostrophes in CMUdict
+headwords remain literal in fileids; the dot before a variant ordinal cannot be
+confused with CMUdict's parenthesized spelling and is filesystem-safe.
 
 The returned `CMUdictIngestReport` has `added` and a tuple of `refusals`.
 Each `CMUdictRefusal` carries `line_number`, the complete source `line`, the
