@@ -15,7 +15,7 @@ import zlib
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .features import IPAFeatures
 from .form import Form, Interval, _default
@@ -357,6 +357,7 @@ class Corpus:
     def __init__(self, location: Path):
         self._location = location
         self._entries = location / "entries"
+        self._last_lean_restore: tuple[IPAFeatures, bytes, Form] | None = None
 
     @property
     def declaration_fingerprint(self) -> str | None:
@@ -584,19 +585,12 @@ class Corpus:
             raise
         return Entry(entry_id, current.meta, next_forms, next_provenance)
 
-    def read_roles(
+    def _read_selected(
         self,
         entry_id: str,
         roles: Iterable[str] | None = None,
-        features: IPAFeatures | None = None,
-    ) -> Entry:
-        """Restore one entry, optionally restoring only selected form roles.
-
-        The entry document is still read once, but unselected form wires are
-        left untouched.  Collection operations use this to avoid constructing
-        forms they cannot inspect.
-        """
-        inventory = _inventory(features)
+    ) -> tuple[dict[str, Any], dict[str, Mapping[str, Any]], dict[str, Any]]:
+        """Validate one entry and return only selected form envelopes."""
         _check_id(entry_id)
         path = self._entry_path(entry_id)
         if not path.is_file():
@@ -628,8 +622,7 @@ class Corpus:
         if not isinstance(raw_provenance, dict):
             raise CorpusError(f"entry {entry_id!r} provenance must be a JSON object")
         selected = None if roles is None else frozenset(roles)
-        restored: dict[str, Form] = {}
-        provenance: dict[str, FormProvenance] = {}
+        representations: dict[str, Mapping[str, Any]] = {}
         for role, representation in raw_forms.items():
             if not isinstance(role, str) or not role:
                 raise CorpusError(
@@ -637,25 +630,83 @@ class Corpus:
                 )
             if selected is not None and role not in selected:
                 continue
-            _check_envelope(representation)
+            representations[role] = _check_envelope(representation)
+        return metadata, representations, raw_provenance
+
+    @staticmethod
+    def _restore_provenance(
+        entry_id: str, role: str, record: object
+    ) -> FormProvenance | None:
+        if record is None:
+            return None
+        try:
+            stored = cast(Mapping[str, Any], record)
+            producer = cast(Mapping[str, Any], stored["producer"])
+            return FormProvenance(
+                Producer(producer["name"], producer["version"]),
+                stored["declaration_fingerprint"],
+            )
+        except (KeyError, TypeError) as exc:
+            raise CorpusError(
+                f"entry {entry_id!r} form {role!r} has malformed provenance"
+            ) from exc
+
+    def _read_role_record(
+        self,
+        entry_id: str,
+        role: str,
+        features: IPAFeatures | None = None,
+    ) -> tuple[Mapping[str, Any], object, IPAFeatures] | None:
+        """Return one validated form envelope without restoring its Form."""
+        inventory = _inventory(features)
+        _, representations, raw_provenance = self._read_selected(entry_id, (role,))
+        representation = representations.get(role)
+        if representation is None:
+            return None
+        return representation, raw_provenance.get(role), inventory
+
+    def _restore_record(
+        self, representation: Mapping[str, Any], inventory: IPAFeatures
+    ) -> Form:
+        """Restore a form, retaining only one adjacent lean reconstruction."""
+        if representation["encoding"] != "lean":
+            return _restore_form(representation, inventory)
+        key = _json_bytes(representation)
+        cached = self._last_lean_restore
+        if cached is not None and cached[0] is inventory and cached[1] == key:
+            return cached[2]
+        form = _restore_form(representation, inventory)
+        self._last_lean_restore = (inventory, key, form)
+        return form
+
+    def read_roles(
+        self,
+        entry_id: str,
+        roles: Iterable[str] | None = None,
+        features: IPAFeatures | None = None,
+    ) -> Entry:
+        """Restore one entry, optionally restoring only selected form roles.
+
+        The entry document is still read once, but unselected form wires are
+        left untouched.  Collection operations use this to avoid constructing
+        forms they cannot inspect.
+        """
+        inventory = _inventory(features)
+        metadata, representations, raw_provenance = self._read_selected(entry_id, roles)
+        restored: dict[str, Form] = {}
+        provenance: dict[str, FormProvenance] = {}
+        for role, representation in representations.items():
             try:
-                restored[role] = _restore_form(representation, inventory)
+                restored[role] = self._restore_record(representation, inventory)
             except (CorpusError, KeyError, TypeError, ValueError) as exc:
                 raise CorpusError(
                     f"entry {entry_id!r} form {role!r} cannot be restored: {exc}"
                 ) from exc
-            record = raw_provenance.get(role)
-            if record is not None:
-                try:
-                    producer = record["producer"]
-                    provenance[role] = FormProvenance(
-                        Producer(producer["name"], producer["version"]),
-                        record["declaration_fingerprint"],
-                    )
-                except (KeyError, TypeError) as exc:
-                    raise CorpusError(
-                        f"entry {entry_id!r} form {role!r} has malformed provenance"
-                    ) from exc
+            restored_provenance = self._restore_provenance(
+                entry_id, role, raw_provenance.get(role)
+            )
+            if restored_provenance is not None:
+                provenance[role] = restored_provenance
         return Entry(entry_id, metadata, restored, provenance)
 
     def remove(self, entry_id: str) -> None:

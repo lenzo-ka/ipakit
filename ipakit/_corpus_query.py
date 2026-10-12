@@ -7,19 +7,21 @@ paths.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
+from typing import cast
 
-from . import rules
-from ._corpus import Corpus
+from . import _corpus, rules
+from ._corpus import Corpus, CorpusError
 from ._cross_tier import (
     CrossTierQuery,
     match_payloads,
     result_ranges,
 )
 from .features import IPAFeatures
-from .form import Form, _default
+from .form import Form, Interval, Unit, _default, spell
 from .models import Phoneset
 from .rules import DEFAULT_LIMIT, Derivation, Query, RuleSet
 
@@ -332,18 +334,82 @@ def _unit_paths(form: Form) -> dict[int, str]:
 
 def _legacy_unit_ranges(form: Form) -> tuple[tuple[int, int], ...]:
     """Locate legacy unit spellings without changing unit-index offsets."""
-    exact = form.to_ipa("exact")
+    return _unit_ranges(form.to_ipa("exact"), form.units)
+
+
+def _unit_ranges(spelling: str, units: Sequence[Unit]) -> tuple[tuple[int, int], ...]:
+    """Locate unit spellings in an already-decoded exact spelling."""
     cursor = 0
     ranges = []
-    for unit in form.units:
+    for unit in units:
         token = unit.spelling if unit.spelling is not None else unit.text
-        start = exact.find(token, cursor)
+        start = spelling.find(token, cursor)
         if start < 0:
             start = cursor
         end = start + len(token)
         ranges.append((start, end))
         cursor = end
     return tuple(ranges)
+
+
+@dataclass(frozen=True)
+class _PreparedLeanQuery:
+    """Lean query inputs that do not materialize the authoritative graph."""
+
+    units: tuple[Unit, ...]
+    intervals: tuple[Interval, ...]
+    paths: tuple[str, ...]
+    ranges: tuple[tuple[int, int], ...]
+
+
+def _prepare_lean_query(record: object, inventory: IPAFeatures) -> _PreparedLeanQuery:
+    form = _corpus._restore_form(record, inventory)
+    namespace = form.__dict__
+    source = namespace["_tiergraph_index"].containment_input
+    occurrences = source.unit_occurrences()
+    units = tuple(unit for _, unit, _ in occurrences)
+    paths = tuple(path for _, _, path in occurrences)
+    intervals = cast(tuple[Interval, ...], namespace.get("_source_intervals", ()))
+    spelling = form.spelling or spell(units)
+    return _PreparedLeanQuery(
+        units,
+        intervals,
+        paths,
+        _unit_ranges(spelling, units),
+    )
+
+
+def _find_prepared(
+    prepared: _PreparedLeanQuery,
+    compiled: Query,
+    inventory: IPAFeatures,
+) -> Iterator[Match]:
+    seen: set[tuple[tuple[str, ...], str, tuple[tuple[str, str], ...]]] = set()
+    for site in compiled.sites(prepared.units, inventory, prepared.intervals):
+        match = Match(
+            prepared.paths[site.start : site.end],
+            "".join(unit.text for unit in prepared.units[site.start : site.end]),
+            site.bindings,
+            tuple(unit.text for unit in prepared.units[: site.start]),
+            result_ranges(
+                (
+                    {"input-ranges": (prepared.ranges[index],)}
+                    for index in range(site.start, site.end)
+                ),
+                "input-ranges",
+            ),
+            result_ranges(
+                (
+                    {"output-ranges": (prepared.ranges[index],)}
+                    for index in range(site.start, site.end)
+                ),
+                "output-ranges",
+            ),
+        )
+        key = (match.paths, match.text, match.bindings)
+        if key not in seen:
+            seen.add(key)
+            yield match
 
 
 def _find_cross_tier(form: Form, query: CrossTierQuery) -> Iterator[Match]:
@@ -422,7 +488,7 @@ def find(
 
 def query(
     corpus: Corpus,
-    pattern: str | Query,
+    pattern: str | Query | CrossTierQuery,
     *,
     role: str,
     features: IPAFeatures | None = None,
@@ -430,12 +496,38 @@ def query(
     """Yield form matches paired with entry and role identity."""
     inventory = _default(features)
     compiled = parse_query(pattern, inventory) if isinstance(pattern, str) else pattern
+    previous_lean: tuple[str, _PreparedLeanQuery] | None = None
     for entry_id in corpus.ids():
-        entry = corpus.read_roles(entry_id, iter((role,)), features=inventory)
-        form = entry.forms.get(role)
-        if form is None:
+        stored = corpus._read_role_record(entry_id, role, features=inventory)
+        if stored is None:
             continue
-        for match in find(form, compiled, features=inventory):
+        record, provenance_record, _ = stored
+        if record["encoding"] == "lean" and isinstance(compiled, Query):
+            cache_key = json.dumps(
+                record, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            if previous_lean is not None and previous_lean[0] == cache_key:
+                prepared = previous_lean[1]
+            else:
+                try:
+                    prepared = _prepare_lean_query(record, inventory)
+                except (CorpusError, KeyError, TypeError, ValueError) as exc:
+                    raise CorpusError(
+                        f"entry {entry_id!r} form {role!r} cannot be restored: {exc}"
+                    ) from exc
+                previous_lean = (cache_key, prepared)
+            corpus._restore_provenance(entry_id, role, provenance_record)
+            matches = _find_prepared(prepared, compiled, inventory)
+        else:
+            try:
+                form = _corpus._restore_form(record, inventory)
+            except (CorpusError, KeyError, TypeError, ValueError) as exc:
+                raise CorpusError(
+                    f"entry {entry_id!r} form {role!r} cannot be restored: {exc}"
+                ) from exc
+            corpus._restore_provenance(entry_id, role, provenance_record)
+            matches = find(form, compiled, features=inventory)
+        for match in matches:
             yield CorpusMatch(entry_id, role, match)
 
 

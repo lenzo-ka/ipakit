@@ -175,6 +175,28 @@ def test_ids_do_not_read_or_restore_entries(
     assert list(corpus.ids()) == ["one"]
 
 
+def test_adjacent_identical_lean_reads_share_one_restoration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus = _corpus.create(tmp_path / "corpus")
+    corpus.add("one", {}, {"cited": _form("ana")})
+    corpus.add("two", {}, {"cited": _form("ana")})
+    restored = 0
+    original = _corpus._restore_form
+
+    def count(record, inventory):
+        nonlocal restored
+        restored += 1
+        return original(record, inventory)
+
+    monkeypatch.setattr(_corpus, "_restore_form", count)
+    first = corpus.read("one").forms["cited"]
+    second = corpus.read("two").forms["cited"]
+
+    assert first.to_ipa() == second.to_ipa() == "ana"
+    assert restored == 1
+
+
 def test_assets_absence_orphans_missing_and_cascade(tmp_path: Path):
     root = tmp_path / "corpus"
     corpus = _corpus.create(root)
