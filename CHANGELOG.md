@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Lean corpus queries avoid native graphs, and adjacent reads reuse restoration.
 - Corpus format v2 stores exact lean reconstructions and compresses native fallbacks.
 - Version-less Form profiles and corpus v1 entries now refuse instead of upgrading.
 - Documentation names exact harness commands for reproducible figures.

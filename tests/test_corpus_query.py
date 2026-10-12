@@ -8,6 +8,7 @@ from ipakit import _corpus, rules
 from ipakit import _corpus_query as Q
 from ipakit._rewrite_graph import japanese_moraic_fixtures
 from ipakit.form import Form
+from scripts.bench_corpus_v2 import _workload
 
 FEATURES = ipakit.load_ipa_features()
 
@@ -151,3 +152,60 @@ def test_thousand_entry_query_yields_before_restoring_the_tail(
     stream = Q.query(corpus, "[vowel]", role="broad")
     assert next(stream).fileid == "e0000"
     assert restored == 1
+
+
+def _query_observation(entry_id: str, role: str, match, form: Form):
+    return (
+        entry_id,
+        role,
+        match.paths,
+        match.text,
+        match.bindings,
+        match.offset,
+        match.input_ranges,
+        match.output_ranges,
+        tuple(form.at(path) for path in match.paths),
+    )
+
+
+def test_lean_query_matches_restored_form_baseline_on_varied_workload(
+    tmp_path: Path,
+) -> None:
+    corpus = _corpus.create(tmp_path / "c")
+    for index, form in enumerate(_workload("varied", 500)):
+        corpus.add(f"entry-{index:07d}", {}, {"cited": form})
+    compiled = Q.parse_query("[nasal]", FEATURES)
+    assert isinstance(compiled, rules.Query)
+
+    baseline = []
+    for entry_id in corpus.ids():
+        form = corpus.read_roles(entry_id, ("cited",), FEATURES).forms["cited"]
+        baseline.extend(
+            _query_observation(entry_id, "cited", match, form)
+            for match in Q.find(form, compiled, features=FEATURES)
+        )
+
+    optimized = []
+    for result in Q.query(corpus, compiled, role="cited", features=FEATURES):
+        form = corpus.read_roles(result.fileid, ("cited",), FEATURES).forms["cited"]
+        optimized.append(
+            _query_observation(result.fileid, result.role, result.match, form)
+        )
+
+    assert optimized == baseline
+
+
+def test_lean_query_preserves_restore_corruption_error(tmp_path: Path) -> None:
+    corpus = _corpus.create(tmp_path / "c")
+    corpus.add("entry", {}, {"cited": ipakit.read("ana")})
+    path = corpus._entry_path("entry")
+    document = _corpus._load_entry_object(path)
+    document["forms"]["cited"]["spelling"] = "not IPA: ☃"
+    path.write_bytes(_corpus._entry_bytes(document))
+
+    with pytest.raises(_corpus.CorpusError) as baseline:
+        corpus.read_roles("entry", ("cited",), FEATURES)
+    with pytest.raises(_corpus.CorpusError) as optimized:
+        list(Q.query(corpus, "[nasal]", role="cited", features=FEATURES))
+
+    assert str(optimized.value) == str(baseline.value)

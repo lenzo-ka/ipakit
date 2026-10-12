@@ -242,6 +242,8 @@ put, get, and full-scan query values. Peak resident memory is measured for the
 same process after those phases, so it includes their cumulative high-water
 mark. Timing values are sensitive to the environment and system load; the
 report records the established 5,000-entry targets and their measured outcomes.
+Those outcomes are evaluated against the 5,000-entry repeated workload, which
+the report names in ``target_workload``.
 
 ## Retained-form disagreement spreads
 

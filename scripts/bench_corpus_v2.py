@@ -155,6 +155,10 @@ def main() -> None:
         "python": platform.python_version(),
         "platform": platform.platform(),
         "targets": targets,
+        "target_workload": {
+            "workload": "repeated",
+            "requested_entries": 5000,
+        },
         "target_results": target_results,
         "rows": rows,
     }
