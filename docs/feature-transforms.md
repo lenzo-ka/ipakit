@@ -1,5 +1,9 @@
 # Finite feature transformations
 
+Harnesses: `tests/test_feature_transform.py` and
+`tests/test_feature_experiment.py`. Exact command:
+`PYTHONHASHSEED=0 .venv/bin/python -m pytest tests/test_feature_transform.py tests/test_feature_experiment.py`.
+
 [Working with alternate feature inventories](inventory-operations.md) combines
 house, Panphon, CLTS and custom cost packs in one explicit-token comparison.
 

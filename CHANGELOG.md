@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Documentation names exact harness commands for reproducible figures.
 - CMUdict corpus entries retain exact headword spelling beside lowercase lookup text.
 - TIMIT and Kirshenbaum conversions preserve written IPA order in output and loss reports.
 - Updated the Ruff and mypy lint tool revisions and floors.

@@ -51,11 +51,13 @@ The eigenspectrum diagnoses which distinction dominates the distance matrix. Bef
 
 The before-repair figures describe a matrix that no longer exists and cannot be recomputed. The after-repair figures are a reading of one commit, reproduced by `scripts/geometry.py` rather than by any gate; [distance.md](distance.md) names the commit and states the predicates the correlations are taken against:
 
+Exact command for the current matrix: `PYTHONHASHSEED=0 .venv/bin/python scripts/geometry.py`.
+
 ```text
 leading-axis/compositeness correlation   before repair  0.977
-leading-axis/vowelhood correlation       after repair   0.917
+leading-axis/vowelhood correlation       after repair   0.918
 negative eigenvalue mass, silence out    before repair  9.1%
-negative eigenvalue mass, silence out    after repair   12.3%
+negative eigenvalue mass, silence out    after repair   12.4%
 ```
 
 Negative eigenvalue mass rose after the repair. Phase families remain deliberately tight because typed ties say they share structure, while their distances to phones outside the family depend on which constituents they contain. Near points can therefore have different relations to the rest of the space; negative mass alone does not decide whether the repair succeeded.
@@ -69,6 +71,9 @@ Structural validation checks that computation preserves the declared distinction
 Perceptual confusion data are the direct external test. The first run uses Miller and Nicely's controlled consonant-confusion matrices ([Miller & Nicely 1955](https://doi.org/10.1121/1.1907526)). Five female talkers/listeners heard sixteen consonants before the study's /a/ (the vowel of *father*) in flat noise at S/N −18, −12, −6, 0, +6, and +12 dB over 200–6500 cps. The attested table in `ipakit/data/attested/miller_nicely_1955.json` is Arabie and Carroll's aggregate of those conditions: their lower-triangle symmetric misclassification probabilities, mapped to house IPA. No cell is smoothed, imputed, or dropped. The diagonal is excluded from ranking by construction; every unordered off-diagonal pair is retained.
 
 The hypothesis direction was stated before comparison: **more confusable ⇒ nearer**. Confusability descending and `segment_distance` ascending give the checked result below; ties receive average ranks.
+
+Harness: `scripts/perceptual_validation.py`. Exact command:
+`PYTHONHASHSEED=0 .venv/bin/python scripts/perceptual_validation.py check`.
 
 ```python
 from scripts.perceptual_validation import measurements

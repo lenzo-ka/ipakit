@@ -1,5 +1,8 @@
 # A calculus over the string set
 
+Harnesses: `scripts/docexamples.py` and `tests/test_calculus.py`. Exact command:
+`PYTHONHASHSEED=0 .venv/bin/python -m pytest tests/test_calculus.py && PYTHONHASHSEED=0 .venv/bin/python scripts/docexamples.py`.
+
 `rewrite` maps a form to a form. That is the right answer for a grammar whose rules all hold, and the wrong shape for most of what people actually want to say about pronunciation, because a great deal of it is *variable*: French *petit* is [pəti] and [pti], from one speaker in one conversation, and neither is derived from the other.
 
 So the object this document is about is not a form but a **set** of forms, and the operations over it. The notation is one character: `~>` in place of `->` marks a rule **optional**.
