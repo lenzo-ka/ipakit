@@ -12,6 +12,7 @@ from ipakit._graph_facts import (
     TierDeclaration,
     Timing,
 )
+from ipakit._identity import identity_fingerprint
 from ipakit.finite_model import FeatureSchema, FiniteModel, InvalidFeature, MissingToken
 from ipakit.model_graph import GraphBinding
 from ipakit.rules import Action, LiteralTokens, ModelRuleError, RuleSet, parse
@@ -206,6 +207,59 @@ def test_graph_decoration_split_deletion_preservation_and_reconstructed_restore(
     )
     assert restored.identity == result.identity
     assert tg.dump_bytes(restored.graph) == tg.dump_bytes(result.graph)
+
+
+def test_binding_identity_uses_tiergraph_fingerprint_and_refuses_old_stamp():
+    binding = fixture(claims=(False, 1, 0))
+    roles = (binding.token_value, binding.model_value, binding.starts_at, binding.clock)
+    expected = identity_fingerprint(
+        {
+            "format": "finite-graph-binding/2",
+            "graph": tg.fingerprint(binding.graph, tg.EquivalenceView.EXACT),
+            "model": binding.model.identity,
+            "refs": [ref.to_data() for ref in binding.refs],
+            "roles": [role.to_data() for role in roles],
+            "features": {
+                name: role.to_data() for name, role in binding.feature_values.items()
+            },
+        }
+    )
+    assert binding.identity == expected
+
+    old_identity = identity_fingerprint(
+        {
+            "format": "finite-graph-binding/1",
+            "graph": tg.to_data(binding.graph),
+            "model": binding.model.identity,
+            "refs": [ref.to_data() for ref in binding.refs],
+            "roles": [role.to_data() for role in roles],
+            "features": {
+                name: role.to_data() for name, role in binding.feature_values.items()
+            },
+        }
+    )
+    object.__setattr__(binding, "identity", old_identity)
+    with pytest.raises(ModelRuleError, match="source binding changed"):
+        binding.derive(RuleSet(()))
+
+
+def test_binding_identity_guards_exact_graph_namespace_prefix():
+    binding = fixture(claims=(False, 1, 0))
+    changed_namespace = replace(binding.graph.namespaces[0], prefix="changed-prefix")
+    changed_graph = replace(
+        binding.graph,
+        namespaces=(changed_namespace, *binding.graph.namespaces[1:]),
+    )
+
+    assert tg.fingerprint(changed_graph) == tg.fingerprint(binding.graph)
+    assert tg.fingerprint(changed_graph, tg.EquivalenceView.EXACT) != tg.fingerprint(
+        binding.graph, tg.EquivalenceView.EXACT
+    )
+    assert replace(binding, graph=changed_graph).identity != binding.identity
+
+    object.__setattr__(binding, "graph", changed_graph)
+    with pytest.raises(ModelRuleError, match="source binding changed"):
+        binding.derive(RuleSet(()))
 
 
 @pytest.mark.parametrize("tokens", [(), ("sil",)])

@@ -4,6 +4,7 @@ import json
 from dataclasses import replace
 
 import ipakit
+import ipakit.disagreement as disagreement
 import pytest
 from scripts.disagreement_demo import report
 
@@ -60,6 +61,114 @@ def test_tied_material_stays_structure_but_carries_itemized_terms() -> None:
     assert "segmental" not in difference.terms
     assert any("unmatched part" in label for label in difference.terms)
     assert any("juncture" in label for label in difference.terms)
+
+
+def test_eligible_contiguous_tier_segmentation_is_priced_once() -> None:
+    base = ipakit.read("kat")
+    left = ipakit.Form.of(
+        base.units,
+        (ipakit.Interval("syllable", 0, 1), ipakit.Interval("syllable", 1, 3)),
+    )
+    right = ipakit.Form.of(
+        base.units,
+        (ipakit.Interval("syllable", 0, 2), ipakit.Interval("syllable", 2, 3)),
+    )
+    spread = ipakit.DisagreementSpread.compare(
+        ipakit.ProvenancedForm("left", left),
+        ipakit.ProvenancedForm("right", right),
+    )
+    priced = [
+        item
+        for item in spread.disagreements
+        if item.claim == "contiguous tier segmentation distance"
+    ]
+    assert len(priced) == 1
+    assert priced[0].cost == 1.0
+    assert (
+        sum(
+            item.claim == "tier claim (unpriced by segment metric)"
+            for item in spread.disagreements
+        )
+        == 4
+    )
+    wire = spread.to_json()
+    assert ipakit.DisagreementSpread.from_json(wire) == spread
+    assert ipakit.DisagreementSpread.from_json(wire).to_json() == wire
+
+
+@pytest.mark.parametrize(
+    ("left_spans", "right_spans"),
+    [
+        (((0, 1), (1, 2), (2, 3)), ((0, 3),)),
+        (((0, 3),), ((0, 1), (1, 2), (2, 3))),
+    ],
+)
+def test_contiguous_tier_split_and_merge_cost_one_each(
+    left_spans: tuple[tuple[int, int], ...],
+    right_spans: tuple[tuple[int, int], ...],
+) -> None:
+    base = ipakit.read("kat")
+    left = ipakit.Form.of(
+        base.units,
+        tuple(ipakit.Interval("syllable", *span) for span in left_spans),
+    )
+    right = ipakit.Form.of(
+        base.units,
+        tuple(ipakit.Interval("syllable", *span) for span in right_spans),
+    )
+    spread = ipakit.DisagreementSpread.compare(
+        ipakit.ProvenancedForm("left", left),
+        ipakit.ProvenancedForm("right", right),
+    )
+    priced = [
+        item
+        for item in spread.disagreements
+        if item.claim == "contiguous tier segmentation distance"
+    ]
+    assert len(priced) == 1
+    assert priced[0].cost == 2.0
+
+
+def test_identical_contiguous_tiers_do_not_run_segmentation_distance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base = ipakit.read("kat")
+    intervals = (
+        ipakit.Interval("syllable", 0, 1),
+        ipakit.Interval("syllable", 1, 3),
+    )
+    left = ipakit.Form.of(base.units, intervals)
+    right = ipakit.Form.of(base.units, intervals)
+
+    def unexpected_distance(*args: object, **kwargs: object) -> float:
+        raise AssertionError("equal segmentations must bypass the cubic distance")
+
+    monkeypatch.setattr(
+        disagreement, "contiguous_segmentation_distance", unexpected_distance
+    )
+    spread = ipakit.DisagreementSpread.compare(
+        ipakit.ProvenancedForm("left", left),
+        ipakit.ProvenancedForm("right", right),
+    )
+    assert all(
+        item.claim != "contiguous tier segmentation distance"
+        for item in spread.disagreements
+    )
+
+
+def test_ineligible_tier_claims_keep_unpriced_fallback() -> None:
+    base = ipakit.read("kat")
+    left = ipakit.Form.of(base.units, (ipakit.Interval("syllable", 0, 2),))
+    right = ipakit.Form.of(base.units, (ipakit.Interval("syllable", 1, 3),))
+    spread = ipakit.DisagreementSpread.compare(
+        ipakit.ProvenancedForm("left", left),
+        ipakit.ProvenancedForm("right", right),
+    )
+    assert all(
+        item.claim != "contiguous tier segmentation distance"
+        for item in spread.disagreements
+    )
+    assert sum(item.cost for item in spread.disagreements) == 0.0
 
 
 def test_json_is_canonical_complete_and_round_trips() -> None:

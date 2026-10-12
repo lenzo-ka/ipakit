@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version-less Form profiles and corpus v1 entries now refuse instead of upgrading.
 - Documentation names exact harness commands for reproducible figures.
 - CMUdict corpus entries retain exact headword spelling beside lowercase lookup text.
+- Native finite-graph binding identity now uses Tiergraph exact-view fingerprints under the new `finite-graph-binding/2` stamp; derivation rejects a binding whose stored identity no longer matches.
+- Form-profile restoration now uses exact Tiergraph equivalence and reports the first differing graph element on refusal.
+- Provenanced form comparison now prices eligible contiguous tier segmentations while retaining unpriced claim rows and the general fallback.
 - TIMIT and Kirshenbaum conversions preserve written IPA order in output and loss reports.
 - Updated the Ruff and mypy lint tool revisions and floors.
 - Form graph construction now applies its complete profile in one editor transaction.

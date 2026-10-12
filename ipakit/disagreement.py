@@ -7,11 +7,16 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from tiergraph import contiguous_segmentation_distance
+
 from .distance import Alignment, AlignmentStep, PhoneCost
 from .features import IPAFeatures
 from .form import Form, Interval, Timing
 
 WIRE_VERSION = 1
+_SEGMENTATION_SPLIT_COST = 1
+_SEGMENTATION_MERGE_COST = 1
+_SEGMENTATION_DISPLACE_COST = 1
 
 
 class DisagreementKind(Enum):
@@ -82,6 +87,39 @@ def _interval(value: Interval) -> str:
 
 def _segment_units(form: Form) -> list[Any]:
     return [unit for unit in form.units if unit.segment is not None]
+
+
+def _contiguous_widths(
+    form: Form, tier: str, base_units: int
+) -> tuple[int, ...] | None:
+    """Return widths only for an ordered, positive, gap-free tier cover."""
+    if len(form.units) != base_units:
+        return None
+    intervals = sorted(
+        (interval for interval in form.intervals if interval.tier == tier),
+        key=lambda interval: (interval.start, interval.end),
+    )
+    if not intervals:
+        return None
+    cursor = 0
+    widths = []
+    for interval in intervals:
+        if interval.start != cursor or interval.end <= interval.start:
+            return None
+        widths.append(interval.end - interval.start)
+        cursor = interval.end
+    if cursor != base_units:
+        return None
+    return tuple(widths)
+
+
+def _segmentation_claim(form: Form, tier: str) -> str:
+    spans = sorted(
+        (interval.start, interval.end)
+        for interval in form.intervals
+        if interval.tier == tier
+    )
+    return f"{tier}:" + ",".join(f"[{start},{end})" for start, end in spans)
 
 
 def _pair(
@@ -184,6 +222,37 @@ def _pair(
                 claim="tier claim (unpriced by segment metric)",
             )
         )
+    base_units = len(reference.units)
+    tiers = sorted(
+        {interval.tier for interval in reference.intervals}
+        | {interval.tier for interval in source.intervals}
+    )
+    for tier in tiers:
+        left_widths = _contiguous_widths(reference, tier, base_units)
+        right_widths = _contiguous_widths(source, tier, base_units)
+        if left_widths is None or right_widths is None:
+            continue
+        if left_widths == right_widths:
+            continue
+        cost = contiguous_segmentation_distance(
+            left_widths,
+            right_widths,
+            split=_SEGMENTATION_SPLIT_COST,
+            merge=_SEGMENTATION_MERGE_COST,
+            displace=_SEGMENTATION_DISPLACE_COST,
+        )
+        if cost:
+            disagreements.append(
+                DisagreementPosition(
+                    DisagreementKind.STRUCTURE,
+                    None,
+                    None,
+                    _segmentation_claim(reference, tier),
+                    _segmentation_claim(source, tier),
+                    float(cost),
+                    claim="contiguous tier segmentation distance",
+                )
+            )
     return FormComparison(
         source_number, result.alignment, tuple(agreements), tuple(disagreements)
     )
