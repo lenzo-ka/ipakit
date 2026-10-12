@@ -8,6 +8,7 @@ from pathlib import Path
 
 import ipakit
 import pytest
+from ipakit import _corpus
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -288,14 +289,14 @@ def test_rules_derives_classifies_entry_envelope_corruption_and_writes_report(
     corpus.add("corrupt", {}, forms)
     path = location / "entries" / "corrupt.json"
     if corruption == "invalid_json":
-        path.write_text("not json", encoding="utf-8")
+        path.write_bytes(path.read_bytes()[:1] + b"not json")
     else:
-        document = json.loads(path.read_text(encoding="utf-8"))
+        document = _corpus._load_entry_object(path)
         if corruption == "wrong_type":
             document["type"] = "not-an-entry"
         else:
             document["forms"] = []
-        path.write_text(json.dumps(document), encoding="utf-8")
+        path.write_bytes(_corpus._entry_bytes(document))
 
     result = invoke(
         "rules",

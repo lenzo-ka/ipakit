@@ -75,11 +75,12 @@ class QueryParseError(rules.RuleError):
         quoted = re.search(r"'([^']+)'", message)
         offending = token or (quoted.group(1) if quoted else _offending_token(source))
         stated = re.search(r"at position (\d+)", message)
-        position = (
-            int(stated.group(1))
-            if stated is not None
-            else source.find(offending) if offending else 0
-        )
+        if stated is not None:
+            position = int(stated.group(1))
+        elif offending:
+            position = source.find(offending)
+        else:
+            position = 0
         self.position = max(position, 0)
         self.expected = message
         self.token = offending
@@ -144,8 +145,7 @@ def _parse_query(
         )
     if target.literal in inventory.zeros:
         raise rules.RuleError(
-            f"{spec!r} has a zero target; insertion sites are not "
-            "recognizable patterns"
+            f"{spec!r} has a zero target; insertion sites are not recognizable patterns"
         )
     if target.names_tier:
         raise rules.RuleError("a structural query target must name a unit")
@@ -431,7 +431,7 @@ def query(
     inventory = _default(features)
     compiled = parse_query(pattern, inventory) if isinstance(pattern, str) else pattern
     for entry_id in corpus.ids():
-        entry = corpus.read_roles(entry_id, iter((role,)))
+        entry = corpus.read_roles(entry_id, iter((role,)), features=inventory)
         form = entry.forms.get(role)
         if form is None:
             continue
@@ -487,10 +487,16 @@ def query_derivations(
     limit: int = DEFAULT_LIMIT,
 ) -> Iterator[tuple[str, DerivationAnswer]]:
     """Map :func:`derives` lazily over stored source/target role pairs."""
+    inventory = _default(features)
     for entry_id in corpus.ids():
-        entry = corpus.read_roles(entry_id, iter((source_role, target_role)))
+        entry = corpus.read_roles(
+            entry_id, iter((source_role, target_role)), features=inventory
+        )
         source = entry.forms.get(source_role)
         target = entry.forms.get(target_role)
         if source is None or target is None:
             continue
-        yield entry_id, derives(ruleset, source, target, features=features, limit=limit)
+        yield (
+            entry_id,
+            derives(ruleset, source, target, features=inventory, limit=limit),
+        )

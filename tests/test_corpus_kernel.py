@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses
-import json
 from pathlib import Path
 
 import ipakit
@@ -27,8 +26,9 @@ def test_round_trip_and_canonical_entry_bytes(tmp_path: Path, text: str):
     assert reopened.read("utt-001").forms["utt"] == original
     assert before == (tmp_path / "speech" / "entries" / "utt-001.json").read_bytes()
     assert before.endswith(b"\n")
-    assert b'"format_version":"0.3.0"' in before
-    assert b"features-json" in before
+    assert before.startswith(b'L{"forms"')
+    assert b'"encoding":"lean"' in before
+    assert b'"type":"ipakit.corpus.form","v":1' in before
 
 
 def test_same_form_has_identical_entry_bytes(tmp_path: Path):
@@ -74,11 +74,10 @@ def test_role_provenance_and_corpus_declaration_identity_are_additive(tmp_path: 
     assert reopened.declaration_fingerprint == identity_fingerprint(identity)
     assert reopened.read("word").provenance == {"aligned": provenance}
 
-    unannotated = json.loads(
-        (tmp_path / "corpus" / "entries" / "word.json").read_text()
-    )
+    path = tmp_path / "corpus" / "entries" / "word.json"
+    unannotated = _corpus._load_entry_object(path)
     unannotated.pop("provenance")
-    (tmp_path / "corpus" / "entries" / "word.json").write_text(json.dumps(unannotated))
+    path.write_bytes(_corpus._entry_bytes(unannotated))
     assert _corpus.open(tmp_path / "corpus").read("word").provenance == {}
 
 
@@ -203,24 +202,24 @@ def test_distinct_tamper_findings(tmp_path: Path):
     root = tmp_path / "corpus"
     corpus = _corpus.create(root)
     corpus.add("good", {}, {"utt": _form("a")})
-    original = json.loads((root / "entries" / "good.json").read_text())
+    original = _corpus._load_entry_object(root / "entries" / "good.json")
 
     bad_version = dict(original)
     bad_version["id"] = "versioned"
     bad_version["forms"] = dict(original["forms"])
     bad_version["forms"]["utt"] = dict(original["forms"]["utt"])
-    bad_version["forms"]["utt"]["format_version"] = "unsupported"
-    (root / "entries" / "versioned.json").write_text(json.dumps(bad_version))
+    bad_version["forms"]["utt"]["v"] = 999
+    (root / "entries" / "versioned.json").write_bytes(_corpus._entry_bytes(bad_version))
 
     mismatch = dict(original)
     mismatch["id"] = "shared"
-    (root / "entries" / "mismatch.json").write_text(json.dumps(mismatch))
+    (root / "entries" / "mismatch.json").write_bytes(_corpus._entry_bytes(mismatch))
     duplicate = dict(original)
     duplicate["id"] = "shared"
-    (root / "entries" / "duplicate.json").write_text(json.dumps(duplicate))
+    (root / "entries" / "duplicate.json").write_bytes(_corpus._entry_bytes(duplicate))
     invalid = dict(original)
     invalid["id"] = "../bad"
-    (root / "entries" / "invalid.json").write_text(json.dumps(invalid))
+    (root / "entries" / "invalid.json").write_bytes(_corpus._entry_bytes(invalid))
 
     findings = _corpus.validate(root).findings
     codes = {finding.code for finding in findings}
@@ -282,9 +281,9 @@ class TestValidateAndReadAgreeOnWhatIsWellFormed:
         corpus = _corpus.create(location)
         corpus.add("e1", {"text": "cat"}, {"ipa": _form("kæt")})
         path = location / "entries" / "e1.json"
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw = _corpus._load_entry_object(path)
         mutate(raw)
-        path.write_text(json.dumps(raw), encoding="utf-8")
+        path.write_bytes(_corpus._entry_bytes(raw))
         return location
 
     @pytest.mark.parametrize(
@@ -311,7 +310,6 @@ class TestValidateAndReadAgreeOnWhatIsWellFormed:
             refused = True
 
         report = _corpus.validate(location)
-        assert (
-            refused
-        ), f"{name}: read accepted it, so this case no longer discriminates"
+        accepted_message = f"{name}: read accepted a malformed entry"
+        assert refused, accepted_message
         assert not report.valid, f"{name}: read refuses it and validate calls it clean"

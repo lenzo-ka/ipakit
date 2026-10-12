@@ -5,6 +5,7 @@ from pathlib import Path
 
 import ipakit
 import pytest
+from ipakit import _corpus as corpus_store
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -108,9 +109,9 @@ def test_experiment_keeps_partial_role_coverage_as_entry_data(tmp_path: Path):
 def test_experiment_classifies_a_malformed_selected_form_per_entry(tmp_path: Path):
     corpus = _corpus(tmp_path)
     path = tmp_path / "corpus" / "entries" / "yes.json"
-    document = json.loads(path.read_text(encoding="utf-8"))
+    document = corpus_store._load_entry_object(path)
     document["forms"]["broad"] = {}
-    path.write_text(json.dumps(document), encoding="utf-8")
+    path.write_bytes(corpus_store._entry_bytes(document))
 
     report = ipakit.Experiment(
         ipakit.RuleSet(()), corpus, "broad", "narrow", split="held-out"
@@ -123,9 +124,9 @@ def test_experiment_classifies_a_malformed_selected_form_per_entry(tmp_path: Pat
 def test_experiment_ignores_a_malformed_unrelated_form(tmp_path: Path):
     corpus = _corpus(tmp_path)
     path = tmp_path / "corpus" / "entries" / "yes.json"
-    document = json.loads(path.read_text(encoding="utf-8"))
+    document = corpus_store._load_entry_object(path)
     document["forms"]["unrelated"] = "not a form wire"
-    path.write_text(json.dumps(document), encoding="utf-8")
+    path.write_bytes(corpus_store._entry_bytes(document))
 
     report = ipakit.Experiment(
         ipakit.RuleSet(()), corpus, "broad", "narrow", split="held-out"

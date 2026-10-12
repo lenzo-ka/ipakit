@@ -232,7 +232,9 @@ class Experiment:
         for entry_id in ids:
             try:
                 entry = self.corpus.read_roles(
-                    entry_id, (self.source_role, self.target_role)
+                    entry_id,
+                    (self.source_role, self.target_role),
+                    features=features,
                 )
                 source = entry.forms.get(self.source_role)
                 target = entry.forms.get(self.target_role)

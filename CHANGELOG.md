@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Corpus format v2 stores exact lean reconstructions and compresses native fallbacks.
+- Version-less Form profiles and corpus v1 entries now refuse instead of upgrading.
 - Documentation names exact harness commands for reproducible figures.
 - CMUdict corpus entries retain exact headword spelling beside lowercase lookup text.
 - TIMIT and Kirshenbaum conversions preserve written IPA order in output and loss reports.

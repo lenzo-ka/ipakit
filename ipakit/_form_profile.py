@@ -847,13 +847,12 @@ def restore(
     actual_keys = set(raw_metadata) if isinstance(raw_metadata, dict) else set()
     if (
         not isinstance(raw_metadata, dict)
-        or actual_keys not in (expected_keys, expected_keys | {"version"})
+        or actual_keys != expected_keys | {"version"}
         or raw_metadata["profile"] != "ipakit-form"
     ):
         raise ValueError("malformed current Form profile metadata")
     metadata = cast(dict[str, Any], raw_metadata)
-    legacy_profile = "version" not in metadata
-    if not legacy_profile and metadata["version"] != 2:
+    if metadata["version"] != 2:
         raise ValueError("unsupported Form profile version")
     if metadata["inventory"] != provider_identity(inventory):
         raise ValueError("Form restoring inventory declaration identity mismatch")
@@ -1213,8 +1212,8 @@ def restore(
         source,
         inventory,
         spelling,
-        _profile_version=None if legacy_profile else 2,
-        _matching=not legacy_profile,
+        _profile_version=2,
+        _matching=True,
     )
     if expected_graph != graph and tg.to_data(expected_graph) != tg.to_data(graph):
         raise ValueError("native graph is outside the current Form constructor profile")

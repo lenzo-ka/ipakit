@@ -1,8 +1,8 @@
 """Storage-neutral corpus model and the directory-backed implementation.
 
-The module is private while the corpus surface settles.  Entry documents are
-ordinary canonical JSON; forms use :class:`ipakit.form.Form`'s native
-wire so reading a corpus never reparses IPA text.
+The module is private while the corpus surface settles. Lean entry documents
+rebuild only after a write-time structural proof; every other Form retains its
+complete native graph in a compressed entry.
 """
 
 from __future__ import annotations
@@ -11,17 +11,23 @@ import json
 import os
 import re
 import tempfile
+import zlib
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .form import Form
+from .features import IPAFeatures
+from .form import Form, Interval, _default
 
-CORPUS_VERSION = 1
-ENTRY_VERSION = 1
+CORPUS_VERSION = 2
+ENTRY_VERSION = 2
+FORM_VERSION = 1
 _CORPUS_TYPE = "ipakit.corpus"
 _ENTRY_TYPE = "ipakit.corpus.entry"
+_FORM_TYPE = "ipakit.corpus.form"
+_LEAN = b"L"
+_NATIVE = b"N"
 # The longest an entry id may be. The pattern spells it as one leading
 # character plus the rest, and _check_id quotes it in its message, so the
 # bound is named once and both read from it.
@@ -37,6 +43,10 @@ _EXTENSIONS = {"textgrid": "TextGrid"}
 
 class CorpusError(ValueError):
     """A corpus cannot be created, opened, or read as requested."""
+
+
+class CorpusInventoryError(CorpusError):
+    """A corpus operation named an inventory the format cannot rebuild."""
 
 
 @dataclass(frozen=True)
@@ -126,42 +136,14 @@ def _json_bytes(value: object) -> bytes:
 
 
 def _entry_bytes(document: Mapping[str, Any]) -> bytes:
-    """Canonically encode an entry without rewriting embedded form wires."""
-    try:
-        forms = document["forms"]
-        encoded_forms = ",".join(
-            f"{json.dumps(role, ensure_ascii=False)}:"
-            f"{json.dumps(forms[role], ensure_ascii=False, allow_nan=False, separators=(',', ':'))}"
-            for role in sorted(forms)
-        )
-        fields = {
-            "forms": f"{{{encoded_forms}}}",
-            "id": json.dumps(document["id"], ensure_ascii=False),
-            "meta": json.dumps(
-                document["meta"],
-                ensure_ascii=False,
-                allow_nan=False,
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-            "provenance": json.dumps(
-                document.get("provenance", {}),
-                ensure_ascii=False,
-                allow_nan=False,
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-            "type": json.dumps(document["type"], ensure_ascii=False),
-            "v": json.dumps(document["v"]),
-        }
-    except (KeyError, TypeError, ValueError) as exc:
-        raise CorpusError(f"value is not canonical JSON data: {exc}") from exc
-    text = (
-        "{"
-        + ",".join(f"{json.dumps(key)}:{fields[key]}" for key in sorted(fields))
-        + "}"
+    """Encode one versioned entry using its file-level storage discriminator."""
+    payload = _json_bytes(document)
+    forms = document.get("forms")
+    native = isinstance(forms, dict) and any(
+        isinstance(value, dict) and value.get("encoding") == "native-zlib"
+        for value in forms.values()
     )
-    return (text + "\n").encode("utf-8")
+    return _NATIVE + zlib.compress(payload, level=9) if native else _LEAN + payload
 
 
 def _load_object(path: Path, what: str) -> dict[str, Any]:
@@ -172,6 +154,201 @@ def _load_object(path: Path, what: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise CorpusError(f"{what} {path.name!r} must contain a JSON object")
     return value
+
+
+def _load_entry(path: Path) -> tuple[dict[str, Any], bytes]:
+    """Read an entry after refusing an unknown file encoding discriminator."""
+    try:
+        stored = path.read_bytes()
+    except OSError as exc:
+        raise CorpusError(f"cannot read entry {path.name!r}: {exc}") from exc
+    if not stored or stored[:1] not in {_LEAN, _NATIVE}:
+        raise CorpusError(f"entry {path.name!r} has unsupported storage encoding")
+    payload = stored[1:]
+    if stored[:1] == _NATIVE:
+        try:
+            payload = zlib.decompress(payload)
+        except zlib.error as exc:
+            raise CorpusError(
+                f"cannot read entry {path.name!r}: invalid compressed payload"
+            ) from exc
+    try:
+        value = json.loads(payload)
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise CorpusError(f"cannot read entry {path.name!r}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise CorpusError(f"entry {path.name!r} must contain a JSON object")
+    return value, stored[:1]
+
+
+def _load_entry_object(path: Path) -> dict[str, Any]:
+    """Read an entry document without exposing its storage discriminator."""
+    return _load_entry(path)[0]
+
+
+def _check_entry_storage(forms: Mapping[str, object], storage: bytes) -> None:
+    native = any(
+        isinstance(value, dict) and value.get("encoding") == "native-zlib"
+        for value in forms.values()
+    )
+    expected = _NATIVE if native else _LEAN
+    if storage != expected:
+        raise CorpusError("entry storage encoding disagrees with its Form envelopes")
+
+
+def _inventory(features: IPAFeatures | None = None) -> IPAFeatures:
+    """Return the corpus inventory, refusing every non-default declaration."""
+    from ._form_profile import provider_identity
+
+    default = _default(None)
+    selected = _default(features)
+    if provider_identity(selected) != provider_identity(default):
+        raise CorpusInventoryError(
+            "corpus format v2 supports only the default inventory"
+        )
+    return selected
+
+
+def _check_form_inventory(form: Form, inventory: IPAFeatures) -> None:
+    from ._form_profile import provider_identity
+
+    if form.__dict__.get("_tiergraph_inventory_identity") != provider_identity(
+        inventory
+    ):
+        raise CorpusInventoryError(
+            "corpus format v2 supports only Forms built with the default inventory"
+        )
+
+
+def _unit_view(form: Form) -> tuple[object, ...]:
+    return tuple(
+        (
+            unit.text,
+            None if unit.segment is None else unit.segment.to_dict(),
+            tuple(sorted(unit.features.items())),
+            tuple(sorted(unit.prosody.items())),
+            unit.provenance,
+            unit.timing,
+            unit.spelling,
+        )
+        for unit in form.units
+    )
+
+
+def _eligibility_projection(form: Form) -> tuple[object, ...]:
+    """Return every construction fact that a lean rebuild must preserve."""
+    from ._containment_projection import _projection_signature
+
+    source = form.__dict__["_tiergraph_index"].containment_input
+    return (
+        form.to_ipa("exact"),
+        _unit_view(form),
+        form.intervals,
+        tuple(
+            (ref, tuple(sorted(source.events[ref].features.items())))
+            for ref in source.refs
+        ),
+        _projection_signature(source, frozenset()),
+        tuple((index, path) for index, _, path in source.unit_occurrences()),
+    )
+
+
+def _lean_envelope(form: Form) -> dict[str, object]:
+    return {
+        "type": _FORM_TYPE,
+        "v": FORM_VERSION,
+        "encoding": "lean",
+        "spelling": form.to_ipa("exact"),
+        "intervals": [
+            {"tier": span.tier, "start": span.start, "end": span.end}
+            for span in form.intervals
+        ],
+    }
+
+
+def _rebuild_lean(record: Mapping[str, Any], inventory: IPAFeatures) -> Form:
+    if set(record) != {"type", "v", "encoding", "spelling", "intervals"}:
+        raise CorpusError("lean corpus form has invalid fields")
+    spelling = record["spelling"]
+    raw_intervals = record["intervals"]
+    if not isinstance(spelling, str) or not isinstance(raw_intervals, list):
+        raise CorpusError("lean corpus form has invalid spelling or intervals")
+    if any(
+        not isinstance(item, dict)
+        or set(item) != {"tier", "start", "end"}
+        or not isinstance(item["tier"], str)
+        or type(item["start"]) is not int
+        or type(item["end"]) is not int
+        for item in raw_intervals
+    ):
+        raise CorpusError("lean corpus form has an invalid interval")
+    try:
+        form = inventory.read(spelling, strict=True)
+        intervals = tuple(
+            Interval(
+                item["tier"],
+                item["start"],
+                item["end"],
+                inventory,
+            )
+            for item in raw_intervals
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CorpusError(f"lean corpus form cannot be restored: {exc}") from exc
+    return Form.of(form.units, intervals) if intervals else form
+
+
+def _form_envelope(form: Form, inventory: IPAFeatures) -> dict[str, object]:
+    """Choose lean storage only after proving exact contract reconstruction."""
+    _check_form_inventory(form, inventory)
+    if "_source_profile_graph" not in form.__dict__ and not form.__dict__.get(
+        "_source_profile_gaps"
+    ):
+        try:
+            lean = _lean_envelope(form)
+            rebuilt = _rebuild_lean(lean, inventory)
+            if _eligibility_projection(form) == _eligibility_projection(rebuilt):
+                return lean
+        except (CorpusError, KeyError, TypeError, ValueError):
+            pass
+    return {
+        "type": _FORM_TYPE,
+        "v": FORM_VERSION,
+        "encoding": "native-zlib",
+        "native": form.to_dict(),
+    }
+
+
+def _check_envelope(record: object) -> Mapping[str, Any]:
+    if not isinstance(record, dict) or record.get("type") != _FORM_TYPE:
+        raise CorpusError("unsupported corpus form type")
+    if record.get("v") != FORM_VERSION:
+        raise CorpusError(
+            f"unsupported corpus form version {record.get('v')!r}; "
+            f"current version is {FORM_VERSION}"
+        )
+    encoding = record.get("encoding")
+    if encoding == "lean":
+        expected = {"type", "v", "encoding", "spelling", "intervals"}
+    elif encoding == "native-zlib":
+        expected = {"type", "v", "encoding", "native"}
+    else:
+        expected = None
+    if expected is None:
+        raise CorpusError(f"unsupported corpus form encoding {encoding!r}")
+    if set(record) != expected:
+        raise CorpusError(f"corpus form encoding {encoding!r} has invalid fields")
+    return record
+
+
+def _restore_form(record: object, inventory: IPAFeatures) -> Form:
+    envelope = _check_envelope(record)
+    if envelope["encoding"] == "lean":
+        return _rebuild_lean(envelope, inventory)
+    native = envelope["native"]
+    if not isinstance(native, dict):
+        raise CorpusError("native corpus form must contain a JSON object")
+    return Form.from_dict(native, inventory)
 
 
 class Corpus:
@@ -230,7 +407,7 @@ class Corpus:
         entry_paths = [self._entry_path(entry_id) for entry_id in self.ids()]
         try:
             manifest = _load_object(manifest_path, "corpus manifest")
-            entries = [_load_object(path, "entry") for path in entry_paths]
+            entries = [_load_entry_object(path) for path in entry_paths]
             value: Any = {"manifest": manifest, "entries": entries}
         except CorpusError:
             # A report over damaged input still needs a stable identity.  Keep
@@ -279,13 +456,14 @@ class Corpus:
             raise CorpusError("entry metadata must be a mapping")
         if not isinstance(forms, Mapping):
             raise CorpusError("entry forms must be a mapping")
+        inventory = _inventory()
         encoded_forms: dict[str, object] = {}
         for role, form in forms.items():
             if not isinstance(role, str) or not role:
                 raise CorpusError("form role names must be non-empty strings")
             if not isinstance(form, Form):
                 raise CorpusError(f"form {role!r} is not a Form")
-            encoded_forms[role] = form.to_dict()
+            encoded_forms[role] = _form_envelope(form, inventory)
         document = {
             "type": _ENTRY_TYPE,
             "v": ENTRY_VERSION,
@@ -308,9 +486,9 @@ class Corpus:
             raise
         return Entry(entry_id, dict(meta), dict(forms))
 
-    def read(self, entry_id: str) -> Entry:
+    def read(self, entry_id: str, features: IPAFeatures | None = None) -> Entry:
         """Restore one entry and all its named forms."""
-        return self.read_roles(entry_id)
+        return self.read_roles(entry_id, features=features)
 
     def roles(self, entry_id: str) -> tuple[str, ...]:
         """Return stored form role names without restoring their form wires."""
@@ -318,7 +496,7 @@ class Corpus:
         path = self._entry_path(entry_id)
         if not path.is_file():
             raise KeyError(entry_id)
-        raw = _load_object(path, "entry")
+        raw, storage = _load_entry(path)
         if raw.get("type") != _ENTRY_TYPE:
             raise CorpusError(
                 f"entry {entry_id!r} has unsupported type {raw.get('type')!r}"
@@ -337,11 +515,13 @@ class Corpus:
         raw_forms = raw.get("forms")
         if not isinstance(raw_forms, dict):
             raise CorpusError(f"entry {entry_id!r} forms must be a JSON object")
+        _check_entry_storage(raw_forms, storage)
         for role in raw_forms:
             if not isinstance(role, str) or not role:
                 raise CorpusError(
                     f"entry {entry_id!r} has an invalid form role {role!r}"
                 )
+            _check_envelope(raw_forms[role])
         return tuple(raw_forms)
 
     def put_form(
@@ -357,31 +537,42 @@ class Corpus:
             raise CorpusError("form role names must be non-empty strings")
         if not isinstance(form, Form):
             raise CorpusError(f"form {role!r} is not a Form")
+        inventory = _inventory()
+        _check_form_inventory(form, inventory)
         path = self._entry_path(entry_id)
         if not path.is_file():
             raise KeyError(entry_id)
-        document = _load_object(path, "entry")
         # Reading first applies all entry and form validation before a write can
         # preserve or extend a malformed document.
         current = self.read(entry_id)
-        raw_forms = document["forms"]
-        assert isinstance(raw_forms, dict)
-        raw_forms[role] = form.to_dict()
-        raw_provenance = document.setdefault("provenance", {})
-        if not isinstance(raw_provenance, dict):
-            raise CorpusError(f"entry {entry_id!r} provenance must be a JSON object")
+        next_forms = {**current.forms, role: form}
+        next_provenance = dict(current.provenance)
         if provenance is None:
-            raw_provenance.pop(role, None)
+            next_provenance.pop(role, None)
         else:
             if not isinstance(provenance, FormProvenance):
                 raise CorpusError("form provenance must be a FormProvenance")
-            raw_provenance[role] = {
-                "producer": {
-                    "name": provenance.producer.name,
-                    "version": provenance.producer.version,
-                },
-                "declaration_fingerprint": provenance.declaration_fingerprint,
-            }
+            next_provenance[role] = provenance
+        document = {
+            "type": _ENTRY_TYPE,
+            "v": ENTRY_VERSION,
+            "id": entry_id,
+            "meta": dict(current.meta),
+            "forms": {
+                name: _form_envelope(value, inventory)
+                for name, value in next_forms.items()
+            },
+            "provenance": {
+                name: {
+                    "producer": {
+                        "name": value.producer.name,
+                        "version": value.producer.version,
+                    },
+                    "declaration_fingerprint": value.declaration_fingerprint,
+                }
+                for name, value in next_provenance.items()
+            },
+        }
         data = _entry_bytes(document)
         descriptor, temporary = tempfile.mkstemp(dir=self._entries, prefix=".entry-")
         try:
@@ -391,27 +582,26 @@ class Corpus:
         except BaseException:
             Path(temporary).unlink(missing_ok=True)
             raise
-        next_provenance = dict(current.provenance)
-        if provenance is None:
-            next_provenance.pop(role, None)
-        else:
-            next_provenance[role] = provenance
-        return Entry(
-            entry_id, current.meta, {**current.forms, role: form}, next_provenance
-        )
+        return Entry(entry_id, current.meta, next_forms, next_provenance)
 
-    def read_roles(self, entry_id: str, roles: Iterable[str] | None = None) -> Entry:
+    def read_roles(
+        self,
+        entry_id: str,
+        roles: Iterable[str] | None = None,
+        features: IPAFeatures | None = None,
+    ) -> Entry:
         """Restore one entry, optionally restoring only selected form roles.
 
         The entry document is still read once, but unselected form wires are
         left untouched.  Collection operations use this to avoid constructing
         forms they cannot inspect.
         """
+        inventory = _inventory(features)
         _check_id(entry_id)
         path = self._entry_path(entry_id)
         if not path.is_file():
             raise KeyError(entry_id)
-        raw = _load_object(path, "entry")
+        raw, storage = _load_entry(path)
         if raw.get("type") != _ENTRY_TYPE:
             raise CorpusError(
                 f"entry {entry_id!r} has unsupported type {raw.get('type')!r}"
@@ -434,6 +624,7 @@ class Corpus:
             raise CorpusError(f"entry {entry_id!r} metadata must be a JSON object")
         if not isinstance(raw_forms, dict):
             raise CorpusError(f"entry {entry_id!r} forms must be a JSON object")
+        _check_entry_storage(raw_forms, storage)
         if not isinstance(raw_provenance, dict):
             raise CorpusError(f"entry {entry_id!r} provenance must be a JSON object")
         selected = None if roles is None else frozenset(roles)
@@ -446,13 +637,10 @@ class Corpus:
                 )
             if selected is not None and role not in selected:
                 continue
-            if not isinstance(representation, dict):
-                raise CorpusError(
-                    f"entry {entry_id!r} form {role!r} must be a JSON object"
-                )
+            _check_envelope(representation)
             try:
-                restored[role] = Form.from_dict(representation)
-            except (KeyError, TypeError, ValueError) as exc:
+                restored[role] = _restore_form(representation, inventory)
+            except (CorpusError, KeyError, TypeError, ValueError) as exc:
                 raise CorpusError(
                     f"entry {entry_id!r} form {role!r} cannot be restored: {exc}"
                 ) from exc
@@ -568,7 +756,7 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
         except CorpusError as exc:
             findings.append(Finding("invalid_id", str(exc), path=path.name))
         try:
-            raw = _load_object(path, "entry")
+            raw, storage = _load_entry(path)
         except CorpusError as exc:
             findings.append(Finding("entry_parse", str(exc), path=path.name))
             continue
@@ -605,7 +793,9 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                 )
             else:
                 valid_ids.add(stored_id)
+        entry_stamp_valid = True
         if raw.get("type") != _ENTRY_TYPE:
+            entry_stamp_valid = False
             findings.append(
                 Finding(
                     "entry_type",
@@ -614,6 +804,7 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                 )
             )
         if raw.get("v") != ENTRY_VERSION:
+            entry_stamp_valid = False
             findings.append(
                 Finding(
                     "entry_version",
@@ -621,6 +812,8 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                     path=path.name,
                 )
             )
+        if not entry_stamp_valid:
+            continue
         raw_forms = raw.get("forms")
         raw_provenance = raw.get("provenance", {})
         if not isinstance(raw_provenance, dict):
@@ -647,6 +840,18 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                 Finding("forms", f"entry {path.name!r} forms must be a JSON object")
             )
         else:
+            try:
+                _check_entry_storage(raw_forms, storage)
+            except CorpusError as exc:
+                findings.append(
+                    Finding(
+                        "entry_storage",
+                        str(exc),
+                        entry_id=stored_id if isinstance(stored_id, str) else None,
+                        path=path.name,
+                    )
+                )
+                continue
             for role, representation in sorted(raw_forms.items(), key=repr):
                 if not isinstance(role, str) or not role:
                     findings.append(
@@ -675,19 +880,20 @@ def validate(location: str | os.PathLike[str]) -> ValidationReport:
                             )
                         )
                 try:
-                    if not isinstance(representation, dict):
-                        raise ValueError("representation must be a JSON object")
-                    restored = Form.from_dict(representation)
+                    restored = _restore_form(representation, _inventory())
                     # The native graph carries structured segments without
                     # reparsing them. Validation is the deliberate exception:
                     # exercise the lexical ingestion boundary as well, so an
                     # unregistered base in an otherwise valid graph produces
                     # the same lossy-read warning as every other CLI reader.
-                    Form.parse(restored.to_ipa())
+                    if "_source_profile_graph" not in restored.__dict__:
+                        Form.parse(restored.to_ipa())
                 except (KeyError, TypeError, ValueError) as exc:
+                    message = str(exc)
                     code = (
                         "form_version"
-                        if "format_version" in str(exc) and "unsupported" in str(exc)
+                        if "unsupported" in message
+                        and ("format_version" in message or "form version" in message)
                         else "form_restore"
                     )
                     findings.append(
@@ -735,6 +941,7 @@ __all__ = [
     "ENTRY_VERSION",
     "Corpus",
     "CorpusError",
+    "CorpusInventoryError",
     "Entry",
     "Finding",
     "FormProvenance",

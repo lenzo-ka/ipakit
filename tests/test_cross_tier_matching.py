@@ -126,7 +126,7 @@ def test_focusless_nullable_query_keeps_focus_refusal_first():
     )
 
 
-def test_legacy_form_profile_upgrades_to_deterministic_matching_graph():
+def test_versionless_form_profile_is_not_a_current_form_document():
     from ipakit._form_profile import construct, restore
 
     inventory = ipakit.IPAFeatures()
@@ -136,11 +136,8 @@ def test_legacy_form_profile_upgrades_to_deterministic_matching_graph():
         source, inventory, spelling, _profile_version=None, _matching=False
     )
     legacy_json = wire.dump_compact(legacy)
-    restored = ipakit.Form.from_json(legacy_json, inventory)
-    encoded = restored.to_json()
-    assert ipakit.Form.from_json(encoded, inventory).to_json() == encoded
-    assert "linear-next" in encoded
-    assert observed(restored, "on(tier:segment): a b") == [("a˥b", ((0, 2), (3, 4)))]
+    with pytest.raises(ValueError, match="malformed current Form profile metadata"):
+        ipakit.Form.from_json(legacy_json, inventory)
 
 
 def test_nonpositional_tier_selection_is_refused():

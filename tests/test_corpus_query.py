@@ -140,14 +140,14 @@ def test_thousand_entry_query_yields_before_restoring_the_tail(
     for index in range(1000):
         corpus.add(f"e{index:04}", {}, {"broad": ipakit.read("a")})
     restored = 0
-    original = Form.from_dict.__func__
+    original = _corpus._restore_form
 
-    def count(cls, wire):
+    def count(wire, inventory):
         nonlocal restored
         restored += 1
-        return original(cls, wire)
+        return original(wire, inventory)
 
-    monkeypatch.setattr(Form, "from_dict", classmethod(count))
+    monkeypatch.setattr(_corpus, "_restore_form", count)
     stream = Q.query(corpus, "[vowel]", role="broad")
     assert next(stream).fileid == "e0000"
     assert restored == 1
