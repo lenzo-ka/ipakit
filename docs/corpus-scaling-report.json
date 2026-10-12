@@ -1,39 +1,39 @@
 {
-  "generated": "2026-08-11",
-  "platform": "macOS-27.0-arm64-arm-64bit",
-  "python": "3.12.12",
+  "generated": "2026-10-12",
+  "platform": "macOS-27.2-arm64-arm-64bit",
+  "python": "3.12.3",
   "rows": [
     {
-      "bytes": 206731,
+      "bytes": 2190931,
       "entries": 100,
-      "get_seconds": 0.006958,
+      "get_seconds": 0.423663,
       "matches": 100,
-      "put_seconds": 0.010855,
-      "query_seconds": 0.022773
+      "put_seconds": 0.081262,
+      "query_seconds": 0.421134
     },
     {
-      "bytes": 1033531,
+      "bytes": 10954531,
       "entries": 500,
-      "get_seconds": 0.085966,
+      "get_seconds": 2.054315,
       "matches": 500,
-      "put_seconds": 0.094482,
-      "query_seconds": 0.273681
+      "put_seconds": 0.388289,
+      "query_seconds": 2.111826
     },
     {
-      "bytes": 2067031,
+      "bytes": 21909031,
       "entries": 1000,
-      "get_seconds": 0.155237,
+      "get_seconds": 5.110769,
       "matches": 1000,
-      "put_seconds": 0.272915,
-      "query_seconds": 0.495887
+      "put_seconds": 1.028248,
+      "query_seconds": 5.953607
     },
     {
-      "bytes": 10335031,
+      "bytes": 109545031,
       "entries": 5000,
-      "get_seconds": 0.895497,
+      "get_seconds": 44.875115,
       "matches": 5000,
-      "put_seconds": 0.950232,
-      "query_seconds": 2.821207
+      "put_seconds": 7.709155,
+      "query_seconds": 44.608284
     }
   ],
   "type": "ipakit.corpus.scaling-report",

@@ -134,10 +134,22 @@ occurrence. Form-to-Form operations that rebuild from house units refuse every
 source-profile Form, including a fully covered one, unless the operation can
 preserve its authoritative source facts and relationships.
 
-The compact envelope has a fixed graph cost: measured from the shipped
-library, empty, one-token, and fifty-token `p` imports are 20,545, 23,142, and
-149,602 bytes. That is about 20.5 KB empty plus about 2.6 KB per token. The
-layout favors a complete inspectable native graph over a compact transport.
+The compact envelope has a fixed graph cost. The documentation checker executes
+these measurements against the shipped library for empty, one-token, and
+fifty-token `p` imports:
+
+```python
+from ipakit.clts import import_tokens
+
+sizes = tuple(
+    len(import_tokens(["p"] * count).to_json().encode("utf-8")) for count in (0, 1, 50)
+)
+sizes  # (20545, 23142, 149602)
+round((sizes[2] - sizes[0]) / 50, 1)  # 2581.1
+```
+
+The final value is the average incremental byte cost per token.
+The layout favors a complete inspectable native graph over a compact transport.
 
 The shipped [JSON Schema](../ipakit/data/clts/import-result.schema.json)
 describes complete, empty, refused, preserved, operation-error, source-emission,

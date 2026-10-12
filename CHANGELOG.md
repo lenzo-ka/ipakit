@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Documentation points to the generated corpus report and checks CLTS serialization figures.
 - Soft IPA readers report asserted empty constituents instead of dropping them silently.
 - X-SAMPA writing preserves source order and word boundaries across multi-unit joins.
 - X-SAMPA writing reports only symbols it cannot encode.
