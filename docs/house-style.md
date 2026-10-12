@@ -132,12 +132,19 @@ The zeros are the other clue, and they point to the later half of the same tradi
 
 Where the zeros fall recovers part of the conditioning: `cor−` implies *distributed* unvalued in 3,330 of 3,330 segments, and *tense* is unvalued for every consonant. It is applied unevenly, though — *anterior* is unvalued for vowels yet valued on `k` and `p`, which are `cor−`, so one Coronal dependent is conditioned in one context and not another. *Delayed release* is unvalued on 966 of 6,367 segments, while `/a/` is among the segments on which it is valued. The representation is not committed to a geometry so much as retaining an unstated fragment of one.
 
+Harness: `scripts/docexamples.py`. Exact command:
+`PYTHONHASHSEED=0 .venv/bin/python scripts/docexamples.py`.
+
 ```python
 import xml.etree.ElementTree as ET
 
 panphon_segments = ET.parse(
     "ipakit/data/feature-models/panphon.xml"
 ).getroot().findall(".//segment")
+coronal_minus = [segment for segment in panphon_segments
+                 if segment.get("cor") == "-"]
+(len(coronal_minus),
+ sum(segment.get("distr") == "0" for segment in coronal_minus))  # (3330, 3330)
 (len(panphon_segments),
  sum(segment.get("delrel") == "0" for segment in panphon_segments))  # (6367, 966)
 next(segment.get("delrel") for segment in panphon_segments

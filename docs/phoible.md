@@ -31,6 +31,8 @@ original_csv = read_source("data/phoible.csv")  # exact upstream bytes
 ```
 
 The frozen main CSV has 105,484 rows, 3,020 inventories and 51 columns.
+Harness: `tests/test_phoible_source.py`. Exact command:
+`PYTHONHASHSEED=0 .venv/bin/python -m pytest tests/test_phoible_source.py`.
 All foreign feature values and original spellings remain in the source bytes,
 even when house conversion refuses them. `source_files()` discovers the
 shipped CSV/BibTeX paths; `source_policy()` returns the receipt's nested

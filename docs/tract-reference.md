@@ -77,6 +77,9 @@ midline[8:]  # [(0.32, 0.16, 'measured'), (0.4, 0.13, 'measured'), (0.45, 0.13, 
 
 *Measured* is the aperture taken from the X-Ray Microbeam database over 48 speakers. That corpus has no upper wall forward of arc 0.11 and none behind arc 0.44, so everything outside that span is extrapolated, and the nasal branch, both dentitions, the tongue's falloff and the child head are hand-placed throughout. Each point in `heads.xml` states which it is.
 
+Harness: `scripts/articulatory.py`. Exact command:
+`PYTHONHASHSEED=0 .venv/bin/python scripts/articulatory.py all`.
+
 The one measured relation beyond the aperture is the jaw's: `heads.xml` declares a carriage profile, the fraction of what sits at each arc that the mandible carries, 0.66 at the lips falling to 0.013 by arc 0.60. The mandible constricts nothing — it is what the lower lip, the lower teeth and the tongue's anterior attachment ride on, so its position sets how open that part of the tract can be.
 
 See [articulatory-data.md](articulatory-data.md) for what that corpus can and cannot ground, and [tract-anatomy.md](tract-anatomy.md) for the specification these figures partially implement.

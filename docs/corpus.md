@@ -163,6 +163,9 @@ An experiment refuses a source or target role absent from every entry in its
 corpus or split; absence on only some entries remains per-entry
 `ill_formed_input`, because partial coverage is data rather than operator error.
 
+Harness: `tests/test_experiment.py`. Exact command:
+`PYTHONHASHSEED=0 .venv/bin/python -m pytest tests/test_experiment.py`.
+
 The command-line door prints the paper-table summary and writes the complete
 re-runnable document:
 
@@ -212,7 +215,7 @@ to the `cited` role, and `--role` selects another role explicitly.
 A full-scale measurement is intentionally not a test. The dated, generated
 [`corpus-scaling-report.json`](corpus-scaling-report.json) measures the storage
 kernel at 100, 500, 1,000, and 5,000 entries; regenerate it with
-`PYTHONHASHSEED=0 python scripts/corpus_scaling.py --counts ... --output ...`.
+`PYTHONHASHSEED=0 .venv/bin/python scripts/corpus_scaling.py --counts 100 500 1000 5000 --output docs/corpus-scaling-report.json`.
 On its recorded arm64 macOS/Python 3.12.12 run, 5,000 entries occupy 10.34 MB;
 put/get/full-scan query take 0.95/0.90/2.82 seconds. The full-scan query is
 linear in entry count, so that environment projects to roughly 76 seconds over
@@ -263,6 +266,8 @@ nucleus and tie adjacent vowel units. This removes all 6 structure
 disagreements and no feature disagreement, leaving 1 feature disagreement and
 no structure or timing disagreement as substantive. Normalization is confined
 to the demonstration and never hidden in the comparison object.
+
+Exact command: `PYTHONHASHSEED=0 .venv/bin/python scripts/disagreement_demo.py`.
 
 ```python
 from scripts.disagreement_demo import report

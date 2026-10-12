@@ -4,6 +4,8 @@ ipakit places every phone at an `(arc, offset)` in a normalized vocal tract and 
 
 `scripts/articulatory.py` is the measurement, reproducible on any mounted copy of the corpus. Everything quoted below is its output over all 48 speakers and all 8,670,344 frames.
 
+Exact command: `PYTHONHASHSEED=0 .venv/bin/python scripts/articulatory.py all`.
+
 ## The corpus
 
 The **X-Ray Microbeam Speech Production Database**, recorded at the University of Wisconsin-Madison. Eight gold pellets are tracked in the mid-sagittal plane while the speaker reads: upper lip (UL), lower lip (LL), four along the tongue from tip to back (T1-T4), and two on the mandible — the incisor (MNI) and the molar (MNM). 48 speakers are released, 22 male and 26 female, median age 21.

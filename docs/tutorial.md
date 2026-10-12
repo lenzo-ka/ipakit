@@ -2,6 +2,12 @@
 
 <!-- Generated from tutorial.src.md by scripts/tutorial.py. Do not edit: run `make tutorial`. -->
 
+Harness: `scripts/tutorial.py`. Exact commands:
+`PYTHONHASHSEED=0 .venv/bin/python scripts/tutorial.py build markdown` for
+`docs/tutorial.md` and
+`PYTHONHASHSEED=0 .venv/bin/python scripts/tutorial.py build notebook` for
+`ipakit/notebooks/ipakit-tutorial.ipynb`.
+
 ipakit answers questions about speech sounds: *what is this sound, what is it like, what
 else is like it, how do I write it in some other notation, and what happens to it in
 context.* This page walks through those tasks in that order. Every command and every

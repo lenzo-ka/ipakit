@@ -1,5 +1,8 @@
 # Language-relative syllabification
 
+The executable examples are checked by `scripts/docexamples.py`; exact command:
+`PYTHONHASHSEED=0 .venv/bin/python scripts/docexamples.py`.
+
 ## 1. The constructor, not a universal syllabifier
 
 `syllabifier(language)` reads a language declaration and returns a `Form → Intervals` mechanism.
