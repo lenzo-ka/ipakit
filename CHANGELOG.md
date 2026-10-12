@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version-less Form profiles and corpus v1 entries now refuse instead of upgrading.
 - Documentation names exact harness commands for reproducible figures.
 - CMUdict corpus entries retain exact headword spelling beside lowercase lookup text.
+- Native finite-graph binding identity now uses Tiergraph exact-view fingerprints under the new `finite-graph-binding/2` stamp; derivation rejects a binding whose stored identity no longer matches.
+- Form-profile restoration now uses exact Tiergraph equivalence and reports the first differing graph element on refusal.
+- Provenanced form comparison now prices eligible contiguous tier segmentations while retaining unpriced claim rows and the general fallback.
 - TIMIT and Kirshenbaum conversions preserve written IPA order in output and loss reports.
 - Updated the Ruff and mypy lint tool revisions and floors.
 - Form graph construction now applies its complete profile in one editor transaction.
@@ -44,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cold `on(...)` queries build, restore and first-match Form graphs in roughly half the time.
 - `distance compare` and `distance map` JSON now use the versioned inventory comparison report, retaining provenance and refusals across JSON, text, TSV, and Markdown. Text adds report identity and detailed input rows while retaining the established native-notation, mapping-total, worst-case, asymmetry, and stripping lines.
 - `compare_inventories.py` renders its TSV and SVG from the common report and preserves report order instead of independently reclustering phones.
-- Requires tiergraph 0.8.0 or later for relation-instance edit targets.
+- Requires tiergraph 0.9.0 or later for graph fingerprints, exact equivalence, and segmentation distance.
 
 ### Fixed
 

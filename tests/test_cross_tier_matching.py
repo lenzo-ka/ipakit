@@ -1,5 +1,7 @@
 """TierGraph-backed matching over selected Form tiers."""
 
+import dataclasses
+
 import ipakit
 import pytest
 from ipakit._cross_tier import CrossTierQuery, _cell, augment_graph, match_payloads
@@ -138,6 +140,27 @@ def test_versionless_form_profile_is_not_a_current_form_document():
     legacy_json = wire.dump_compact(legacy)
     with pytest.raises(ValueError, match="malformed current Form profile metadata"):
         ipakit.Form.from_json(legacy_json, inventory)
+
+
+def test_form_profile_restore_names_the_first_exact_difference():
+    from ipakit._form_profile import restore
+
+    inventory = ipakit.IPAFeatures()
+    graph = ipakit.Form.parse("a", inventory).graph
+    changed_namespace = dataclasses.replace(
+        graph.namespaces[0], prefix="changed-prefix"
+    )
+    changed = dataclasses.replace(
+        graph, namespaces=(changed_namespace, *graph.namespaces[1:])
+    )
+    with pytest.raises(
+        ValueError,
+        match=(
+            "native graph is outside the current Form constructor profile; "
+            "first difference: namespace 0"
+        ),
+    ):
+        restore(changed, inventory)
 
 
 def test_nonpositional_tier_selection_is_refused():

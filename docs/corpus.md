@@ -272,13 +272,16 @@ Kinds are the enum `DisagreementKind`, never strings in memory:
 | `STRUCTURE` | insertion/deletion, a substitution involving tied material (its matched, unmatched-material, and juncture terms are itemized, while the tied construction keeps the conservative structural classification), or a tier interval on one side only |
 | `TIMING` | aligned or unmatched carried units have different timing claims; always unpriced, since the metric declares no timing term — the structural row carries any step cost |
 
-Tier-only structure has cost `0.0` because the segment metric declares no tier
-price. The same rule applies to timing: the object reports the claim and reads
-the aligned position's price; it never invents a weight. All other costs and
-feature names come directly from `AlignmentStep`. The object selects no
-winner, averages no forms, and cannot emit a merged transcription. Its
-canonical, sorted-key JSON embeds every provenance identity and self-contained
-form and round-trips byte-identically.
+Individual tier-claim rows have cost `0.0` because the segment metric declares
+no tier price. When both sides instead supply a nonempty, ordered, positive,
+gap-free cover of the same base units, one additional structural row reports
+the exact contiguous-segmentation distance. Its declared policy prices each
+boundary split, merge, or displacement at `1`. Timing remains unpriced: the
+object reports the claim and reads the aligned position's price; it never
+invents a weight. All other costs and feature names come directly from
+`AlignmentStep`. The object selects no winner, averages no forms, and cannot
+emit a merged transcription. Its canonical, sorted-key JSON embeds every
+provenance identity and self-contained form and round-trips byte-identically.
 
 The checked CMUdict ∥ ipa-dict en_US demonstration is
 `scripts/disagreement_demo.py`. Four shared-word rows first produce 1 feature

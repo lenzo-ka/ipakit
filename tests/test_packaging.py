@@ -281,8 +281,8 @@ def test_no_tracked_file_holds_a_machine_path(built_sdist):
     assert matches == []
 
 
-def test_wheel_requires_tiergraph_0_8_or_later_without_an_upper_cap(built_wheel):
-    """Installation requires public relation-instance edit targets, without a cap."""
+def test_wheel_requires_tiergraph_0_9_or_later_without_an_upper_cap(built_wheel):
+    """Installation requires graph fingerprints, exact equivalence, and segmentation distance, without a cap."""
     with zipfile.ZipFile(built_wheel) as archive:
         metadata_paths = [
             name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
@@ -296,7 +296,7 @@ def test_wheel_requires_tiergraph_0_8_or_later_without_an_upper_cap(built_wheel)
     assert len(native) == 1
     requirement = native[0]
     assert requirement.url is None and requirement.marker is None
-    assert str(requirement.specifier) == ">=0.8.0"
+    assert str(requirement.specifier) == ">=0.9.0"
 
 
 def test_the_wheel_carries_one_canonical_panphon_declaration_and_credit(built_wheel):

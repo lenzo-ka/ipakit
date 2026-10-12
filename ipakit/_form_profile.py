@@ -1212,11 +1212,17 @@ def restore(
         source,
         inventory,
         spelling,
-        _profile_version=2,
+        _profile_version=metadata["version"],
         _matching=True,
     )
-    if expected_graph != graph and tg.to_data(expected_graph) != tg.to_data(graph):
-        raise ValueError("native graph is outside the current Form constructor profile")
+    if not tg.equivalent(expected_graph, graph, tg.EquivalenceView.EXACT):
+        difference = tg.first_difference(
+            expected_graph, graph, tg.EquivalenceView.EXACT
+        )
+        raise ValueError(
+            "native graph is outside the current Form constructor profile; "
+            f"first difference: {difference}"
+        )
     return source, spelling
 
 

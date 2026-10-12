@@ -184,8 +184,8 @@ class GraphBinding:
             "identity",
             identity_fingerprint(
                 {
-                    "format": "finite-graph-binding/1",
-                    "graph": tg.to_data(self.graph),
+                    "format": "finite-graph-binding/2",
+                    "graph": tg.fingerprint(self.graph, tg.EquivalenceView.EXACT),
                     "model": self.model.identity,
                     "refs": [ref.to_data() for ref in self.refs],
                     "roles": [role.to_data() for role in roles[:4]],
