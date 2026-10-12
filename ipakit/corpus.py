@@ -3,6 +3,7 @@
 from ._corpus import (
     Corpus,
     CorpusError,
+    CorpusInventoryError,
     Entry,
     Finding,
     FormProvenance,
@@ -32,6 +33,7 @@ __all__ = [
     "BudgetRefusal",
     "Corpus",
     "CorpusError",
+    "CorpusInventoryError",
     "CorpusMatch",
     "CMUdictIngestReport",
     "CMUdictRefusal",

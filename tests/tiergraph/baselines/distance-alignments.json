@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "ipakit": "0.3.0",
+  "ipakit": "0.5.0",
   "kind": "distance-alignments",
   "pairs": [
     {

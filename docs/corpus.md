@@ -212,13 +212,36 @@ Refusals are written to stderr, one tab-separated record per source line; a
 summary is written to stdout. Any refusal gives status 1. Corpus query defaults
 to the `cited` role, and `--role` selects another role explicitly.
 
+## Storage format
+
+A corpus manifest is `type="ipakit.corpus", v=2`; every entry is
+`type="ipakit.corpus.entry", v=2`. Entry files begin with one byte. `L` is
+followed by canonical JSON when every Form in the entry has a proven lean
+representation. `N` is followed by a level-9 zlib stream containing the whole
+canonical entry when any Form requires its native graph.
+
+Each stored Form is `type="ipakit.corpus.form", v=1`. A lean envelope carries
+`encoding="lean"`, exact IPA spelling, and explicit untimed intervals. Before
+writing it, ipakit rebuilds the Form with the default inventory and compares
+the raw event feature mappings and containment construction signature,
+including declarations, endpoint kinds, relations, roots, event payloads, and
+clock gap counts. Any difference or construction refusal selects
+`encoding="native-zlib"`, whose envelope carries the complete native graph.
+Source-profile Forms always use that lossless fallback. Forms built with
+another inventory are refused with `CorpusInventoryError`; `Corpus.read`,
+`Corpus.read_roles`, and corpus queries accept a `features` argument and apply
+the same inventory check. Format-v1 corpora are refused rather than upgraded.
+
 A full-scale measurement is intentionally not a test. The dated, generated
 [`corpus-scaling-report.json`](corpus-scaling-report.json) measures the storage
-kernel at 100, 500, 1,000, and 5,000 entries; regenerate it with
-`PYTHONHASHSEED=0 .venv/bin/python scripts/corpus_scaling.py --counts 100 500 1000 5000 --output docs/corpus-scaling-report.json`.
-The report records the environment and measured storage, put, get, and
-full-scan query values for each count. Timing values are sensitive to the
-environment and system load. This is a run report, not a performance threshold.
+kernel at 500 and 5,000 entries on repeated and varied Forms; regenerate it
+with `PYTHONHASHSEED=0 .venv/bin/python scripts/bench_corpus_v2.py --counts 500 5000 --workloads repeated varied --output docs/corpus-scaling-report.json`.
+The varied workload adds the graph-rich moraic witnesses and an interval Form
+to distinct CMUdict-sample pairs. The report records routing share, storage,
+put, get, and full-scan query values. Peak resident memory is measured for the
+same process after those phases, so it includes their cumulative high-water
+mark. Timing values are sensitive to the environment and system load; the
+report records the established 5,000-entry targets and their measured outcomes.
 
 ## Retained-form disagreement spreads
 

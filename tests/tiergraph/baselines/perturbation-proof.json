@@ -5,7 +5,7 @@
     "proof": "Changing any captured derivation trace, edit coordinate, distance operation, per-feature term, round-trip JSON, or derived artifact byte changes its recorded digest and makes tiergraph_capture.py verify fail."
   },
   "format": 1,
-  "ipakit": "0.4.0",
+  "ipakit": "0.5.0",
   "kind": "capture-sensitivity-proofs",
   "python_hash_seed": 0,
   "sweep": {

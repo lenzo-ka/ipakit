@@ -4,38 +4,68 @@
   "python": "3.12.3",
   "rows": [
     {
-      "bytes": 2190931,
-      "entries": 100,
-      "get_seconds": 0.423663,
-      "matches": 100,
-      "put_seconds": 0.081262,
-      "query_seconds": 0.421134
-    },
-    {
-      "bytes": 10954531,
+      "bytes": 94500,
+      "c1_entries": 0,
+      "c1_share": 0.0,
       "entries": 500,
-      "get_seconds": 2.054315,
+      "get_seconds": 0.067479,
       "matches": 500,
-      "put_seconds": 0.388289,
-      "query_seconds": 2.111826
+      "peak_rss_mb": 40.969,
+      "put_seconds": 0.288836,
+      "query_seconds": 0.170793,
+      "requested_entries": 500,
+      "workload": "repeated"
     },
     {
-      "bytes": 21909031,
-      "entries": 1000,
-      "get_seconds": 5.110769,
-      "matches": 1000,
-      "put_seconds": 1.028248,
-      "query_seconds": 5.953607
+      "bytes": 141139,
+      "c1_entries": 8,
+      "c1_share": 0.015717,
+      "entries": 509,
+      "get_seconds": 0.339243,
+      "matches": 763,
+      "peak_rss_mb": 96.375,
+      "put_seconds": 2.531228,
+      "query_seconds": 0.749834,
+      "requested_entries": 500,
+      "workload": "varied"
     },
     {
-      "bytes": 109545031,
+      "bytes": 945000,
+      "c1_entries": 0,
+      "c1_share": 0.0,
       "entries": 5000,
-      "get_seconds": 44.875115,
+      "get_seconds": 0.876402,
       "matches": 5000,
-      "put_seconds": 7.709155,
-      "query_seconds": 44.608284
+      "peak_rss_mb": 102.125,
+      "put_seconds": 2.859586,
+      "query_seconds": 1.797771,
+      "requested_entries": 5000,
+      "workload": "repeated"
+    },
+    {
+      "bytes": 1110995,
+      "c1_entries": 8,
+      "c1_share": 0.001597,
+      "entries": 5009,
+      "get_seconds": 2.829856,
+      "matches": 11097,
+      "peak_rss_mb": 152.406,
+      "put_seconds": 25.895078,
+      "query_seconds": 19.112443,
+      "requested_entries": 5000,
+      "workload": "varied"
     }
   ],
+  "target_results": {
+    "get": false,
+    "query": false,
+    "storage": true
+  },
+  "targets": {
+    "get_seconds": 0.66,
+    "query_seconds": 1.57,
+    "storage_bytes": 12640000
+  },
   "type": "ipakit.corpus.scaling-report",
-  "v": 1
+  "v": 2
 }
