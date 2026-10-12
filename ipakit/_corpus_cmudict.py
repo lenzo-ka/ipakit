@@ -40,6 +40,7 @@ class CMUdictIngestReport:
 class CMUdictDictionaryEntry:
     """One parsed CMUdict headword, variant, and phone spelling sequence."""
 
+    raw_word: str
     word: str
     variant: int
     phones: tuple[str, ...]
@@ -55,8 +56,10 @@ def read_cmudict_dictionary_line(line: str) -> CMUdictDictionaryEntry | None:
     parsed = _ENTRY.fullmatch(spelling)
     if parsed is None or len(fields) < 2:
         raise ValueError("expected a headword and one or more phones")
+    raw_word = parsed.group("word")
     return CMUdictDictionaryEntry(
-        parsed.group("word").lower(),
+        raw_word,
+        raw_word.lower(),
         int(parsed.group("variant") or "1"),
         tuple(fields[1:]),
     )
@@ -106,7 +109,11 @@ def ingest_cmudict(
                     form = ipa.read(transcription, strict=True)
                     corpus.add(
                         fileid,
-                        {"text": word, "word": word, "variant": variant},
+                        {
+                            "text": entry.raw_word,
+                            "word": word,
+                            "variant": variant,
+                        },
                         {"cited": form},
                     )
                 except (CorpusError, UnicodeError, ValueError) as exc:
