@@ -216,10 +216,9 @@ A full-scale measurement is intentionally not a test. The dated, generated
 [`corpus-scaling-report.json`](corpus-scaling-report.json) measures the storage
 kernel at 100, 500, 1,000, and 5,000 entries; regenerate it with
 `PYTHONHASHSEED=0 .venv/bin/python scripts/corpus_scaling.py --counts 100 500 1000 5000 --output docs/corpus-scaling-report.json`.
-On its recorded arm64 macOS/Python 3.12.12 run, 5,000 entries occupy 10.34 MB;
-put/get/full-scan query take 0.95/0.90/2.82 seconds. The full-scan query is
-linear in entry count, so that environment projects to roughly 76 seconds over
-the complete CMUdict. This curve is a run report, not a performance threshold.
+The report records the environment and measured storage, put, get, and
+full-scan query values for each count. Timing values are sensitive to the
+environment and system load. This is a run report, not a performance threshold.
 
 ## Retained-form disagreement spreads
 
