@@ -144,7 +144,7 @@ def test_identical_contiguous_tiers_do_not_run_segmentation_distance(
         raise AssertionError("equal segmentations must bypass the cubic distance")
 
     monkeypatch.setattr(
-        disagreement, "contiguous_segmentation_distance", unexpected_distance
+        disagreement, "_contiguous_segmentation_distance", unexpected_distance
     )
     spread = ipakit.DisagreementSpread.compare(
         ipakit.ProvenancedForm("left", left),

@@ -5,18 +5,33 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
-
-from tiergraph import contiguous_segmentation_distance
+from typing import TYPE_CHECKING, Any
 
 from .distance import Alignment, AlignmentStep, PhoneCost
 from .features import IPAFeatures
 from .form import Form, Interval, Timing
 
+if TYPE_CHECKING:
+    from decimal import Decimal
+
 WIRE_VERSION = 1
 _SEGMENTATION_SPLIT_COST = 1
 _SEGMENTATION_MERGE_COST = 1
 _SEGMENTATION_DISPLACE_COST = 1
+
+
+def _contiguous_segmentation_distance(
+    left: tuple[int, ...], right: tuple[int, ...]
+) -> Decimal:
+    from tiergraph.distance import contiguous_segmentation_distance
+
+    return contiguous_segmentation_distance(
+        left,
+        right,
+        split=_SEGMENTATION_SPLIT_COST,
+        merge=_SEGMENTATION_MERGE_COST,
+        displace=_SEGMENTATION_DISPLACE_COST,
+    )
 
 
 class DisagreementKind(Enum):
@@ -234,13 +249,7 @@ def _pair(
             continue
         if left_widths == right_widths:
             continue
-        cost = contiguous_segmentation_distance(
-            left_widths,
-            right_widths,
-            split=_SEGMENTATION_SPLIT_COST,
-            merge=_SEGMENTATION_MERGE_COST,
-            displace=_SEGMENTATION_DISPLACE_COST,
-        )
+        cost = _contiguous_segmentation_distance(left_widths, right_widths)
         if cost:
             disagreements.append(
                 DisagreementPosition(
