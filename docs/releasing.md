@@ -66,6 +66,10 @@ bytes, provenance and license notices when regenerating derived artifacts.
    PYTHONHASHSEED=0 python scripts/tiergraph_capture.py artifacts
    ```
    Then update only that file's line in `tests/tiergraph/baselines/MANIFEST.sha256`.
+   The other baselines (`capture-metadata.json`, `coordinates.json`,
+   `distance-alignments.json`, `perturbation-proof.json`) record the version
+   that produced their capture. They are frozen witnesses and are not
+   regenerated for a release.
    Do **not** run `tiergraph_capture.py manifest` here: it globs the gitignored
    `captures/` directory, so a manifest regenerated in a working checkout gains
    entries a clean clone cannot reproduce.

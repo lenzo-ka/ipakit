@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-12
+
 ### Added
 
 - Documented the managed eSpeak source workflow and shipped PHOIBLE boundary.
@@ -16,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Source receipts support strict optional build provenance.
 - Source policies support strict optional revision provenance.
 - Form queries select tiers and features with `on(...)` and expose exact input/output ranges.
+- `on(...)` braces take `|`, `&`, and `!` predicates; `none` matches a missing cell, `""` the empty string, and `∅` is false.
+- Inventory queries refuse sequence patterns.
+- `CorpusInventoryError` refuses Forms built with an inventory the corpus cannot rebuild; `Corpus.read`, `Corpus.read_roles`, and corpus queries accept `features=`.
 - Form graphs carry one declared parse-order chain for TierGraph matching.
 - Generated inventory documentation includes canonical pairwise and N-way report examples with named coverage denominators.
 - `inventory compare` aliases the report-owned `distance compare`; comparison surfaces also support Markdown.
@@ -33,7 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Form-profile restoration now uses exact Tiergraph equivalence and reports the first differing graph element on refusal.
 - Provenanced form comparison now prices eligible contiguous tier segmentations while retaining unpriced claim rows and the general fallback.
 - TIMIT and Kirshenbaum conversions preserve written IPA order in output and loss reports.
-- Updated the Ruff and mypy lint tool revisions and floors.
 - Form graph construction now applies its complete profile in one editor transaction.
 - Finite graph derivations now batch writes into one editor transaction.
 - Native containment and CLTS profile construction now avoid redundant graph freezes.
@@ -516,7 +520,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Precomposed characters (`ã`) were dropped at ingest; decomposed `ç` misparsed as bare `c` (#8).
 - `docs/distance.md` states plainly that `distance` is not a metric.
 
-[Unreleased]: https://github.com/lenzo-ka/ipakit/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/lenzo-ka/ipakit/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/lenzo-ka/ipakit/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/lenzo-ka/ipakit/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lenzo-ka/ipakit/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lenzo-ka/ipakit/compare/v0.2.0...v0.3.0
