@@ -319,19 +319,6 @@ def match_payloads(
     yield from held
 
 
-def result_ranges(
-    payloads: Iterable[dict[str, Any]], name: str
-) -> tuple[tuple[int, int], ...]:
-    values = sorted({tuple(pair) for payload in payloads for pair in payload[name]})
-    result: list[tuple[int, int]] = []
-    for start, end in values:
-        if result and start <= result[-1][1]:
-            result[-1] = (result[-1][0], max(result[-1][1], end))
-        else:
-            result.append((start, end))
-    return tuple(result)
-
-
 def _qualified_selector(name: str, inventory: Any | None) -> str:
     if name == "unit":
         return name
