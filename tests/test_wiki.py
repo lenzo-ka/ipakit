@@ -12,7 +12,7 @@ _ABSENT_CODES = frozenset({404, 410})
 #: How many times to re-ask when the answer was "not now" rather than "no".
 _RETRY_ATTEMPTS = 3
 #: Wikimedia asks that automated traffic identify itself and a way to be reached.
-_USER_AGENT = "ipakit-test/1.0 (https://github.com/ogionllc/ipakit)"
+_USER_AGENT = "ipakit-test/1.0 (https://github.com/lenzo-ka/ipakit)"
 
 
 class TestWikiLinks:

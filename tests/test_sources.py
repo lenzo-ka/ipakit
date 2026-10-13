@@ -371,7 +371,7 @@ def test_build_records_provenance_without_local_paths_and_publishes_tables(
     )
     assert result["build"] == {
         "tool": "ipakit",
-        "tool-version": "0.5.0",
+        "tool-version": "0.6.0",
         "format": 1,
         "built-at": "2026-10-08T14:32:05Z",
     }
