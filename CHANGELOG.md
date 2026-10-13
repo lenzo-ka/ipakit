@@ -52,7 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Importing ipakit leaves Tiergraph's opt-in distance and editing modules unloaded.
+- Importing ipakit leaves its cross-tier matcher and Tiergraph's opt-in distance, editing, and matching modules unloaded.
+- Ordinary corpus queries no longer load the cross-tier matcher.
+- Public corpus query annotations resolve without loading the cross-tier matcher.
 - Documentation points to the generated corpus report and checks CLTS serialization figures.
 - Soft IPA readers report asserted empty constituents instead of dropping them silently.
 - X-SAMPA writing preserves source order and word boundaries across multi-unit joins.

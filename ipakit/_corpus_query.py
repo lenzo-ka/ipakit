@@ -11,19 +11,19 @@ import json
 import re
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 from . import _corpus, rules
 from ._corpus import Corpus, CorpusError
-from ._cross_tier import (
-    CrossTierQuery,
-    match_payloads,
-    result_ranges,
-)
 from .features import IPAFeatures
 from .form import Form, Interval, Unit, _default, spell
 from .models import Phoneset
 from .rules import DEFAULT_LIMIT, Derivation, Query, RuleSet
+
+if TYPE_CHECKING:
+    from ._cross_tier import CrossTierQuery
+else:
+    CrossTierQuery = Any
 
 
 @dataclass(frozen=True)
@@ -209,6 +209,8 @@ def parse_query(
         if spec.lstrip().startswith("on("):
             if wild:
                 raise rules.RuleError("wild normalization is unavailable with on(...)")
+            from ._cross_tier import CrossTierQuery
+
             return CrossTierQuery.parse(spec, _default(features))
         return _parse_query(spec, features, wild=wild)
     except QueryParseError:
@@ -229,10 +231,13 @@ def query_rule(
     compiled = (
         parse_query(spec, inventory, wild=wild) if isinstance(spec, str) else spec
     )
-    if isinstance(compiled, CrossTierQuery):
-        raise rules.RuleError(
-            "cross-tier structural positions may constrain matches but cannot be edited"
-        )
+    if not isinstance(compiled, Query):
+        from ._cross_tier import CrossTierQuery
+
+        if isinstance(compiled, CrossTierQuery):
+            raise rules.RuleError(
+                "cross-tier structural positions may constrain matches but cannot be edited"
+            )
     target = compiled.target.source if compiled.target is not None else "∅"
     if compiled.left or compiled.right:
         left = " ".join(pattern.source for pattern in reversed(compiled.left))
@@ -384,6 +389,8 @@ def _find_prepared(
     compiled: Query,
     inventory: IPAFeatures,
 ) -> Iterator[Match]:
+    from ._match_ranges import result_ranges
+
     seen: set[tuple[tuple[str, ...], str, tuple[tuple[str, str], ...]]] = set()
     for site in compiled.sites(prepared.units, inventory, prepared.intervals):
         match = Match(
@@ -413,6 +420,9 @@ def _find_prepared(
 
 
 def _find_cross_tier(form: Form, query: CrossTierQuery) -> Iterator[Match]:
+    from ._cross_tier import match_payloads
+    from ._match_ranges import result_ranges
+
     spelling = form.to_ipa("exact")
     seen: set[tuple[tuple[str, ...], tuple[tuple[int, int], ...]]] = set()
     for payloads in match_payloads(form, query):
@@ -452,9 +462,14 @@ def find(
     compiled = (
         parse_query(spec, inventory, wild=wild) if isinstance(spec, str) else spec
     )
-    if isinstance(compiled, CrossTierQuery):
-        yield from _find_cross_tier(parsed, compiled)
-        return
+    if not isinstance(compiled, Query):
+        from ._cross_tier import CrossTierQuery
+
+        if isinstance(compiled, CrossTierQuery):
+            yield from _find_cross_tier(parsed, compiled)
+            return
+    from ._match_ranges import result_ranges
+
     paths = _unit_paths(parsed)
     unit_ranges = _legacy_unit_ranges(parsed)
     seen: set[tuple[tuple[str, ...], str, tuple[tuple[str, str], ...]]] = set()
